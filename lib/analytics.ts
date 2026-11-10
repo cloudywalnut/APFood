@@ -1,4 +1,4 @@
-import { dayKey, totals, type DemoState } from "./demo";
+import { dayKey, totals, type DemoState, type Entry } from "./demo";
 
 export function scopeData(state: DemoState, days: number, zone: string, vendorId: string) {
   const start = dayKey(1 - days);
@@ -9,9 +9,11 @@ export function scopeData(state: DemoState, days: number, zone: string, vendorId
   return { vendors, orders, entries, finance: totals(entries) };
 }
 
-export function financeSeries(entries: DemoState["entries"], days: number) {
+export type FinanceEntry = Pick<Entry, "day" | "type" | "amount">;
+
+export function financeSeries(entries: FinanceEntry[], days: number, asOf = Date.now()) {
   return Array.from({ length: Math.min(days, 14) }, (_, index) => {
-    const day = dayKey(index + 1 - Math.min(days, 14));
+    const day = dayKey(index + 1 - Math.min(days, 14), asOf);
     return { day, ...totals(entries.filter(entry => entry.day === day)) };
   });
 }

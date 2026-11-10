@@ -10,11 +10,12 @@ import { scopeData } from "../lib/analytics";
 import { CashflowChart } from "./cashflow-chart";
 import { ErrorMessage, Modal, OpsShell, Recommendation, replaceFilters, ScenarioSelect } from "./shared";
 import { Traffic } from "./traffic";
+import { TrafficLab } from "./traffic-lab";
 
 type Scope = ReturnType<typeof scopeData>;
 const titles: Record<string, string> = { home: "Overview", cashflow: "Cashflow", products: "Products", vendors: "Vendors", traffic: "Traffic", audit: "Audit trail" };
 
-export function AdminPage({ route, section }: { route: string; section: string }) {
+export function AdminPage({ route, section, trafficLab }: { route: string; section: string; trafficLab: boolean }) {
   const state = useDemo();
   const params = useSearchParams();
   const requestedDays = Number(params.get("days"));
@@ -36,7 +37,7 @@ export function AdminPage({ route, section }: { route: string; section: string }
     {section === "cashflow" && <Cashflow data={data} days={days} />}
     {section === "products" && <Products data={data} />}
     {section === "vendors" && <Vendors />}
-    {section === "traffic" && <Traffic admin zone={zone} vendorId={vendorId} />}
+    {section === "traffic" && <div className="stack"><Traffic admin zone={zone} vendorId={vendorId} />{trafficLab && <TrafficLab stalls={state.vendors} />}</div>}
     {section === "audit" && <Audit />}
   </OpsShell>;
 }

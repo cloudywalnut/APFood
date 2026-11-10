@@ -164,21 +164,27 @@ function Orders() {
   return <><div className="student-heading"><div><h1>Orders</h1><p>Track active pickups and find previous demo orders.</p></div></div>{orders.length ? <div className="orders-list panel">{orders.map(order => <Link href={"/app/orders/" + order.id} className="order-list-row" key={order.id}><span><strong>{state.vendors.find(vendor => vendor.id === order.vendorId)?.name}</strong><small>{order.id} · {order.day === dayKey() ? "Today" : order.day} · {slotLabel(order.slot)}</small></span><StatusBadge status={order.status} /><strong>{money(order.total)}</strong><ChevronRight size={16} aria-hidden /></Link>)}</div> : <Empty title="No orders here yet" detail="Your pickups appear after you place an order." href="/app/vendors" action="Explore vendors" />}</>;
 }
 
-function PickupDialog({ id, code, expiresAt, close }: { id: string; code: string; expiresAt?: number; close: () => void }) {
-  const [image, setImage] = useState("");
+export function PickupDialog({ code, expiresAt, close, regenerate }: { code: string; expiresAt?: number; close: () => void; regenerate: () => void | Promise<void> }) {
+  const [image, setImage] = useState<{ code: string; src: string }>();
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
     let current = true;
-    import("qrcode").then(module => module.toDataURL(code, { margin: 2, width: 216 })).then(value => { if (current) setImage(value); }).catch(() => { if (current) setMessage("The QR could not load. Use the text code."); });
+    import("qrcode").then(module => module.toDataURL(code, { margin: 2, width: 216 })).then(src => { if (current) setImage({ code, src }); }).catch(() => { if (current) setMessage("The QR could not load. Use the text code."); });
     return () => { current = false; };
   }, [code]);
   return <Modal title="Pickup code" close={close}>
     <p>Show this code to the stall when you collect your order. The code is valid for five minutes.</p>
-    {image && <Image className="pickup-qr" src={image} width={216} height={216} unoptimized alt="Scannable pickup QR" />}
+    {image?.code === code && <Image className="pickup-qr" src={image.src} width={216} height={216} unoptimized alt="Scannable pickup QR" />}
     <div className="pickup-code">{code}</div><p className="small muted">{expiresAt ? "Expires " + new Date(expiresAt).toLocaleTimeString("en-MY", { timeZone: "Asia/Kuala_Lumpur", hour: "numeric", minute: "2-digit" }) : ""}</p>
     <div className="line wrap"><button className="button secondary" onClick={async () => {
       try { await navigator.clipboard.writeText(code); setMessage("Code copied."); } catch { setMessage("Select and copy the text code above."); }
-    }}><Copy size={16} aria-hidden /> Copy code</button><button className="button secondary" onClick={() => { issueCode(id, true); setMessage("New code generated."); }}>Generate new code</button></div>
+    }}><Copy size={16} aria-hidden /> Copy code</button><button className="button secondary" disabled={busy} onClick={async () => {
+      setBusy(true);
+      try { await regenerate(); setMessage("New code generated."); }
+      catch (error) { setMessage(error instanceof Error ? error.message : "Could not generate a new code."); }
+      finally { setBusy(false); }
+    }}>Generate new code</button></div>
     <p className="small" role="status">{message}</p>
   </Modal>;
 }
@@ -197,7 +203,7 @@ function OrderDetail({ id }: { id: string }) {
       <div className="line wrap">{order.status === "ready" && <button className="button primary" onClick={() => { issueCode(id); setDialog("code"); }}><QrCode size={18} aria-hidden /> Show pickup code</button>}{["placed", "accepted"].includes(order.status) && <button className="button secondary" onClick={() => { setError(""); setDialog("cancel"); }}>Cancel order</button>}</div>
       <p className="small muted">Demo status syncs with other tabs in this browser.</p>
     </section><section className="panel order-summary"><h2>Order summary</h2>{order.lines.map(line => <div className="line spread" key={line.itemId + line.extra}><span>{line.quantity} × {line.name}{line.extra && " + side"}</span><strong>{money(line.unit * line.quantity)}</strong></div>)}<div className="line spread cart-total"><strong>Total</strong><strong>{money(order.total)}</strong></div><p className="small muted">{order.payment === "demo" ? "Demo payment — no money charged" : "Pay at counter · Demo"}</p></section></div>
-    {dialog === "code" && order.status === "ready" && <PickupDialog id={id} code={order.code} expiresAt={order.codeExpiresAt} close={() => setDialog(undefined)} />}
+    {dialog === "code" && order.status === "ready" && <PickupDialog code={order.code} expiresAt={order.codeExpiresAt} close={() => setDialog(undefined)} regenerate={() => issueCode(id, true)} />}
     {dialog === "cancel" && <Modal title="Cancel this order?" close={() => setDialog(undefined)}><p>The vendor will see the cancellation in the kitchen board.</p><ErrorMessage message={error} /><div className="line dialog-actions"><button className="button secondary" onClick={() => setDialog(undefined)}>Keep order</button><button className="button danger" onClick={() => { try { transition(id, "cancelled", "Student"); setDialog(undefined); } catch (problem) { setError((problem as Error).message); } }}>Cancel order</button></div></Modal>}
   </>;
 }

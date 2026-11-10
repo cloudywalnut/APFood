@@ -1,10 +1,10 @@
 "use client";
 
-import { dayLabel, money, type Entry } from "../lib/demo";
-import { financeSeries } from "../lib/analytics";
+import { dayLabel, money } from "../lib/demo";
+import { financeSeries, type FinanceEntry } from "../lib/analytics";
 
-export function CashflowChart({ entries, days }: { entries: Entry[]; days: number }) {
-  const values = financeSeries(entries, days);
+export function CashflowChart({ entries, days, asOf }: { entries: FinanceEntry[]; days: number; asOf?: number }) {
+  const values = financeSeries(entries, days, asOf);
   const min = Math.min(0, ...values.map(value => value.net));
   const max = Math.max(1000, ...values.flatMap(value => [value.inflow, value.expense, value.net]));
   const low = Math.floor(min / 1000) * 1000;

@@ -13,7 +13,7 @@ export function Traffic({ admin = false, zone = "", vendorId = "" }: { admin?: b
   const active = state.orders.filter(order => order.scenario === state.scenario && vendors.some(vendor => vendor.id === order.vendorId));
   const counts = { placed: active.length, collected: active.filter(order => order.status === "collected").length, cancelled: active.filter(order => order.status === "cancelled" || order.status === "rejected").length };
   return <>
-    <div className={admin ? "page-heading" : "student-heading"}><div><h1>{admin ? "Traffic & scenarios" : "Food Court Activity"}</h1><p>Compare scheduled pickups and kitchen load by food court.</p></div>{admin && <ScenarioSelect />}</div>
+    <div className={admin ? "page-heading" : "student-heading"}><div><h1>{admin ? "Traffic & scenarios" : "Food Court Activity"}</h1><p>Compare scheduled pickups and kitchen load by food court.</p></div>{admin && <ScenarioSelect label="Browser scenario" />}</div>
     <div className="traffic-note"><strong>Physical crowd not verified</strong><p>Source · {scenarioNames[state.scenario]} browser fixtures and local demo orders.</p></div>
     {admin && <div className="panel run-summary"><div><small>Orders in this dataset</small><strong>{counts.placed}</strong></div><div><small>Collected</small><strong>{counts.collected}</strong></div><div><small>Cancelled or rejected</small><strong>{counts.cancelled}</strong></div><div><small>Active pickups</small><strong>{active.filter(order => isActive(order.status)).length}</strong></div></div>}
     {zones.length === 0 && <Empty title="No matching food courts" detail="Choose a different stall or zone." />}
@@ -32,6 +32,5 @@ export function Traffic({ admin = false, zone = "", vendorId = "" }: { admin?: b
         <div className="zone-foot"><strong>{next ? "Next available · " + slotLabel(next.slot) : "No available pickup windows"}</strong>{!admin && <Link className="quiet-link" href="/app/vendors">Browse vendors <ArrowRight size={15} aria-hidden /></Link>}</div>
       </section>;
     })}</div>
-    {admin && <p className="muted small">The frontend uses preset browser scenarios. Attempt and conflict counts require the order generator in the backend phase.</p>}
   </>;
 }

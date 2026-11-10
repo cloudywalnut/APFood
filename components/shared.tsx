@@ -26,21 +26,28 @@ const adminLinks = [
   ["/admin", "Overview", LayoutDashboard], ["/admin/cashflow", "Cashflow", WalletCards], ["/admin/products", "Products", ShoppingBag], ["/admin/vendors", "Vendors", Store], ["/admin/traffic", "Traffic", BarChart3], ["/admin/audit", "Audit", ClipboardList],
 ] as const;
 
-export function StudentShell({ route, children }: { route: string; children: ReactNode }) {
-  const state = useDemo();
-  const count = state.cart.reduce((sum, line) => sum + line.quantity, 0);
+function CartLink({ count }: { count: number }) {
+  return <Link className="button secondary cart-link" href="/app/cart"><ShoppingBag size={17} aria-hidden /> Cart{count > 0 && <span className="cart-count">{count}</span>}</Link>;
+}
+
+function MockCartLink() {
+  const { cart } = useDemo();
+  return <CartLink count={cart.reduce((sum, line) => sum + line.quantity, 0)} />;
+}
+
+export function StudentShell({ route, children, cartCount }: { route: string; children: ReactNode; cartCount?: number }) {
   return <div className="student-theme">
     <header className="student-header"><div className="student-bar"><Brand /><nav className="student-nav" aria-label="Student navigation">
       {studentLinks.map(([href, label, Icon], index) => {
         const current = route === href || (index > 0 && route.startsWith(href + "/"));
         return <Link href={href} key={href} aria-current={current ? "page" : undefined}><Icon size={17} aria-hidden /><span>{label}</span></Link>;
       })}
-    </nav><Link className="button secondary cart-link" href="/app/cart"><ShoppingBag size={17} aria-hidden /> Cart{count > 0 && <span className="cart-count">{count}</span>}</Link></div></header>
-    <main id="main-content" className="student-main"><ScenarioNotice />{children}</main><Footer />
+    </nav>{cartCount === undefined ? <MockCartLink /> : <CartLink count={cartCount} />}</div></header>
+    <main id="main-content" className="student-main">{cartCount === undefined && <ScenarioNotice />}{children}</main><Footer />
   </div>;
 }
 
-export function OpsShell({ kind, route, title, children }: { kind: "vendor" | "admin"; route: string; title: string; children: ReactNode }) {
+export function OpsShell({ kind, route, title, children, hosted = false }: { kind: "vendor" | "admin"; route: string; title: string; children: ReactNode; hosted?: boolean }) {
   const links = kind === "vendor" ? vendorLinks : adminLinks;
   const filters = useSearchParams().toString();
   return <div className="ops-theme">
@@ -53,8 +60,8 @@ export function OpsShell({ kind, route, title, children }: { kind: "vendor" | "a
       <div className="ops-profile"><span className="profile-initials">{kind === "admin" ? "CO" : "FO"}</span><span><strong>{kind === "admin" ? "Campus operations" : "Food stall operator"}</strong><small>Demo workspace</small></span></div>
     </aside>
     <div className="ops-body">
-      <header className="ops-top"><span className="ops-title">{title}</span><div className="ops-top-actions"><span className="badge neutral">Frontend demo</span><Link href="/" className="quiet-link">Switch portal <ArrowUpRight size={15} aria-hidden /></Link></div></header>
-      <main id="main-content" className="ops-main"><ScenarioNotice />{children}</main><Footer />
+      <header className="ops-top"><span className="ops-title">{title}</span><div className="ops-top-actions"><span className="badge neutral">{hosted ? "Hosted demo" : "Frontend demo"}</span><Link href="/" className="quiet-link">Switch portal <ArrowUpRight size={15} aria-hidden /></Link></div></header>
+      <main id="main-content" className="ops-main">{!hosted && <ScenarioNotice />}{children}</main><Footer />
     </div>
   </div>;
 }
@@ -73,9 +80,9 @@ export function ScenarioNotice() {
   return scenario !== "standard" ? <div className="notice" role="status"><strong>Simulated traffic · {scenarioNames[scenario]}</strong><span>Using fictional orders and pickup activity.</span></div> : null;
 }
 
-export function ScenarioSelect() {
+export function ScenarioSelect({ label = "Data source" }: { label?: string }) {
   const { scenario } = useDemo();
-  return <label className="field compact">Data source<select value={scenario} onChange={event => selectScenario(event.target.value as Scenario)}>{scenarios.map(value => <option key={value} value={value}>{scenarioNames[value]}</option>)}</select></label>;
+  return <label className="field compact">{label}<select value={scenario} onChange={event => selectScenario(event.target.value as Scenario)}>{scenarios.map(value => <option key={value} value={value}>{scenarioNames[value]}</option>)}</select></label>;
 }
 
 export function StatusBadge({ status }: { status: Status }) {

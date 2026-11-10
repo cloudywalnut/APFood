@@ -1,16 +1,17 @@
 # AP Food backend · Initial implementation
 
-The Supabase migrations and HTTP API cover seeded roles, catalogue, checkout, vendor fulfilment, pickup, audit, the demo ledger, and aggregate pickup activity. The existing screens currently use the browser demo. `lib/backend/client.ts` provides the typed client for the frontend integration, and `lib/backend/realtime.ts` provides private order invalidations with a scoped refetch fallback.
+The Supabase migrations and HTTP API cover seeded roles, catalogue, checkout, vendor fulfilment, pickup, audit, the demo ledger, and aggregate pickup activity. The default frontend mode uses browser fixtures. Set `AP_FOOD_DATA_MODE=supabase` for the hosted student, vendor, and admin screens. Both modes use the same public routes and visual shells.
 
 ## Connect the hosted demo
 
-1. Create a dedicated Supabase project for fictional data. In a terminal with project access, run `npx supabase login`, then `npx supabase link --project-ref <demo-project-ref>`. Preview the pending migration list with `npx supabase db push --dry-run`, then apply it with `npx supabase db push --include-seed`.
-2. Copy `.env.example` to `.env.local`. Configure the project URL and publishable key. Set the bootstrap values for this project and run `npm run seed:demo-users` once. The script prints the fixture emails and roles. Keep the secret key and fixture password in local bootstrap configuration. Only the project URL, publishable key, and optional browser origin are used by the application runtime.
-3. Enable private-only Realtime channels in the demo project. Start Next.js with `npm run dev`. Enable `AP_FOOD_HOSTED_SMOKE=1` only on a disposable demo project, then run `npm run test:hosted`. The script places and collects fictional orders and attempts to cancel unused test orders.
+1. Use a dedicated Supabase project for fictional data. Copy `.env.example` to `.env.local` if needed. In the dashboard, open **Connect** and choose **Session pooler** for an IPv4 connection. Store its PostgreSQL URL as `DATABASE_URL` in `.env.local`. URL-encode reserved characters in the password and use `sslmode=require`. In PowerShell, load the value with `$env:DATABASE_URL = node --env-file=.env.local -p "process.env.DATABASE_URL"`. Preview the pending migrations with `npx supabase@3 db push --remote="$env:DATABASE_URL" --dry-run`. Review the target and migration list, then apply with `npx supabase@3 db push --remote="$env:DATABASE_URL" --include-seed`.
+2. In `.env.local`, configure the project URL and publishable key. Set the remaining bootstrap values for this project and run `npm run seed:demo-users` once. The script prints the fixture emails and roles. Keep the secret key and fixture password in local bootstrap configuration. Only the project URL, publishable key, and optional browser origin are used by the application runtime.
+3. Enable private-only Realtime channels in the demo project. Set `AP_FOOD_DATA_MODE=supabase` and start Next.js with `npm run dev`. Enable `AP_FOOD_HOSTED_SMOKE=1` only on a disposable demo project, then run `npm run test:hosted`. The script places and collects fictional orders and fails if unused test orders cannot be cancelled.
+4. Open three separate browser profiles or contexts and sign in as the seeded student, vendor, and admin. Place a counter order, move it to ready in the kitchen, then collect it with the student's code and check the admin cashflow ledger. Separate profiles keep the three Supabase cookie sessions independent.
 
 ## API contract
 
-Browser requests use a Supabase session cookie. Use the app origin for cookie-authenticated mutations. The hosted smoke script uses verified Supabase bearer tokens. Responses use JSON and private data is served with `Cache-Control: no-store`. Errors return `{ error: { code, message, requestId } }`.
+Browser requests use a Supabase session cookie. Use the app origin for cookie-authenticated mutations. Hosted workspace requests include `X-AP-Food-User` so the API can reject stale requests after an account switch. The hosted smoke script uses verified Supabase bearer tokens. Responses use JSON and private data is served with `Cache-Control: no-store`. Errors return `{ error: { code, message, requestId } }`.
 
 | Endpoint | Input or scope |
 | --- | --- |
@@ -21,7 +22,7 @@ Browser requests use a Supabase session cookie. Use the app origin for cookie-au
 | `GET /api/orders`, `GET /api/orders/:id`, `GET /api/vendor/orders?vendorId=…` | Scoped student history, order detail, and kitchen board. |
 | `POST /api/orders/:id/cancel`, `POST /api/vendor/orders/:id/transition` | Cancellation or forward-only stage change. Staff provide a reason when rejecting or cancelling. |
 | `POST /api/orders/:id/pickup-token`, `POST /api/vendor/orders/:id/collect` | Owner issues a five-minute code. Staff submit `{ code, counterConfirmed }`. Keep the raw code in the student view’s memory. |
-| `GET /api/vendor/menu-items?vendorId=…`, `POST /api/vendor/menu-items`, `PATCH /api/vendor/capacity/:id` | Assigned stall management. Send the previously read stock as `expectedStock` when saving an existing item. |
+| `GET /api/vendor/stalls`, `GET /api/vendor/menu-items?vendorId=…`, `POST /api/vendor/menu-items`, `PATCH /api/vendor/capacity/:id` | Assigned stall management. Send the previously read stock as `expectedStock` when saving an existing item. |
 | `PATCH /api/admin/vendors/:id`, `GET /api/admin/audit` | Admin stall management and audit trail. |
 | `GET /api/admin/report?days=7&zoneId=…&vendorId=…` | Admin finance, ledger, products, and vendor aggregates. Supported periods are 1, 7, and 14 days. |
 | `POST /api/admin/expenses`, `POST /api/admin/expenses/:id/reverse` | Record a paid demo expense with an idempotency key, or reverse it once with a reason. |
@@ -31,6 +32,21 @@ For a new server-backed order, represent the pickup window with its actual times
 
 ## Verification and next integration
 
-`npm run test:backend` runs the actual SQL migrations in embedded Postgres with minimal Supabase Auth and Realtime schema stand-ins. It checks role policies, stock and capacity conflicts, exact retries, promo pricing, pickup replay and the ledger. `npm run test:hosted` adds concurrent HTTP checkout and redemption against the linked environment. Verify real browser sessions and WebSocket subscriptions on the hosted preview.
+`npm run test:backend` runs the actual SQL migrations in embedded Postgres with minimal Supabase Auth and Realtime schema stand-ins. It checks role policies, stock and capacity conflicts, exact retries, promo pricing, pickup replay and the ledger. `npm run test:hosted` adds concurrent HTTP checkout and redemption against the configured project. Verify real browser sessions and WebSocket subscriptions on the hosted preview. Open order views also refresh periodically to recover from missed broadcasts.
 
-After connecting the hosted project, wire the student checkout and tracking plus the vendor kitchen to the typed client first. Then connect admin reads and writes, implement isolated Light/Medium/Heavy runs, and add the Gemini ranker. The [current MVP](MVP.md) defines those later gates.
+The hosted cart and the exact pending checkout request live in per-account session storage. After a lost response, retry the saved request in the same tab. Pickup codes stay in view memory. The next gate is the real hosted walkthrough, followed by isolated Light/Medium/Heavy runs and the Gemini ranker. The [backend delivery plan](BACKEND_PLAN.md) defines those gates.
+
+## Rehearse traffic locally
+
+Run `npm run simulate:traffic -- light`, `npm run simulate:traffic -- medium`, or `npm run simulate:traffic -- heavy`. Each command creates a fresh in-memory database from the checked-in migrations and fictional seed. The report shows the pickup bucket before collection, requests accepted or declined, reroutes, the next quoted pickup, and the simulated receipt posted through vendor fulfilment.
+
+Heavy submits 12 prequoted requests to a five-unit window, reroutes three of the seven conflicts, and places one comparison order at Brew & Bites. The embedded database processes requests in sequence. Use the hosted HTTP smoke test for concurrent checkout. Local results are emitted to the terminal and discarded with the database at exit.
+
+For the UI walkthrough, start the mock app on loopback with the local lab enabled.
+
+```powershell
+$env:AP_FOOD_LOCAL_TRAFFIC_LAB = '1'
+npm run dev -- --hostname 127.0.0.1
+```
+
+Open **Admin → Traffic → Traffic Lab** and run a scenario. Lab results stay in the panel and are separate from the browser scenario that the three demo portals share. The lab endpoint is available only in opted-in local development.

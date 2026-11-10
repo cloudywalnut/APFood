@@ -33,8 +33,7 @@ async function session(client: RequestClient) {
   return { userId: data.user.id, memberships: unwrap(await client.from("memberships").select("role,vendor_id").eq("user_id", data.user.id)) };
 }
 
-export async function requireMembership(client: RequestClient, role: "student" | "vendor" | "admin", vendor?: string) {
-  const actor = await session(client);
+function requireMembership(actor: Awaited<ReturnType<typeof session>>, role: "student" | "vendor" | "admin", vendor?: string) {
   if (!actor.memberships?.some(entry => entry.role === role && (vendor === undefined || entry.vendor_id === vendor))) {
     throw new BackendError(403, "FORBIDDEN", "This action is unavailable for your account.");
   }
@@ -50,16 +49,22 @@ export async function handleRequest(request: Request, path: string[]) {
   try {
     const key = path.join("/");
     const client = await requestClient(request);
+    let verifiedSession: ReturnType<typeof session> | undefined;
+    const getSession = () => verifiedSession ??= session(client);
     const method = request.method;
+    const expectedUser = request.headers.get("x-ap-food-user");
+    if (expectedUser && (await getSession()).userId !== orderId.parse(expectedUser)) {
+      throw new BackendError(401, "SESSION_CHANGED", "Your account changed. Sign in as the original account to continue.");
+    }
     const query = new URL(request.url).searchParams;
     if (key === "auth/session") {
       if (method === "POST") {
         const input = await body(request, login);
         const auth = await client.auth.signInWithPassword(input);
         if (auth.error) throw new BackendError(401, "INVALID_LOGIN", "Check the email and password.");
-        return result(await session(client));
+        return result(await getSession());
       }
-      if (method === "GET") return result(await session(client));
+      if (method === "GET") return result(await getSession());
       if (method === "DELETE") {
         const { error } = await client.auth.signOut({ scope: "local" });
         if (error) throw new BackendError(401, "UNAUTHENTICATED", "Sign in to continue.");
@@ -86,11 +91,11 @@ export async function handleRequest(request: Request, path: string[]) {
       return result(unwrap(await client.rpc("place_order", { p_quote: input.quoteId, p_pickup: input.pickupAt, p_payment: input.payment, p_key: input.idempotencyKey })), 201);
     }
     if (method === "GET" && key === "orders") {
-      const actor = await requireMembership(client, "student");
+      const actor = requireMembership(await getSession(), "student");
       return result(unwrap(await client.from("orders").select(orderFields).eq("student_id", actor.userId).order("created_at", { ascending: false }).limit(100)));
     }
     if (method === "GET" && path[0] === "orders" && path.length === 2) {
-      await session(client);
+      await getSession();
       const order = unwrap(await client.from("orders").select(orderFields).eq("id", orderId.parse(path[1])).maybeSingle());
       if (!order) throw new BackendError(404, "ORDER_NOT_FOUND", "Order unavailable.");
       return result(order);
@@ -105,8 +110,13 @@ export async function handleRequest(request: Request, path: string[]) {
     }
     if (method === "GET" && key === "vendor/orders") {
       const vendor = id.parse(query.get("vendorId"));
-      await requireMembership(client, "vendor", vendor);
+      requireMembership(await getSession(), "vendor", vendor);
       return result(unwrap(await client.from("orders").select(orderFields).eq("vendor_id", vendor).order("created_at", { ascending: false }).limit(100)));
+    }
+    if (method === "GET" && key === "vendor/stalls") {
+      const actor = requireMembership(await getSession(), "vendor");
+      const ids = (actor.memberships ?? []).flatMap(entry => entry.role === "vendor" && entry.vendor_id ? [entry.vendor_id] : []);
+      return result(ids.length ? unwrap(await client.from("vendors").select(vendorFields).in("id", ids).order("name")) : []);
     }
     if (method === "POST" && path.length === 4 && path[0] === "vendor" && path[1] === "orders") {
       const order = orderId.parse(path[2]);
@@ -127,7 +137,7 @@ export async function handleRequest(request: Request, path: string[]) {
     }
     if (method === "GET" && key === "vendor/menu-items") {
       const vendor = id.parse(query.get("vendorId"));
-      await requireMembership(client, "vendor", vendor);
+      requireMembership(await getSession(), "vendor", vendor);
       return result(unwrap(await client.from("menu_items").select(menuFields).eq("vendor_id", vendor).order("name")));
     }
     if (method === "POST" && key === "vendor/menu-items") {
@@ -151,11 +161,11 @@ export async function handleRequest(request: Request, path: string[]) {
       return result({ id: unwrap(await client.rpc("reverse_expense", { p_entry: orderId.parse(path[2]), p_reason: input.reason })) }, 201);
     }
     if (method === "GET" && key === "admin/report") {
-      await requireMembership(client, "admin");
+      requireMembership(await getSession(), "admin");
       return result(await adminReport(client, query));
     }
     if (method === "GET" && key === "admin/audit") {
-      await requireMembership(client, "admin");
+      requireMembership(await getSession(), "admin");
       return result(unwrap(await client.from("audit_events").select("id,actor_role,action,target,reason,created_at").order("created_at", { ascending: false }).limit(100)));
     }
     throw new BackendError(404, "NOT_FOUND", "Endpoint unavailable.");

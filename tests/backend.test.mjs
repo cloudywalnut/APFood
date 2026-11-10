@@ -1,68 +1,16 @@
 import assert from "node:assert/strict";
-import { readFile, readdir } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
-import { PGlite } from "@electric-sql/pglite";
+import { createLocalDemoDb, demoActors, demoStalls } from "../scripts/local-demo-db.mjs";
 
-const student = "00000000-0000-4000-8000-000000000001";
-const other = "00000000-0000-4000-8000-000000000002";
-const vendor = "00000000-0000-4000-8000-000000000003";
-const otherVendor = "00000000-0000-4000-8000-000000000004";
-const admin = "00000000-0000-4000-8000-000000000005";
-const noodleBar = "campus-noodle-bar";
-const coffeeBar = "brew-and-bites";
+const { student, other, vendor, otherVendor, admin } = demoActors;
+const { noodleBar, coffeeBar } = demoStalls;
 const cart = JSON.stringify([{ itemId: "chicken-noodles", quantity: 1, extra: false }]);
 
 test("backend migrations, role isolation, allocations, pickup and ledger", async t => {
-  const db = new PGlite();
+  const { db, seedCatalogue, queryAs, call } = await createLocalDemoDb();
   t.after(() => db.close());
-  await db.exec(`
-    create role anon;
-    create role authenticated;
-    create role service_role bypassrls;
-    create schema auth;
-    grant usage on schema auth to anon, authenticated;
-    create table auth.users (id uuid primary key);
-    create function auth.uid() returns uuid language sql stable as $$
-      select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
-    $$;
-    create schema realtime;
-    grant usage on schema realtime to authenticated;
-    create table realtime.messages (topic text, event text, extension text, payload jsonb);
-    alter table realtime.messages enable row level security;
-    grant select on realtime.messages to authenticated;
-    create function realtime.topic() returns text language sql stable as $$
-      select current_setting('realtime.topic', true);
-    $$;
-    create function realtime.send(payload jsonb, event text, topic text, private boolean)
-    returns void language sql as $$
-      insert into realtime.messages values (topic, event, 'broadcast', payload);
-    $$;
-  `);
-  const directory = new URL("../supabase/migrations/", import.meta.url);
-  for (const name of (await readdir(directory)).sort()) await db.exec(await readFile(new URL(name, directory), "utf8"));
-  const seed = await readFile(new URL("../supabase/seed.sql", import.meta.url), "utf8");
-  await db.exec(seed);
-  await db.exec(seed);
-  for (const [user, role, stall] of [[student, "student", null], [other, "student", null], [vendor, "vendor", noodleBar], [otherVendor, "vendor", coffeeBar], [admin, "admin", null]]) {
-    await db.query("insert into auth.users values ($1)", [user]);
-    await db.query("insert into public.memberships values ($1,$2,$3)", [user, role, stall]);
-  }
-
-  async function queryAs(user, sql, args = [], topic) {
-    await db.exec("begin; set local role " + (user ? "authenticated" : "anon"));
-    try {
-      if (user) await db.query("select set_config('request.jwt.claim.sub', $1, true)", [user]);
-      if (topic) await db.query("select set_config('realtime.topic', $1, true)", [topic]);
-      const result = await db.query(sql, args);
-      await db.exec("commit");
-      return result.rows;
-    } catch (error) {
-      await db.exec("rollback");
-      throw error;
-    }
-  }
-  const call = async (user, sql, args) => (await queryAs(user, "select " + sql + " as value", args))[0].value;
+  await seedCatalogue();
   const quote = (user = student, stall = noodleBar, items = cart) => call(user, "public.quote_checkout($1,$2)", [stall, items]);
   const order = (user, q, pickup = q.slots[1], key = randomUUID(), payment = "demo") =>
     call(user, "public.place_order($1,$2,$3,$4)", [q.quoteId, pickup, payment, key]);

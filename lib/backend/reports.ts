@@ -1,14 +1,10 @@
 import { z } from "zod";
 import { dayKey } from "../demo";
-import { id, orderLine, status } from "./contracts";
+import { id, ledgerRow, orderLine, status } from "./contracts";
 import { BackendError, unwrap } from "./errors";
 import type { RequestClient } from "./supabase";
 
 const filters = z.object({ days: z.enum(["1", "7", "14"]).transform(Number), vendorId: id.optional(), zoneId: id.optional() });
-const ledgerRow = z.object({
-  id: z.uuid(), vendor_id: id.nullable(), zone_id: id.nullable(), order_id: z.uuid().nullable(), kind: z.enum(["demo","counter","expense","reversal"]),
-  amount_sen: z.number().int(), label: z.string(), reverses_id: z.uuid().nullable(), created_at: z.string(),
-});
 const reportOrder = z.object({ vendor_id: id, zone_id: id, payment: z.enum(["demo","counter"]), status,
   total_sen: z.number().int(), lines: z.array(orderLine), pickup_at: z.string(), created_at: z.string(),
   ready_at: z.string().nullable(), collected_at: z.string().nullable() });

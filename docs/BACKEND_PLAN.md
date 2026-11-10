@@ -21,6 +21,10 @@ Start with the [backend guide](BACKEND.md) for the current migrations, API contr
 
 ## 2. Isolated traffic scenarios and InsightAI
 
+The [local traffic CLI](BACKEND.md#rehearse-traffic-locally) exercises Light, Medium, and Heavy through the versioned checkout and fulfilment functions. The remaining simulation work covers hosted run persistence, scope, and dashboards.
+
+The local Traffic Lab exposes the CLI results on the admin traffic page. The three hosted home screens also have rules-based FIF actions based on their existing API responses. Server-owned recommendation candidates and optional Gemini ranking are the next InsightAI integration.
+
 - Give every simulation run its own fictional stall and menu copies, scoped simulator accounts, and attempt records. Derive provenance from authorised run membership and stall scope. Default catalogue, history, finance, and traffic to the standard demo. Filter explicit run views before aggregating.
 - The CLI uses the same authenticated checkout and fulfilment paths as the app. Target a five-unit bucket with one initial request for Light, three for Medium, and 12 concurrent requests for Heavy. Heavy should reserve five units and return seven slot conflicts under the controlled fixture. Requote a bounded subset into later windows and keep a nearby stall lightly loaded.
 - Persist exact checkout inputs and idempotency keys before dispatch. Replay uncertain attempts with the same payload. A completed run ID returns its recorded result. Track attempted, placed, conflicted, rerouted, collected, and cancelled counts. Display source labels in traffic and finance. Treat the seed as reproducible request intent, with live timing determining concurrent outcomes.

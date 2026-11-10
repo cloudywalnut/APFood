@@ -20,8 +20,8 @@ export const slots = [0, 1, 2, 3, 4, 5];
 export const addonPrice = 200;
 
 const dateFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kuala_Lumpur", year: "numeric", month: "2-digit", day: "2-digit" });
-export function dayKey(offset = 0) {
-  return dateFormatter.format(new Date(Date.now() + offset * 86_400_000));
+export function dayKey(offset = 0, now = Date.now()) {
+  return dateFormatter.format(new Date(now + offset * 86_400_000));
 }
 
 export function dayLabel(day: string) {
@@ -111,7 +111,7 @@ export function cartDetails(state: DemoState) {
   });
 }
 
-export function totals(entries: Entry[]) {
+export function totals(entries: Pick<Entry, "type" | "amount">[]) {
   const amount = (type: Entry["type"]) => entries.filter(entry => entry.type === type).reduce((sum, entry) => sum + entry.amount, 0);
   const demo = amount("demo");
   const counter = amount("counter");

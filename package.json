@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
-    "test:backend": "node --test tests/backend.test.mjs",
+    "test:backend": "node --test tests/backend.test.mjs tests/traffic-scenario.test.mjs",
+    "simulate:traffic": "node scripts/simulate-traffic.mjs",
     "seed:demo-users": "node --env-file=.env.local scripts/seed-demo-users.mjs",
     "test:hosted": "node --env-file=.env.local scripts/check-hosted.mjs"
   },

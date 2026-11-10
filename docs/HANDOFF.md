@@ -18,7 +18,7 @@ AP Food is a campus pickup prototype for students, food-stall staff, and cafeter
 | FIF and traffic | Student pickup recommendations, the vendor shift brief, and the admin ops desk use local rules. Standard, Light, Medium, and Heavy fixtures change bucket load and available windows. Traffic measures app pickup activity and identifies physical crowd conditions as unverified. |
 | Public | Landing page, demo persona entrances, and draft Privacy, Terms, and Cookies pages. Cookies includes a browser data reset. |
 
-The preview has 25 primary screens. It uses fictional stalls and payments. The demo persona chooser grants access to the local prototype views. The backend milestone owns real identity, authorization, transactions, and deployment configuration.
+The mock preview has 25 primary screens and uses fictional stalls and payments. In local development, Admin → Traffic can run the embedded database simulator through Traffic Lab. Its results are separate from the browser scenario shared by the three portals. Hosted mode adds real demo sign-in and API-backed checkout, fulfilment, traffic, and admin operations, with rule-based FIF recommendations on each home screen. See the [backend guide](BACKEND.md) for both walkthroughs.
 
 ## Code map and data flow
 

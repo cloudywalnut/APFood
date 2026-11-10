@@ -32,6 +32,23 @@ export const activityRow = z.object({
   reserved_units: z.number().int(), total_units: z.number().int(),
 });
 export const errorBody = z.object({ error: z.object({ code: z.string(), message: z.string(), requestId: z.string() }) });
+const financeTotals = z.object({ demo: z.number().int(), counter: z.number().int(), expense: z.number().int(), reversal: z.number().int(), netSen: z.number().int() });
+export const ledgerRow = z.object({
+  id: z.uuid(), vendor_id: id.nullable(), zone_id: id.nullable(), order_id: z.uuid().nullable(), kind: z.enum(["demo","counter","expense","reversal"]),
+  amount_sen: z.number().int(), label: z.string(), reverses_id: z.uuid().nullable(), created_at: z.string(),
+});
+export const adminReportOutput = z.object({
+  asOf: z.string(), since: z.string(), source: z.literal("standard_demo"),
+  finance: financeTotals.extend({ orderedValueSen: z.number().int(), outstandingCounterSen: z.number().int(), sharedOverheadSen: z.number().int() }),
+  ledger: z.array(ledgerRow),
+  products: z.array(menuRow.pick({ id: true, vendor_id: true, name: true, stock: true, active: true })
+    .extend({ units: z.number().int(), fulfilledValueSen: z.number().int() })),
+  vendors: z.array(vendorRow.pick({ id: true, zone_id: true, name: true, capacity: true, status: true, paused: true })
+    .extend({ ...financeTotals.shape, orderCount: z.number().int(), activeCount: z.number().int(), lateCount: z.number().int() })),
+});
+export const auditRow = z.object({
+  id: z.uuid(), actor_role: z.enum(["student","vendor","admin"]), action: z.string(), target: z.string(), reason: z.string().nullable(), created_at: z.string(),
+});
 export type QuoteInput = z.infer<typeof quoteInput>;
 export type CheckoutInput = z.infer<typeof checkoutInput>;
 export type OrderRow = z.infer<typeof orderRow>;

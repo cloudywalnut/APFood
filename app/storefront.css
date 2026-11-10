@@ -36,6 +36,9 @@
 .hero-deal-price { display: flex; align-items: center; gap: 5px; font-weight: 800; white-space: nowrap; }
 .public-shell .entrance-section { margin-top: 29px; }
 .student-heading h1 { font-family: var(--sans); font-weight: 850; letter-spacing: -.035em; }
+.hosted-pick { margin-bottom: 18px; }
+.hosted-pick .recommendation { background: #fff8e5; border-color: #e8d59e; }
+.hosted-pick .recommendation-meta { color: #694515; }
 .promotions .section-head { margin: 27px 0 12px; }
 .promotions .section-head p { margin-top: 4px; color: var(--muted); font-size: .88rem; }
 .promo-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 13px; }
