@@ -36,6 +36,8 @@ The store uses `localStorage` under `ap-food-demo-v1` and syncs changes across t
 
 ## Backend implementation order
 
+See the [backend guide](BACKEND.md) for the current Supabase migrations, API contracts, and hosted verification steps. The [backend delivery plan](BACKEND_PLAN.md) covers simulation, InsightAI, and the follow-on FIF features.
+
 1. Create `supabase/migrations/`. Add identity, role memberships, stall/menu fixtures, and RLS. Keep fake accounts and seeded business data separate from real environments.
 2. Move checkout and capacity enforcement to one database transaction. Validate the quoted price, stock, and pickup window, then write the order and its allocation together. Enforce idempotency. Move cancellation, fulfilment, pickup-token redemption, and receipt posting to scoped transactions.
 3. Connect the existing screens to authenticated read and write contracts, private Realtime updates, and server-calculated finance and traffic aggregates. Verify isolation across students and stalls.

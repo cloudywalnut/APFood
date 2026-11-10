@@ -6,7 +6,7 @@ Start with the [current MVP](docs/MVP.md) and [engineering and AI handoff](docs/
 
 ## Run locally
 
-Use Node.js 20.9 or later.
+Use Node.js 22 or later.
 
 ```sh
 npm ci
@@ -14,6 +14,8 @@ npm run dev
 ```
 
 Open http://localhost:3000 and choose Student, Vendor, or Admin. Run `npm run typecheck` and `npm run build` to verify the source and production bundle.
+
+For Supabase setup, endpoint contracts, and database tests, see the [backend guide](docs/BACKEND.md).
 
 ## Implementation phases
 
