@@ -1,0 +1,17 @@
+import { dayKey, totals, type DemoState } from "./demo";
+
+export function scopeData(state: DemoState, days: number, zone: string, vendorId: string) {
+  const start = dayKey(1 - days);
+  const vendors = state.vendors.filter(vendor => (!zone || vendor.zone === zone) && (!vendorId || vendor.id === vendorId));
+  const ids = new Set(vendors.map(vendor => vendor.id));
+  const orders = state.orders.filter(order => order.scenario === state.scenario && order.day >= start && ids.has(order.vendorId));
+  const entries = state.entries.filter(entry => entry.scenario === state.scenario && entry.day >= start && (entry.vendorId ? ids.has(entry.vendorId) : !vendorId && !zone));
+  return { vendors, orders, entries, finance: totals(entries) };
+}
+
+export function financeSeries(entries: DemoState["entries"], days: number) {
+  return Array.from({ length: Math.min(days, 14) }, (_, index) => {
+    const day = dayKey(index + 1 - Math.min(days, 14));
+    return { day, ...totals(entries.filter(entry => entry.day === day)) };
+  });
+}
