@@ -13,7 +13,7 @@ export type Audit = { id: string; actor: string; action: string; target: string;
 export type DemoState = { vendors: Vendor[]; items: Item[]; cart: CartLine[]; orders: Order[]; entries: Entry[]; audit: Audit[]; scenario: Scenario };
 
 export const scenarios: Scenario[] = ["standard", "light", "medium", "heavy"];
-export const scenarioNames: Record<Scenario, string> = { standard: "Standard sample", light: "Light", medium: "Medium", heavy: "Heavy" };
+export const scenarioNames: Record<Scenario, string> = { standard: "Standard", light: "Light", medium: "Medium", heavy: "Heavy" };
 export const statusNames: Record<Status, string> = { placed: "Placed", accepted: "Accepted", preparing: "Preparing", ready: "Ready", collected: "Collected", cancelled: "Cancelled", rejected: "Rejected" };
 export const stages = ["placed", "accepted", "preparing", "ready", "collected"] as const;
 export const slots = [0, 1, 2, 3, 4, 5];
@@ -52,6 +52,8 @@ const baseVendors: Vendor[] = [
   { id: "indian", name: "Indian", zone: "Main Food Court", category: "Indian cuisine", description: "Rice, curries and freshly made roti.", image: "bowl", status: "approved", paused: false, capacity: 8, lead: 10, hours: "9:00 AM – 4:00 PM" },
   { id: "arab-shawarma", name: "Arab Shawarma", zone: "Annex Cafeteria", category: "Middle Eastern", description: "Shawarma wraps and fragrant rice plates.", image: "noodles", status: "approved", paused: false, capacity: 6, lead: 10, hours: "10:00 AM – 5:00 PM" },
   { id: "drinks-counter", name: "Refreshments", zone: "Main Food Court", category: "Drinks", description: "Cold drinks between classes.", image: "coffee", status: "approved", paused: true, capacity: 6, lead: 5, hours: "Temporarily closed" },
+  { id: "local-corner-left", name: "Local Corner · Left", zone: "Main Food Court", category: "Local rice dishes", description: "Rice plates and vegetables at the left side of the glass window.", image: "bowl", status: "approved", paused: false, capacity: 6, lead: 10, hours: "10:00 AM – 3:00 PM" },
+  { id: "local-corner-right", name: "Local Corner · Right", zone: "Main Food Court", category: "Local noodles & rice", description: "Freshly cooked noodles and rice at the right side of the glass window.", image: "noodles", status: "approved", paused: false, capacity: 6, lead: 10, hours: "10:00 AM – 3:00 PM" },
 ];
 
 const menuRows = [
@@ -73,6 +75,10 @@ const menuRows = [
   ["nasi-lemak", "brew-and-bites", "Nasi Lemak", "Coconut rice, sambal, egg, cucumber and crispy anchovies.", 950, 16],
   ["iced-lemon-tea", "drinks-counter", "Iced Lemon Tea", "Fresh lemon tea over ice.", 390, 20],
   ["crispy-dumplings", "campus-noodle-bar", "Crispy Dumplings", "Vegetable dumplings with a soy dipping sauce.", 800, 0],
+  ["local-left-chicken-rice", "local-corner-left", "Chicken Rice", "Chicken, fragrant rice, cucumber and chilli sauce.", 1000, 20],
+  ["local-left-vegetable-rice", "local-corner-left", "Vegetable Rice", "Steamed rice with seasonal vegetables and tofu.", 850, 20],
+  ["local-right-mee-goreng", "local-corner-right", "Mee Goreng", "Stir-fried noodles with vegetables and egg.", 950, 20],
+  ["local-right-nasi-goreng", "local-corner-right", "Nasi Goreng", "Fried rice with vegetables and a fried egg.", 1000, 20],
 ] as const;
 
 const baseItems: Item[] = menuRows.map(([id, vendorId, name, description, price, stock]) => ({ id, vendorId, name, description, price, stock, work: 1, active: true }));
@@ -105,7 +111,7 @@ export function seedDemo(): DemoState {
       orders.push({ id: "AP-" + scenario[0].toUpperCase() + (1042 + index), vendorId: item.vendorId, lines: [{ itemId: item.id, name: item.name, quantity: 1, extra: false, unit: item.price, work: 1 }], total: item.price, slot: 0, day: dayKey(), status, payment: index % 2 ? "counter" : "demo", scenario, code: "", readyLate: index === 3 });
     }
   }
-  return { vendors: baseVendors, items: baseItems, cart: [], orders, entries, scenario: "standard", audit: [{ id: "seed", actor: "Sample setup", action: "Loaded fictional cafeteria", target: "APFoods", detail: "Six stalls and browser-only fixtures", at: new Date(dayKey() + "T10:00:00+08:00").toISOString() }] };
+  return { vendors: baseVendors, items: baseItems, cart: [], orders, entries, scenario: "standard", audit: [{ id: "seed", actor: "Initial setup", action: "Loaded cafeteria", target: "APFoods", detail: "Cafeteria catalogue loaded", at: new Date(dayKey() + "T10:00:00+08:00").toISOString() }] };
 }
 
 export function loadFor(state: DemoState, vendor: Vendor, slot: number) {
@@ -141,5 +147,5 @@ export function withAudit(state: DemoState, actor: string, action: string, targe
 // Add new sample records without discarding a saved cart, orders or vendor edits.
 export function migrateCatalogue(state:DemoState):DemoState {
  const aliases:Record<string,string>={"Campus Noodle Bar":"Chinese","Brew & Bites":"Malay","Green Bowl Kitchen":"Japanese & Korean"};
- return {...state,audit:state.audit.map(a=>({...a,actor:a.actor==="Demo setup"?"Sample setup":a.actor,target:a.target==="AP Food"?"APFoods":a.target})),vendors:[...state.vendors.map(v=>({...v,name:aliases[v.name]??v.name,category:v.id==="brew-and-bites"&&v.category==="Coffee & light bites"?"Malay cuisine & kopi":v.id==="green-bowl-kitchen"&&v.category==="Rice bowls & greens"?"Japanese & Korean cuisine":v.category})),...baseVendors.filter(v=>!state.vendors.some(old=>old.id===v.id))],items:[...state.items,...baseItems.filter(i=>!state.items.some(old=>old.id===i.id))]};
+ return {...state,audit:state.audit.map(a=>({...a,actor:a.actor==="Initial setup"?"Initial setup":a.actor,target:a.target==="AP Food"?"APFoods":a.target})),vendors:[...state.vendors.map(v=>({...v,name:aliases[v.name]??v.name,category:v.id==="brew-and-bites"&&v.category==="Coffee & light bites"?"Malay cuisine & kopi":v.id==="green-bowl-kitchen"&&v.category==="Rice bowls & greens"?"Japanese & Korean cuisine":v.category})),...baseVendors.filter(v=>!state.vendors.some(old=>old.id===v.id))],items:[...state.items,...baseItems.filter(i=>!state.items.some(old=>old.id===i.id))]};
 }

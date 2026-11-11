@@ -1,4 +1,4 @@
-> Latest frontend update: see [LATEST_UI_UPDATE.md](LATEST_UI_UPDATE.md). The student basket now supports multiple stalls with one order per stall, and campus browsing starts on the map. Earlier one-stall and persona-entrance descriptions below describe the original MVP. Backend work on `Keyaan` is preserved separately.
+> Current UI: see [UI_PRESENTATION_CLEANUP.md](UI_PRESENTATION_CLEANUP.md) and [LATEST_UI_UPDATE.md](LATEST_UI_UPDATE.md). The basket supports multiple stalls, browsing starts on the map, and the UI uses the cream/gold/espresso theme. Backend development remains on Keyaan.
 
 # AP Food + FIF · Current MVP
 

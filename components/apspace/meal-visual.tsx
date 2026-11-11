@@ -1,12 +1,12 @@
 import type { Item } from '../../lib/demo';
 import { WarmIllustration } from './illustration';
 const supplied:Record<string,{src:string;alt:string;illustration?:boolean}>={
- 'chicken-noodles':{src:'/food/noodles.webp',alt:'Sample chicken noodle bowl'},
- 'tofu-bowl':{src:'/food/bowl.webp',alt:'Sample tofu and vegetable rice bowl'},
- 'iced-coffee':{src:'/food/coffee.webp',alt:'Sample iced coffee'},
+ 'chicken-noodles':{src:'/food/noodles.webp',alt:'Chicken noodle bowl'},
+ 'tofu-bowl':{src:'/food/bowl.webp',alt:'Tofu and vegetable rice bowl'},
+ 'iced-coffee':{src:'/food/coffee.webp',alt:'Iced coffee'},
  'chicken-curry':{src:'/illustrations/student.webp',alt:'Illustration of chicken curry, rice and vegetables',illustration:true},
- 'chilli-rice':{src:'/food/lunch.webp',alt:'Sample chicken and rice meal'},
- 'nasi-lemak':{src:'/food/lunch.webp',alt:'Sample Malaysian rice meal'}
+ 'chilli-rice':{src:'/food/lunch.webp',alt:'Chicken and rice meal'},
+ 'nasi-lemak':{src:'/food/lunch.webp',alt:'Malaysian rice meal'}
 };
 // A backend menu image can replace these local assets. Do not show an unrelated
 // dish photograph when no appropriate asset exists for a menu item.

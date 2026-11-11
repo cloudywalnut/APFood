@@ -1,4 +1,5 @@
 "use client";
+import { InfoTip } from "./apspace/info-tip";
 
 import { useState } from "react";
 import { dayLabel, money, type Entry } from "../lib/demo";
@@ -19,11 +20,11 @@ export function CashflowChart({ entries, days }: { entries: Entry[]; days: numbe
   const marks = Array.from({ length: 5 }, (_, index) => low + (high - low) * index / 4);
   const barWidth = Math.min(24, step / 5);
   return <section className="panel chart-panel">
-    <div className="line spread wrap"><div><h2>Cashflow over time</h2><p className="muted small">Sample receipts, expenses and net flow · RM</p></div><div className="chart-legend"><span className="legend-in">Receipts</span><span className="legend-out">Expenses</span><span className="legend-net">Net flow</span></div></div>
+    <div className="line spread wrap"><div><h2>Cashflow over time<InfoTip label="Cashflow chart" text="Select a day to see its receipts, expenses and net flow."/></h2><p className="muted small">Receipts, expenses and net flow · RM</p></div><div className="chart-legend"><span className="legend-in">Receipts</span><span className="legend-out">Expenses</span><span className="legend-net">Net flow</span></div></div>
     <div className="chart-scroll" tabIndex={0} role="region" aria-label="Cashflow chart">
       <svg viewBox="0 0 890 254" role="img" aria-label="Daily cashflow. Expand the data table below for the exact amounts.">
         {marks.map(mark => <g key={mark}><line x1={plot.left} y1={y(mark)} x2={plot.left + plot.width} y2={y(mark)} className="chart-grid" /><text x={plot.left - 10} y={y(mark) + 4} textAnchor="end">{Math.round(mark / 100)}</text></g>)}
-        {values.map((value, index) => <g key={value.day} role="button" tabIndex={0} aria-label={dayLabel(value.day)+': receipts '+money(value.inflow)+', expenses '+money(value.expense)+', net '+money(value.net)} onClick={()=>setSelected(value.day)} onFocus={()=>setSelected(value.day)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setSelected(value.day)}}}><title>{dayLabel(value.day)+' · Receipts '+money(value.inflow)+' · Expenses '+money(value.expense)+' · Net '+money(value.net)}</title><rect x={x(index)-step/2} y={plot.top} width={step} height={plot.height} fill={selected===value.day?'#ead59d35':'transparent'}/>
+        {values.map((value, index) => <g key={value.day} role="button" tabIndex={0} aria-label={dayLabel(value.day)+': receipts '+money(value.inflow)+', expenses '+money(value.expense)+', net '+money(value.net)} onClick={()=>setSelected(value.day)} onFocus={()=>setSelected(value.day)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setSelected(value.day)}}}><rect x={x(index)-step/2} y={plot.top} width={step} height={plot.height} fill={selected===value.day?'#ead59d35':'transparent'}/>
           <rect x={x(index) - barWidth - 3} y={y(value.inflow)} width={barWidth} height={y(0) - y(value.inflow)} rx="2" className="bar-in" />
           <rect x={x(index) + 3} y={y(value.expense)} width={barWidth} height={y(0) - y(value.expense)} rx="2" className="bar-out" />
           {(values.length < 9 || index % 2 === 0) && <text x={x(index)} y="244" textAnchor="middle">{dayLabel(value.day)}</text>}

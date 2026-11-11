@@ -13,4 +13,10 @@ Validation: 38 automated checks, TypeScript and production build. Browser checks
 
 The map is drawn as vector artwork to follow the reference’s colours and layout; it is not a pixel-identical bitmap of the supplied diagram. Real storefront photos remain to be supplied.
 
-The student hero now spans edge to edge directly beneath the app header as a horizontal strip with no rounded outer corners or page gutters.
+## Local Corner navigation
+
+Both Local Corner counters now resolve to separate menus, meal customisation, basket and checkout. Catalogue migration adds the two stalls and their temporary menus while preserving saved carts, orders and existing stall edits. Map graphics and positioning are unchanged. Verified with 42 tests, typecheck and production build. No push.
+
+## Welcome panel alignment and typography
+
+Centered the welcome text and role illustration in the available panel space for Student, Vendor and Administrator. The logo stays at the top. Shared typography now uses locally hosted variable Roboto, matching the supplied welcome screen, including map labels and help descriptions. Verified all three roles, tall viewport alignment, mobile overflow, typecheck and production build. No push.

@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { ArrowRight, ArrowUpRight, BarChart3, ChefHat, ClipboardList, Clock3, House, LayoutDashboard, ReceiptText, ShoppingBag, Store, Utensils, WalletCards, X } from "lucide-react";
 import { WarmIllustration, type WarmArt } from "./apspace/illustration";
 import { APSpaceBrand, APSpaceHeader, MobileTour, roleModules } from "./apspace/shell";
+import { BackNavigation } from "./apspace/back-navigation";
 import { ModalSheet } from "./apspace/ui";
 import { scenarioNames, scenarios, statusNames, type Scenario, type Status } from "../lib/demo";
 import { selectScenario, useDemo } from "../lib/demo-store";
@@ -16,20 +17,20 @@ export function Brand() {
 }
 
 export function Footer() {
-  return <footer className="footer"><span>APFoods · Campus pickup sample</span><nav aria-label="Policies"><Link href="/privacy">Privacy Policy</Link><Link href="/terms">Terms and Conditions</Link><Link href="/cookies">Cookies</Link></nav></footer>;
+  return <footer className="footer"><nav aria-label="Policies"><Link href="/privacy">Privacy Policy</Link><Link href="/terms">Terms and Conditions</Link><Link href="/cookies">Cookies</Link></nav></footer>;
 }
 
 export function StudentShell({ route, children }: { route: string; children: ReactNode }) {
   const state = useDemo();
   const count = state.cart.reduce((sum, line) => sum + line.quantity, 0);
-  return <div className="student-theme ap-role-shell"><APSpaceHeader role="student" route={route}/><main id="main-content" className="student-main"><ScenarioNotice />{children}</main><Footer/><MobileTour/></div>;
+  return <div className="student-theme ap-role-shell"><APSpaceHeader role="student" route={route}/><main id="main-content" className="student-main"><BackNavigation route={route}/>{children}</main><Footer/><MobileTour/></div>;
 
 }
 
 export function OpsShell({ kind, route, title, children }: { kind: "vendor" | "admin"; route: string; title: string; children: ReactNode }) {
   const searchParams=useSearchParams();
   const filters = kind === "vendor" ? "" : searchParams.toString();
-  return <div className="ops-theme ap-role-shell"><APSpaceHeader role={kind} route={route}/><div className="ap-ops-content"><main id="main-content" className="ops-main"><ScenarioNotice/>{children}</main></div><Footer/></div>;
+  return <div className="ops-theme ap-role-shell"><APSpaceHeader role={kind} route={route}/><div className="ap-ops-content"><main id="main-content" className="ops-main"><BackNavigation route={route}/>{children}</main></div><Footer/></div>;
 
 }
 
@@ -42,10 +43,7 @@ export function replaceFilters(changes: Record<string, string>) {
   window.history.replaceState(null, "", url);
 }
 
-export function ScenarioNotice() {
-  const { scenario } = useDemo();
-  return scenario !== "standard" ? <div className="notice" role="status"><strong>Simulated traffic · {scenarioNames[scenario]}</strong><span>Using fictional orders and pickup activity.</span></div> : null;
-}
+export function ScenarioNotice() { return null; }
 
 export function ScenarioSelect() {
   const { scenario } = useDemo();
@@ -57,7 +55,7 @@ export function StatusBadge({ status }: { status: Status }) {
 }
 
 export function Recommendation({ label, title, evidence, href, action }: { label: string; title: string; evidence: string; href: string; action: string }) {
-  return <section className="recommendation"><div><div className="recommendation-meta"><span>{label}</span><span className="badge neutral">Sample recommendation</span></div><h2>{title}</h2><p>{evidence}</p></div><Link href={href} className="button secondary">{action} <ArrowRight size={16} aria-hidden /></Link></section>;
+  return <section className="recommendation"><div><div className="recommendation-meta"><span>{label}</span></div><h2>{title}</h2><p>{evidence}</p></div><Link href={href} className="button secondary">{action} <ArrowRight size={16} aria-hidden /></Link></section>;
 }
 
 export function Empty({ title, detail, href, action }: { title: string; detail: string; href?: string; action?: string }) {

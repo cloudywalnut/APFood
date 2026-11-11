@@ -2,9 +2,10 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { Check, ChevronDown, SlidersHorizontal, X } from "lucide-react";
 
-import { SectionHelp } from "./context-help";
 
-export function SectionCard({title,action,children,className=""}:{title?:string;action?:ReactNode;children:ReactNode;className?:string}){return <section className={`ap-card ${className}`}>{title&&<div className="ap-card-head"><h2>{title}<SectionHelp title={title}/></h2>{action}</div>}<div className="ap-card-body">{children}</div></section>}
+import { InfoTip } from "./info-tip";
+
+export function SectionCard({title,help,action,children,className=""}:{title?:string;help?:string;action?:ReactNode;children:ReactNode;className?:string}){return <section className={`ap-card ${className}`}>{title&&<div className="ap-card-head"><h2>{title}{help&&<InfoTip label={title} text={help}/>}</h2>{action}</div>}<div className="ap-card-body">{children}</div></section>}
 export function TabBar({tabs,value,onChange,label,panelId}:{tabs:{id:string;label:string}[];value:string;onChange:(id:string)=>void;label:string;panelId?:string}){return <div className="ap-tabs" role="tablist" aria-label={label}>{tabs.map(tab=><button key={tab.id} role="tab" aria-selected={value===tab.id} aria-controls={panelId} onKeyDown={e=>{if(e.key==="ArrowLeft"||e.key==="ArrowRight"){e.preventDefault();const next=(tabs.findIndex(t=>t.id===value)+(e.key==="ArrowRight"?1:-1)+tabs.length)%tabs.length;onChange(tabs[next].id);e.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>("button")[next]?.focus()}}} onClick={()=>onChange(tab.id)} type="button">{tab.label}</button>)}</div>}
 export function FilterPanel({children,initialOpen=true}:{children:ReactNode;initialOpen?:boolean}){return <details className="ap-filter-panel" open={initialOpen}><summary><SlidersHorizontal size={17}/><span>Filters</span><ChevronDown size={18}/></summary><div className="ap-filter-body">{children}</div></details>}
 export function StepIndicator({steps,current}:{steps:string[];current:number}){return <ol className="ap-step-indicator" aria-label="Checkout progress">{steps.map((step,index)=><li key={step} aria-current={index===current?'step':undefined} className={index<=current?'done':''}><span>{index<current?<Check size={13}/>:index+1}</span>{step}</li>)}</ol>}

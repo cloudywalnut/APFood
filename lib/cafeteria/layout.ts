@@ -1,17 +1,26 @@
 import type { CafeteriaLayout } from './types';
-// Geometry is illustrative, not a survey of the university. Replace at the API boundary.
+// Physical positions follow the supplied cafeteria layout; vendor IDs stay stable.
 const photo='/cafeteria/sample-storefront.webp';
-export const sampleLayout:CafeteriaLayout={id:'campus-sample',name:'Campus cafeteria',sample:true,width:600,height:660,
+const storefront={photo,photoAlt:'Cafeteria storefront'};
+export const sampleLayout:CafeteriaLayout={id:'campus-sample',name:'Campus cafeteria',sample:true,width:900,height:660,
  areas:[
- {id:'north',name:'North Court',subtitle:'Chinese · Indian',x:160,y:58,width:300,height:144,fill:'#f8e6b1'},
- {id:'central',name:'Central Court',subtitle:'Japanese & Korean',x:165,y:230,width:270,height:215,fill:'#edf0de'},
- {id:'noodle',name:'Noodle Lane',subtitle:'Arab Shawarma',x:145,y:470,width:325,height:140,fill:'#f5e4c5'},
- {id:'drinks',name:'Drinks Corner',subtitle:'Malay · Drinks',x:30,y:220,width:125,height:220,fill:'#e8e9dd'},
- {id:'dessert',name:'Dessert Bar',subtitle:'Coming soon',x:450,y:240,width:125,height:155,fill:'#f0e4db'}],
+  {id:'north',name:'Glass Window',subtitle:'Local Corner · Shawarma · Local Corner',x:200,y:70,width:505,height:145,fill:'#f8e6b1'},
+  {id:'central',name:'Seating Area',subtitle:'Shared tables',x:230,y:265,width:440,height:230,fill:'#edf0de'},
+  {id:'drinks',name:'Left Wing',subtitle:'Japanese & Korean · Kopitiam · Fried Chicken · Chinese',x:55,y:95,width:135,height:490,fill:'#f5e4c5'},
+  {id:'noodle',name:'Right Wing',subtitle:'Western · Malay · Indian',x:720,y:145,width:145,height:415,fill:'#f5e4c5'},
+  {id:'dessert',name:'Entrance',subtitle:'Enter here',x:380,y:585,width:140,height:55,fill:'#f0e4db'}],
  locations:[
- {id:'n1',stallId:'campus-noodle-bar',areaId:'north',label:'Chinese',x:175,y:115,width:105,height:78,photo,photoAlt:'Sample physical cafeteria counter with glass display and mustard menu boards'},
- {id:'n2',stallId:'indian',areaId:'north',label:'Indian',x:315,y:115,width:105,height:78,photo,photoAlt:'Sample cafeteria storefront; placeholder for the Indian stall'},
- {id:'c1',stallId:'green-bowl-kitchen',areaId:'central',label:'Japanese & Korean',x:175,y:350,width:110,height:78,photo,photoAlt:'Sample cafeteria storefront; placeholder for the Japanese and Korean stall'},
- {id:'l1',stallId:'arab-shawarma',areaId:'noodle',label:'Arab Shawarma',x:195,y:520,width:110,height:78,photo,photoAlt:'Sample cafeteria storefront; placeholder for the shawarma stall'},
- {id:'d1',stallId:'brew-and-bites',areaId:'drinks',label:'Malay',x:40,y:255,width:100,height:76,photo,photoAlt:'Sample cafeteria storefront; placeholder for the Malay stall'},
- {id:'d2',stallId:'drinks-counter',areaId:'drinks',label:'Drinks',x:40,y:355,width:100,height:76,photo,photoAlt:'Sample cafeteria storefront; placeholder for the closed drinks counter'}]};
+  {id:'left-japanese',stallId:'green-bowl-kitchen',areaId:'drinks',label:'Japanese & Korean',x:65,y:105,width:110,height:76,...storefront},
+  {id:'left-kopitiam',stallId:'drinks-counter',areaId:'drinks',label:'Kopitiam',x:65,y:225,width:110,height:76,...storefront},
+  {id:'left-chicken',stallId:'fried-chicken',areaId:'drinks',label:'Fried Chicken',x:65,y:345,width:110,height:76,...storefront},
+  {id:'left-chinese',stallId:'campus-noodle-bar',areaId:'drinks',label:'Chinese',x:65,y:465,width:110,height:76,...storefront},
+  {id:'glass-local-left',stallId:'local-corner-left',areaId:'north',label:'Local Corner',x:220,y:100,width:120,height:76,...storefront},
+  {id:'glass-shawarma',stallId:'arab-shawarma',areaId:'north',label:'Shawarma',x:390,y:100,width:120,height:76,...storefront},
+  {id:'glass-local-right',stallId:'local-corner-right',areaId:'north',label:'Local Corner',x:560,y:100,width:120,height:76,...storefront},
+  {id:'right-western',stallId:'western',areaId:'noodle',label:'Western',x:735,y:155,width:110,height:76,...storefront},
+  {id:'right-malay',stallId:'brew-and-bites',areaId:'noodle',label:'Malay',x:735,y:310,width:110,height:76,...storefront},
+  {id:'right-indian',stallId:'indian',areaId:'noodle',label:'Indian',x:735,y:465,width:110,height:76,...storefront}
+ ]};
+export const seatingPositions=[{x:290,y:310},{x:450,y:310},{x:610,y:310},{x:290,y:435},{x:450,y:435},{x:610,y:435}];
+export const glassCounter={x:205,y:177,width:490,height:40};
+export const entrancePosition={x:450,y:622};
