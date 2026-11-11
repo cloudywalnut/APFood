@@ -20,7 +20,11 @@ export async function createLocalDemoDb() {
       create role service_role bypassrls;
       create schema auth;
       grant usage on schema auth to anon, authenticated;
-      create table auth.users (id uuid primary key);
+      create table auth.users (
+        id uuid primary key, email text,
+        email_confirmed_at timestamptz default now(),
+        raw_user_meta_data jsonb not null default '{}'
+      );
       create function auth.uid() returns uuid language sql stable as $$
         select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
       $$;
@@ -49,10 +53,11 @@ export async function createLocalDemoDb() {
     await db.transaction(async tx => {
       await tx.query("insert into auth.users (id) values ($1), ($2), ($3), ($4), ($5)",
         [student, other, vendor, otherVendor, admin]);
+      await tx.query("delete from public.memberships where user_id = any($1::uuid[])", [[vendor, otherVendor, admin]]);
       await tx.query(`
         insert into public.memberships (user_id, role, vendor_id) values
           ($1, 'student', null), ($2, 'student', null), ($3, 'vendor', $6),
-          ($4, 'vendor', $7), ($5, 'admin', null)
+          ($4, 'vendor', $7), ($5, 'admin', null) on conflict do nothing
       `, [student, other, vendor, otherVendor, admin, noodleBar, coffeeBar]);
     });
 

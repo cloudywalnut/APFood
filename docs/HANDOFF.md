@@ -10,6 +10,16 @@ AP Food is a campus pickup prototype for students, food-stall staff, and cafeter
 
 ## What is working
 
+### Account and checkout milestone
+
+Hosted mode now includes signup, sign-in, email confirmation/resend, recovery, invitation acceptance, and account settings. Student signup creates an active profile and student membership; ordering requires a verified email. Admin Users supports search, pagination, role/status filters, invitations, stall assignments, suspension, and an audit history. Database transactions protect the final active administrator.
+
+Signed-in carts are stored in Supabase with owner isolation and revision checks. Guest carts remain in browser storage, with an explicit conflict choice when a saved account cart exists. Checkout keeps an idempotent pending attempt until the order is confirmed and clears only the purchased cart revision.
+
+Vendor Payment settings accepts merchant-provided QR images. QR checkout reserves inventory and pickup capacity, allows five minutes for payment, and keeps payment status separate from preparation. The designated demonstration project enables owner-authorized “I've paid” confirmation, recorded internally as `customer_claimed_demo`. Unpaid expiry, cancellation, refund tasks, and collection receipts are transactional. This remains a demonstration payment mechanism, not bank verification.
+
+The migrations and six sample accounts are installed in project `vymnnyyuiujmxxycqiod`. Generated sample credentials are in ignored `.env.demo-users.json`; never commit or copy them into documentation. Email setup and the current domain are documented in [EMAIL_SETUP.md](EMAIL_SETUP.md). Domain verification is complete; SMTP activation, templates, and actual Auth email flows remain release checks.
+
 | Area | Current frontend behavior |
 | --- | --- |
 | Student | Browse stalls, search meals, configure a cart, schedule pickup, choose a demo payment method, track an order, and show its pickup QR or text code. Campus Deals link to specific items and their discounted prices carry through checkout. |

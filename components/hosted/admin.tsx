@@ -10,12 +10,13 @@ import { CashflowChart } from "../cashflow-chart";
 import { Empty, ErrorMessage, Modal, OpsShell, Recommendation, replaceFilters } from "../shared";
 import { HostedAccess, messageOf, RemoteStatus, SignOut, useHostedData, useRemote } from "./common";
 import { HostedTraffic } from "./traffic";
+import { Users } from "./users";
 
 type Report = Awaited<ReturnType<typeof hostedData.report>>;
 type LedgerEntry = Report["ledger"][number];
 type Vendor = Report["vendors"][number];
-const titles: Record<string, string> = { home: "Cafeteria overview", cashflow: "Cashflow", products: "Products", vendors: "Vendors", traffic: "Traffic", audit: "Audit trail" };
-const ledgerLabels = { demo: "Simulated collection", counter: "Counter-confirmed receipt", expense: "Paid expense", reversal: "Expense reversal" };
+const titles: Record<string, string> = { home: "Cafeteria overview", cashflow: "Cashflow", products: "Products", vendors: "Vendors", traffic: "Traffic", audit: "Audit trail", users: "User management" };
+const ledgerLabels = { demo: "Collection", counter: "Counter receipt", duitnow_qr: "DuitNow QR", refund: "Refund", expense: "Paid expense", reversal: "Expense reversal" };
 const localDate = new Intl.DateTimeFormat("en-MY", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kuala_Lumpur" });
 const formatDate = (timestamp: string) => localDate.format(new Date(timestamp));
 
@@ -23,7 +24,7 @@ export function HostedAdmin({ route, section }: { route: string; section: string
   return <HostedAccess role="admin">{() =>
     <OpsShell hosted kind="admin" route={route} title={titles[section]}>
       <div className="page-heading"><div>{section !== "traffic" && <h1>{titles[section]}</h1>}<p>Standard demo · Fictional transactions</p></div><SignOut /></div>
-      {section === "audit" ? <Audit /> : section === "traffic" ? <HostedTraffic admin /> : <ReportPanel section={section} />}
+      {section === "users" ? <Users /> : section === "audit" ? <Audit /> : section === "traffic" ? <HostedTraffic admin /> : <ReportPanel section={section} />}
     </OpsShell>
   }</HostedAccess>;
 }
@@ -55,10 +56,10 @@ function ReportPanel({ section }: { section: string }) {
     </div>}
     {section === "home" && <OpsDesk report={report} vendorId={vendorId} zoneId={zoneId} days={days} />}
     {section === "cashflow" && <><div className="metrics">{[
-      ["Collected receipts", report.finance.demo + report.finance.counter], ["Paid expenses", report.finance.expense],
+      ["Collected receipts", report.finance.demo + report.finance.counter + report.finance.duitnow_qr], ["Paid expenses", report.finance.expense],
       ["Expense reversals", report.finance.reversal], ["Demo net flow", report.finance.netSen],
     ].map(([label, amount]) => <section className="metric" key={label}><div><span>{label}</span><strong>{money(Number(amount))}</strong></div></section>)}</div>
-      <div className="panel breakdown"><span>Simulated collections <strong>{money(report.finance.demo)}</strong></span><span>Counter-confirmed <strong>{money(report.finance.counter)}</strong></span><span>Outstanding at counter <strong>{money(report.finance.outstandingCounterSen)}</strong></span><span>Shared overhead <strong>{money(report.finance.sharedOverheadSen)}</strong></span></div></>}
+      <div className="panel breakdown"><span>DuitNow QR <strong>{money(report.finance.duitnow_qr)}</strong></span><span>Counter-confirmed <strong>{money(report.finance.counter)}</strong></span><span>Outstanding at counter <strong>{money(report.finance.outstandingCounterSen)}</strong></span><span>Shared overhead <strong>{money(report.finance.sharedOverheadSen)}</strong></span></div></>}
     {(section === "home" || section === "cashflow") && (report.ledger.length
       ? <CashflowChart days={Number(days)} asOf={Date.parse(report.asOf)}
         entries={report.ledger.map(row => ({ day: dayKey(0, Date.parse(row.created_at)), type: row.kind, amount: row.amount_sen }))} />

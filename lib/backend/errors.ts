@@ -3,6 +3,13 @@ export class BackendError extends Error {
 }
 
 const failures: Record<string, [number, string]> = {
+  INVALID_PROFILE: [400, "Review the account details."],
+  ACCOUNT_NOT_FOUND: [404, "Account unavailable."],
+  LAST_ADMIN: [409, "Keep at least one active administrator."],
+  CART_CHANGED: [409, "Your cart changed in another window. Review the latest cart."],
+  PAYMENT_UNAVAILABLE: [409, "QR payment is unavailable. Choose pay at counter."],
+  PAYMENT_REQUIRED: [409, "Payment is required before this order can be prepared."],
+  PAYMENT_EXPIRED: [409, "The payment window expired. Check your order and start a new checkout."],
   UNAUTHENTICATED: [401, "Sign in to continue."],
   FORBIDDEN: [403, "This action is unavailable for your account."],
   ORDER_NOT_FOUND: [404, "Order unavailable."],

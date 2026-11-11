@@ -111,13 +111,15 @@ export function cartDetails(state: DemoState) {
   });
 }
 
-export function totals(entries: Pick<Entry, "type" | "amount">[]) {
-  const amount = (type: Entry["type"]) => entries.filter(entry => entry.type === type).reduce((sum, entry) => sum + entry.amount, 0);
+export function totals(entries: { type: Entry["type"] | "duitnow_qr" | "refund"; amount: number }[]) {
+  const amount = (type: Entry["type"] | "duitnow_qr" | "refund") => entries.filter(entry => entry.type === type).reduce((sum, entry) => sum + entry.amount, 0);
   const demo = amount("demo");
   const counter = amount("counter");
   const expense = amount("expense");
   const reversal = amount("reversal");
-  return { demo, counter, expense, reversal, inflow: demo + counter, net: demo + counter - expense + reversal };
+  const duitnow = amount("duitnow_qr");
+  const refund = amount("refund");
+  return { demo, counter, expense: expense + refund, reversal, inflow: demo + counter + duitnow, net: demo + counter + duitnow - expense - refund + reversal };
 }
 
 export function withAudit(state: DemoState, actor: string, action: string, target: string, detail = "") {

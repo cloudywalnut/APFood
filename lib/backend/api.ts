@@ -1,10 +1,13 @@
 import { z } from "zod";
 import { BackendError, unwrap } from "./errors";
-import { checkoutInput, id, orderId, quoteInput } from "./contracts";
+import { cartInput, checkoutInput, id, orderId, quoteInput } from "./contracts";
 import { requestClient, type RequestClient } from "./supabase";
 import { adminReport } from "./reports";
+import { authAction, authLimit } from "./auth";
+import { inviteAccount, manageAccount, qrUrl, uploadVendorQr } from "./account-actions";
+import { clearRecovery } from "./recovery";
 
-const orderFields = "id,vendor_id,zone_id,pickup_at,status,payment,lines,total_sen,version,created_at,updated_at,ready_at,collected_at";
+const orderFields = "id,vendor_id,zone_id,pickup_at,status,payment,lines,total_sen,version,created_at,updated_at,ready_at,collected_at,payment_record:order_payments(status)";
 const vendorFields = "id,zone_id,name,description,category,image,status,paused,capacity,lead_minutes,opens_at,closes_at";
 const menuFields = "id,vendor_id,name,description,price_sen,discount_sen,stock,active,work_units";
 const transitionInput = z.object({ status: z.enum(["accepted","preparing","ready","rejected"]), reason: z.string().max(250).optional() }).strict();
@@ -30,10 +33,14 @@ async function body<T>(request: Request, schema: z.ZodType<T>) {
 async function session(client: RequestClient) {
   const { data, error } = await client.auth.getUser();
   if (error || !data.user) throw new BackendError(401, "UNAUTHENTICATED", "Sign in to continue.");
-  return { userId: data.user.id, memberships: unwrap(await client.from("memberships").select("role,vendor_id").eq("user_id", data.user.id)) };
+  const profile = unwrap(await client.from("profiles").select("id,display_name,status,created_at").eq("id", data.user.id).single());
+  return { userId: data.user.id, email: data.user.email ?? "", emailVerified: Boolean(data.user.email_confirmed_at), profile,
+    memberships: unwrap(await client.from("memberships").select("role,vendor_id").eq("user_id", data.user.id)) };
 }
 
 function requireMembership(actor: Awaited<ReturnType<typeof session>>, role: "student" | "vendor" | "admin", vendor?: string) {
+  if (!actor.emailVerified) throw new BackendError(403, "EMAIL_UNCONFIRMED", "Confirm your email before continuing.");
+  if (actor.profile?.status !== "active") throw new BackendError(403, "ACCOUNT_SUSPENDED", "Your account is suspended. Contact cafeteria support.");
   if (!actor.memberships?.some(entry => entry.role === role && (vendor === undefined || entry.vendor_id === vendor))) {
     throw new BackendError(403, "FORBIDDEN", "This action is unavailable for your account.");
   }
@@ -57,17 +64,24 @@ export async function handleRequest(request: Request, path: string[]) {
       throw new BackendError(401, "SESSION_CHANGED", "Your account changed. Sign in as the original account to continue.");
     }
     const query = new URL(request.url).searchParams;
+    if (method === "POST" && path[0] === "auth" && ["register", "resend", "recover", "profile"].includes(path[1]) && path.length === 2) {
+      if (path[1] === "profile") await getSession();
+      return result(await authAction(request, path[1], client));
+    }
     if (key === "auth/session") {
       if (method === "POST") {
+        await authLimit(request, "login");
         const input = await body(request, login);
         const auth = await client.auth.signInWithPassword(input);
-        if (auth.error) throw new BackendError(401, "INVALID_LOGIN", "Check the email and password.");
+        if (auth.error) throw new BackendError(401, auth.error.code === "email_not_confirmed" ? "EMAIL_UNCONFIRMED" : "INVALID_LOGIN",
+          auth.error.code === "email_not_confirmed" ? "Confirm your email before signing in." : "Check the email and password.");
         return result(await getSession());
       }
       if (method === "GET") return result(await getSession());
       if (method === "DELETE") {
         const { error } = await client.auth.signOut({ scope: "local" });
         if (error) throw new BackendError(401, "UNAUTHENTICATED", "Sign in to continue.");
+        await clearRecovery();
         return result({ ok: true });
       }
     }
@@ -84,11 +98,54 @@ export async function handleRequest(request: Request, path: string[]) {
     }
     if (method === "POST" && key === "checkout/quote") {
       const input = await body(request, quoteInput);
-      return result(unwrap(await client.rpc("quote_checkout", { p_vendor: input.vendorId, p_cart: input.items })));
+      const quote = unwrap(await client.rpc("quote_checkout", { p_vendor: input.vendorId, p_cart: input.items }));
+      if (input.payment === "duitnow_qr") {
+        const vendor = unwrap(await client.from("vendors").select("lead_minutes").eq("id", input.vendorId).single());
+        if (!vendor) throw new BackendError(404, "STALL_UNAVAILABLE", "Stall unavailable.");
+        quote.slots = quote.slots.filter((slot: string) => Date.parse(slot) >= Date.now() + (vendor.lead_minutes + 5) * 60_000);
+      }
+      return result(quote);
     }
     if (method === "POST" && key === "orders") {
       const input = await body(request, checkoutInput);
-      return result(unwrap(await client.rpc("place_order", { p_quote: input.quoteId, p_pickup: input.pickupAt, p_payment: input.payment, p_key: input.idempotencyKey })), 201);
+      return result(unwrap(await client.rpc(input.cartRevision === undefined ? "place_order" : "checkout_cart", {
+        p_quote: input.quoteId, p_pickup: input.pickupAt, p_payment: input.payment, p_key: input.idempotencyKey,
+        ...(input.cartRevision === undefined ? {} : { p_revision: input.cartRevision }),
+      })), 201);
+    }
+    if (key === "cart") {
+      const actor = requireMembership(await getSession(), "student");
+      if (method === "GET") return result(unwrap(await client.from("carts").select("vendor_id,items,revision").eq("user_id", actor.userId).maybeSingle()) ?? { vendor_id: null, items: [], revision: 0 });
+      if (method === "PUT") {
+        const input = await body(request, cartInput);
+        return result(unwrap(await client.rpc("save_cart", { p_vendor: input.vendorId, p_items: input.items, p_revision: input.revision })));
+      }
+    }
+    if (key === "admin/users" && method === "GET") {
+      requireMembership(await getSession(), "admin");
+      return result(unwrap(await client.rpc("list_accounts", {
+        p_search: z.string().max(100).parse(query.get("search") ?? ""),
+        p_role: z.enum(["", "student", "vendor", "admin"]).parse(query.get("role") ?? ""),
+        p_status: z.enum(["", "active", "suspended"]).parse(query.get("status") ?? ""),
+        p_page: z.coerce.number().int().min(1).max(10000).parse(query.get("page") ?? 1),
+      })));
+    }
+    if (key === "admin/users/invite" && method === "POST") {
+      requireMembership(await getSession(), "admin");
+      return result(await inviteAccount(request, client), 201);
+    }
+    if (path[0] === "admin" && path[1] === "users" && path.length === 3 && method === "PATCH") {
+      requireMembership(await getSession(), "admin");
+      return result(await manageAccount(request, client, path[2]));
+    }
+    if (path[0] === "vendors" && path.length === 3 && path[2] === "payment" && method === "GET") {
+      const details = unwrap(await client.from("vendor_payments").select("*").eq("vendor_id", id.parse(path[1])).maybeSingle());
+      return result(details ? { ...details, qrUrl: qrUrl(client, details.qr_path) } : null);
+    }
+    if (path[0] === "vendor" && path[1] === "payments" && path.length === 3 && method === "POST") {
+      const vendor = id.parse(path[2]);
+      requireMembership(await getSession(), "vendor", vendor);
+      return result(await uploadVendorQr(request, client, vendor));
     }
     if (method === "GET" && key === "orders") {
       const actor = requireMembership(await getSession(), "student");
@@ -102,11 +159,26 @@ export async function handleRequest(request: Request, path: string[]) {
     }
     if (method === "POST" && path[0] === "orders" && path.length === 3) {
       const order = orderId.parse(path[1]);
+      if (path[2] === "payment-claim") {
+        unwrap(await client.rpc("claim_qr_payment", { p_id: order }));
+        return result({ ok: true });
+      }
       if (path[2] === "pickup-token") return result(unwrap(await client.rpc("issue_pickup_code", { p_id: order })));
       if (path[2] === "cancel") {
         const input = await body(request, cancellation);
         return result(unwrap(await client.rpc("transition_order", { p_id: order, p_status: "cancelled", p_reason: input.reason ?? null })));
       }
+    }
+    if (method === "GET" && path[0] === "orders" && path.length === 3 && path[2] === "payment") {
+      await getSession();
+      const details = unwrap(await client.from("order_payments").select("order_id,status,expires_at,paid_at,merchant_name,qr_path,refund_reference,refunded_at")
+        .eq("order_id", orderId.parse(path[1])).maybeSingle());
+      return result(details ? { ...details, qrUrl: qrUrl(client, details.qr_path) } : null);
+    }
+    if (method === "POST" && path[0] === "orders" && path.length === 3 && path[2] === "refund") {
+      const input = await body(request, z.object({ reference: z.string().trim().min(1).max(120) }).strict());
+      unwrap(await client.rpc("record_refund", { p_id: orderId.parse(path[1]), p_reference: input.reference }));
+      return result({ ok: true });
     }
     if (method === "GET" && key === "vendor/orders") {
       const vendor = id.parse(query.get("vendorId"));

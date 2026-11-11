@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import {
-  activityRow, adminReportOutput, auditRow, errorBody, menuRow, orderResult, orderRow, pickupOutput, quoteOutput, sessionOutput, vendorRow,
+  activityRow, adminReportOutput, auditRow, cartOutput, errorBody, menuRow, orderResult, orderRow, paymentOutput, pickupOutput, quoteOutput, sessionOutput, usersOutput, vendorPayment, vendorRow,
   type CheckoutInput, type QuoteInput,
 } from "./contracts";
 
@@ -13,10 +13,11 @@ const ok = z.object({ ok: z.literal(true) });
 export const sessionInvalidated = "ap-food-session-invalidated";
 
 async function request<T>(path: string, output: z.ZodType<T>, method = "GET", input?: unknown, userId?: string) {
+  const form = input instanceof FormData;
   const response = await fetch("/api/" + path, {
     method, cache: "no-store", signal: AbortSignal.timeout(15_000),
-    headers: { ...(input === undefined ? {} : { "Content-Type": "application/json" }), ...(userId ? { "X-AP-Food-User": userId } : {}) },
-    ...(input === undefined ? {} : { body: JSON.stringify(input) }),
+    headers: { ...(input === undefined || form ? {} : { "Content-Type": "application/json" }), ...(userId ? { "X-AP-Food-User": userId } : {}) },
+    ...(input === undefined ? {} : { body: form ? input : JSON.stringify(input) }),
   }).catch(() => { throw new ApiError(0, "CONNECTION_LOST", "Could not confirm the server response. Retry the request."); });
   const payload: unknown = await response.json().catch(() => null);
   if (!response.ok) {
@@ -33,6 +34,10 @@ export function createHostedData(userId?: string) {
   const call = <T>(path: string, output: z.ZodType<T>, method?: string, input?: unknown) => request(path, output, method, input, userId);
   return {
   signIn: (email: string, password: string) => request("auth/session", sessionOutput, "POST", { email, password }),
+  register: (input: { email: string; password: string; displayName: string }) => request("auth/register", ok, "POST", input),
+  resend: (email: string) => request("auth/resend", ok, "POST", { email }),
+  recover: (email: string) => request("auth/recover", ok, "POST", { email }),
+  updateProfile: (input: { displayName?: string; email?: string; password?: string; currentPassword?: string }) => call("auth/profile", ok, "POST", input),
   session: () => request("auth/session", sessionOutput),
   signOut: () => call("auth/session", ok, "DELETE"),
   zones: () => request("zones", z.array(z.object({ id: z.string(), name: z.string() }))),
@@ -40,6 +45,16 @@ export function createHostedData(userId?: string) {
   menu: (vendorId: string) => request("vendors/" + encodeURIComponent(vendorId) + "/menu", z.array(menuRow)),
   quote: (input: QuoteInput) => call("checkout/quote", quoteOutput, "POST", input),
   place: (input: CheckoutInput) => call("orders", orderResult, "POST", input),
+  cart: () => call("cart", cartOutput),
+  saveCart: (input: { vendorId: string | null; items: QuoteInput["items"]; revision: number }) => call("cart", cartOutput, "PUT", input),
+  vendorPayment: (vendorId: string) => request("vendors/" + encodeURIComponent(vendorId) + "/payment", vendorPayment.nullable()),
+  uploadQr: (vendorId: string, data: FormData) => call("vendor/payments/" + encodeURIComponent(vendorId), ok, "POST", data),
+  orderPayment: (id: string) => call("orders/" + encodeURIComponent(id) + "/payment", paymentOutput.nullable()),
+  claimPayment: (id: string) => call("orders/" + encodeURIComponent(id) + "/payment-claim", ok, "POST"),
+  refund: (id: string, reference: string) => call("orders/" + encodeURIComponent(id) + "/refund", ok, "POST", { reference }),
+  users: (params: URLSearchParams) => call("admin/users?" + params, usersOutput),
+  manageUser: (id: string, input: { status: "active" | "suspended"; memberships: { role: "student" | "vendor" | "admin"; vendor_id: string | null }[]; reason: string }) => call("admin/users/" + encodeURIComponent(id), ok, "PATCH", input),
+  invite: (input: { email: string; displayName: string; role: "student" | "vendor" | "admin"; vendorId: string | null }) => call("admin/users/invite", ok, "POST", input),
   orders: () => call("orders", z.array(orderRow)),
   order: (id: string) => call("orders/" + encodeURIComponent(id), orderRow),
   kitchen: (vendorId: string) => call("vendor/orders?vendorId=" + encodeURIComponent(vendorId), z.array(orderRow)),

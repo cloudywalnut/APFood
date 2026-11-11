@@ -10,6 +10,7 @@ import { subscribeToOrders } from "../../lib/backend/realtime";
 import { pickupWindow } from "../../lib/pickup-time";
 import { Empty, ErrorMessage, Modal, OpsShell, Recommendation, StatusBadge, replaceFilters } from "../shared";
 import { HostedAccess, RemoteStatus, SignOut, messageOf, useHostedData, useRemote, type Session } from "./common";
+import { OrderPayment, VendorPaymentSettings } from "./payments";
 
 type Stall = Awaited<ReturnType<typeof hostedData.assignedStalls>>[number];
 type MenuItem = Awaited<ReturnType<typeof hostedData.vendorMenu>>[number];
@@ -36,7 +37,7 @@ function VendorContent({ session, section, id }: { session: Session; section: st
   if (!stalls.value) return <RemoteStatus error={stalls.error} reload={stalls.reload} />;
   const stall = stalls.value.find(entry => entry.id === selection) ?? stalls.value[0];
   if (!stall) return <Empty title="No assigned stalls" detail="Ask an administrator to check your vendor membership." />;
-  const titles: Record<string, string> = { home: "Shift dashboard", orders: "Kitchen board", menu: "Menu & stock", capacity: "Capacity & hours" };
+  const titles: Record<string, string> = { home: "Shift dashboard", orders: "Kitchen board", menu: "Menu & stock", capacity: "Capacity & hours", payments: "Payment settings" };
   return <>
     <div className="page-heading"><div><h1>{titles[section]}</h1><p>{stall.name}</p></div><div className="line wrap">
       <label className="field compact">Stall<select value={stall.id} onChange={event => replaceFilters({ stall: event.target.value })}>
@@ -46,6 +47,7 @@ function VendorContent({ session, section, id }: { session: Session; section: st
     {(section === "home" || section === "orders") && <Kitchen key={stall.id} stall={stall} summary={section === "home"} />}
     {section === "menu" && <VendorMenu key={stall.id} stall={stall} />}
     {section === "capacity" && <Settings key={stall.id} stall={stall} reload={stalls.reload} />}
+    {section === "payments" && <VendorPaymentSettings key={stall.id} vendorId={stall.id} />}
   </>;
 }
 
@@ -57,9 +59,11 @@ function Kitchen({ stall, summary }: { stall: Stall; summary: boolean }) {
   const [error, setError] = useState("");
   useEffect(() => subscribeToOrders({ vendorId: stall.id }, orders.reload), [stall.id, orders.reload]);
   if (!orders.value) return <RemoteStatus error={orders.error} reload={orders.reload} />;
-  const active = orders.value.filter(order => stages.some(stage => stage.status === order.status));
+  const active = orders.value.filter(order => stages.some(stage => stage.status === order.status) &&
+    (order.payment !== "duitnow_qr" || order.payment_record?.status === "paid"));
+  const awaitingPayment = orders.value.filter(order => order.status === "placed" && order.payment_record?.status === "pending").length;
   if (summary) return <ShiftSummary stall={stall} active={active} />;
-  return <><ErrorMessage message={error} /><div className="kitchen-grid">{stages.map(stage => {
+  return <>{awaitingPayment > 0 && <p className="notice">{awaitingPayment} orders are awaiting payment and will enter the kitchen once paid.</p>}<ErrorMessage message={error} /><div className="kitchen-grid">{stages.map(stage => {
     const lane = active.filter(order => order.status === stage.status).sort((a, b) => Date.parse(a.pickup_at) - Date.parse(b.pickup_at));
     const next = stage.next;
     return <section className="kitchen-lane" key={stage.status}><h2>{stage.label} <span className="badge neutral">{lane.length}</span></h2>
@@ -134,11 +138,12 @@ function VendorOrderActions({ order, reload }: { order: OrderRow; reload: () => 
   return <>
     <Link className="quiet-link back-link" href={"/vendor/orders?stall=" + encodeURIComponent(order.vendor_id)}>Back to kitchen</Link>
     <div className="page-heading"><div><h1>Order {order.id.slice(0, 8)}</h1><p>{pickupWindow(order.pickup_at)}</p></div><StatusBadge status={order.status} /></div>
+    {order.payment === "duitnow_qr" && <OrderPayment id={order.id} total={order.total_sen} version={order.version} changed={reload} />}
     <section className="panel order-summary"><h2>Order details</h2>
       {order.lines.map(line => <div className="line spread" key={line.itemId + line.extra}><span>{line.quantity} × {line.name}{line.extra && " + side"}</span><strong>{money(line.quantity * line.unit)}</strong></div>)}
-      <div className="line spread cart-total"><strong>{order.payment === "counter" ? "Pay at counter" : "Demo payment"}</strong><strong>{money(order.total_sen)}</strong></div>
+      <div className="line spread cart-total"><strong>{order.payment === "counter" ? "Pay at counter" : order.payment === "duitnow_qr" ? "DuitNow QR" : "Payment"}</strong><strong>{money(order.total_sen)}</strong></div>
       <div className="line wrap">
-        {next && <button className="button primary" disabled={busy} onClick={() => next === "collected" ? open("collect") : void act(() => api.transition(order.id, next))}>{stage.action}</button>}
+        {next && <button className="button primary" disabled={busy || (order.payment === "duitnow_qr" && order.payment_record?.status !== "paid")} onClick={() => next === "collected" ? open("collect") : void act(() => api.transition(order.id, next))}>{stage.action}</button>}
         {order.status === "placed" && <button className="button secondary" disabled={busy} onClick={() => open("reject")}>Reject order</button>}
         {["accepted","preparing"].includes(order.status) && <button className="button secondary" disabled={busy} onClick={() => open("cancel")}>Cancel order</button>}
       </div>{!mode && <ErrorMessage message={error} />}

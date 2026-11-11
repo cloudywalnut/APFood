@@ -1,18 +1,21 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import { readFile } from "node:fs/promises";
 
 const { NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: key,
   AP_FOOD_DEMO_PROJECT_REF: ref, AP_FOOD_DEMO_PASSWORD: password, AP_FOOD_HOSTED_SMOKE: enabled } = process.env;
 const base = new URL(process.env.AP_FOOD_APP_ORIGIN || "http://localhost:3000");
-if (enabled !== "1" || !ref || !url || new URL(url).origin !== "https://" + ref + ".supabase.co" || !key || !password ||
+if (enabled !== "1" || !ref || !url || new URL(url).origin !== "https://" + ref + ".supabase.co" || !key ||
   (base.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(base.hostname))) {
   throw new Error("Configure and explicitly enable the smoke test on a disposable hosted demo project.");
 }
 
 async function token(alias) {
+  const fixtureFile = JSON.parse(await readFile(new URL("../.env.demo-users.json", import.meta.url), "utf8").catch(() => "{}"));
+  const fixturePassword = fixtureFile.projectRef === ref ? fixtureFile.users?.[alias]?.password : undefined;
   const supabase = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
-  const { data, error } = await supabase.auth.signInWithPassword({ email: alias + "@ap-food-demo.example", password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email: alias + "@ap-food-demo.example", password: fixturePassword || password });
   if (error || !data.session) {
     throw new Error("Cannot sign in fixture " + alias + " (" + (error?.code ?? "missing session") + "). Check the seeded account and its original fixture password.");
   }

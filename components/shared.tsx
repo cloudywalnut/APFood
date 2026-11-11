@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, ArrowUpRight, BarChart3, ChefHat, ClipboardList, Clock3, House, LayoutDashboard, ReceiptText, ShoppingBag, Store, Utensils, WalletCards, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BarChart3, ChefHat, ClipboardList, Clock3, House, LayoutDashboard, ReceiptText, ShoppingBag, Store, UserRound, UsersRound, Utensils, WalletCards, X } from "lucide-react";
 import { scenarioNames, scenarios, statusNames, type Scenario, type Status } from "../lib/demo";
 import { selectScenario, useDemo } from "../lib/demo-store";
 
@@ -42,13 +42,14 @@ export function StudentShell({ route, children, cartCount }: { route: string; ch
         const current = route === href || (index > 0 && route.startsWith(href + "/"));
         return <Link href={href} key={href} aria-current={current ? "page" : undefined}><Icon size={17} aria-hidden /><span>{label}</span></Link>;
       })}
-    </nav>{cartCount === undefined ? <MockCartLink /> : <CartLink count={cartCount} />}</div></header>
+    </nav>{cartCount === undefined ? <MockCartLink /> : <><Link className="icon-button" href="/account" aria-label="Your account"><UserRound size={20} aria-hidden /></Link><CartLink count={cartCount} /></>}</div></header>
     <main id="main-content" className="student-main">{cartCount === undefined && <ScenarioNotice />}{children}</main><Footer />
   </div>;
 }
 
 export function OpsShell({ kind, route, title, children, hosted = false }: { kind: "vendor" | "admin"; route: string; title: string; children: ReactNode; hosted?: boolean }) {
-  const links = kind === "vendor" ? vendorLinks : adminLinks;
+  const links = kind === "vendor" ? [...vendorLinks, ...(hosted ? [["/vendor/payments", "Payments", WalletCards] as const] : [])]
+    : [...adminLinks, ...(hosted ? [["/admin/users", "Users", UsersRound] as const] : [])];
   const filters = useSearchParams().toString();
   return <div className="ops-theme">
     <aside className="ops-sidebar"><div className="ops-brand"><Brand /></div>
@@ -57,7 +58,7 @@ export function OpsShell({ kind, route, title, children, hosted = false }: { kin
         const current = route === href || (index > 0 && route.startsWith(href + "/"));
         return <Link href={filters ? href + "?" + filters : href} key={href} aria-current={current ? "page" : undefined}><Icon size={18} aria-hidden /><span>{label}</span></Link>;
       })}</nav>
-      <div className="ops-profile"><span className="profile-initials">{kind === "admin" ? "CO" : "FO"}</span><span><strong>{kind === "admin" ? "Campus operations" : "Food stall operator"}</strong><small>Demo workspace</small></span></div>
+      <div className="ops-profile"><span className="profile-initials">{kind === "admin" ? "CO" : "FO"}</span><span><strong>{kind === "admin" ? "Campus operations" : "Food stall operator"}</strong>{hosted ? <Link href="/account">Your account</Link> : <small>Demo workspace</small>}</span></div>
     </aside>
     <div className="ops-body">
       <header className="ops-top"><span className="ops-title">{title}</span><div className="ops-top-actions"><span className="badge neutral">{hosted ? "Hosted demo" : "Frontend demo"}</span><Link href="/" className="quiet-link">Switch portal <ArrowUpRight size={15} aria-hidden /></Link></div></header>

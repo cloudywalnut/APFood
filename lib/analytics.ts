@@ -9,7 +9,7 @@ export function scopeData(state: DemoState, days: number, zone: string, vendorId
   return { vendors, orders, entries, finance: totals(entries) };
 }
 
-export type FinanceEntry = Pick<Entry, "day" | "type" | "amount">;
+export type FinanceEntry = Pick<Entry, "day" | "amount"> & { type: Entry["type"] | "duitnow_qr" | "refund" };
 
 export function financeSeries(entries: FinanceEntry[], days: number, asOf = Date.now()) {
   return Array.from({ length: Math.min(days, 14) }, (_, index) => {

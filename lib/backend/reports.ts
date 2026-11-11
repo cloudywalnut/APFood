@@ -1,19 +1,19 @@
 import { z } from "zod";
 import { dayKey } from "../demo";
-import { id, ledgerRow, orderLine, status } from "./contracts";
+import { id, ledgerRow, orderLine, payment, status } from "./contracts";
 import { BackendError, unwrap } from "./errors";
 import type { RequestClient } from "./supabase";
 
 const filters = z.object({ days: z.enum(["1", "7", "14"]).transform(Number), vendorId: id.optional(), zoneId: id.optional() });
-const reportOrder = z.object({ vendor_id: id, zone_id: id, payment: z.enum(["demo","counter"]), status,
+const reportOrder = z.object({ vendor_id: id, zone_id: id, payment, status,
   total_sen: z.number().int(), lines: z.array(orderLine), pickup_at: z.string(), created_at: z.string(),
   ready_at: z.string().nullable(), collected_at: z.string().nullable() });
 const active = new Set(["placed", "accepted", "preparing", "ready"]);
 
 function totals(rows: z.infer<typeof ledgerRow>[]) {
-  const values = { demo: 0, counter: 0, expense: 0, reversal: 0 };
+  const values = { demo: 0, counter: 0, duitnow_qr: 0, refund: 0, expense: 0, reversal: 0 };
   for (const entry of rows) values[entry.kind] += entry.amount_sen;
-  return { ...values, netSen: values.demo + values.counter - values.expense + values.reversal };
+  return { ...values, netSen: values.demo + values.counter + values.duitnow_qr - values.expense - values.refund + values.reversal };
 }
 
 export async function adminReport(client: RequestClient, params: URLSearchParams) {

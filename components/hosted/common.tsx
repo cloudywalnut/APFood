@@ -12,6 +12,15 @@ export const portalFor: Record<Role, string> = { student: "/app", vendor: "/vend
 const roles: Role[] = ["student", "vendor", "admin"];
 const HostedUser = createContext<string | null>(null);
 
+export function HostedVisitor({ children }: { children: (session?: Session) => ReactNode }) {
+  const result = useRemote(hostedData.session);
+  if (!result.value && !result.error) return <HostedFrame><p role="status">Loading your workspace…</p></HostedFrame>;
+  const guest = typeof result.error === "object" && result.error !== null && "status" in result.error && result.error.status === 401;
+  if (result.error && !guest) return <HostedFrame><RemoteStatus error={result.error} reload={result.reload} /></HostedFrame>;
+  const session = result.value;
+  return <HostedUser.Provider value={session?.userId ?? null} key={session?.userId ?? "guest"}>{children(session)}</HostedUser.Provider>;
+}
+
 export function useHostedData() {
   const user = useContext(HostedUser);
   return useMemo(() => {
@@ -76,33 +85,6 @@ function PortalLinks({ session }: { session: Session }) {
   )}</div> : <p>This account has no AP Food membership.</p>;
 }
 
-export function HostedLogin({ register = false }: { register?: boolean }) {
-  const current = useRemote(hostedData.session);
-  const [session, setSession] = useState<Session>();
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  if (register) return <HostedFrame><h1>Demo access</h1><p>Use the student, vendor, or admin account supplied for the hosted demo.</p><Link className="button primary" href="/auth/login">Sign in</Link></HostedFrame>;
-  const active = session ?? current.value;
-  return <HostedFrame><h1>{active ? "Choose your workspace" : "Sign in"}</h1>
-    {active ? <><PortalLinks session={active} /><SignOut /></> : <form className="stack" onSubmit={async event => {
-      event.preventDefault();
-      if (busy) return;
-      const data = new FormData(event.currentTarget);
-      setBusy(true);
-      setError("");
-      try { setSession(await hostedData.signIn(String(data.get("email")), String(data.get("password")))); }
-      catch (problem) { setError(messageOf(problem)); }
-      finally { setBusy(false); }
-    }}>
-      <p>Use your hosted demo account.</p>
-      <label className="field">Email<input name="email" type="email" autoComplete="username" required /></label>
-      <label className="field">Password<input name="password" type="password" autoComplete="current-password" required /></label>
-      <ErrorMessage message={error} />
-      <button className="button primary" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
-    </form>}
-  </HostedFrame>;
-}
-
 export function SignOut() {
   const router = useRouter();
   const user = useContext(HostedUser);
@@ -127,6 +109,8 @@ export function HostedAccess({ role, children }: { role: Role; children: (sessio
     };
   }, [session.reload]);
   if (!session.value) return <HostedFrame><h1>Hosted demo</h1><RemoteStatus error={session.error} reload={session.reload} /></HostedFrame>;
+  if (!session.value.emailVerified) return <HostedFrame><h1>Confirm your email</h1><p>Verify your email to continue.</p><Link className="button primary" href="/auth/verify-email">Resend confirmation</Link><SignOut /></HostedFrame>;
+  if (session.value.profile.status !== "active") return <HostedFrame><h1>Account suspended</h1><p>Contact cafeteria support to review your account.</p><SignOut /></HostedFrame>;
   if (!session.value.memberships.some(entry => entry.role === role)) return <HostedFrame><h1>Workspace unavailable</h1><p>Choose a workspace assigned to your account.</p><PortalLinks session={session.value} /><SignOut /></HostedFrame>;
   return <HostedUser.Provider value={session.value.userId} key={session.value.userId + ":" + role}>{children(session.value)}</HostedUser.Provider>;
 }
