@@ -1,5 +1,7 @@
 "use client";
 
+import { HostedFif } from "./fif";
+
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -8,7 +10,7 @@ import { hostedData } from "../../lib/backend/client";
 import type { OrderRow } from "../../lib/backend/contracts";
 import { subscribeToOrders } from "../../lib/backend/realtime";
 import { pickupWindow } from "../../lib/pickup-time";
-import { Empty, ErrorMessage, Modal, OpsShell, Recommendation, StatusBadge, replaceFilters } from "../shared";
+import { Empty, ErrorMessage, Modal, OpsShell, StatusBadge, replaceFilters } from "../shared";
 import { HostedAccess, RemoteStatus, SignOut, messageOf, useHostedData, useRemote, type Session } from "./common";
 import { OrderPayment, VendorPaymentSettings } from "./payments";
 
@@ -87,18 +89,9 @@ function ShiftSummary({ stall, active }: { stall: Stall; active: OrderRow[] }) {
   const menu = useRemote(load);
   const low = menu.value?.filter(item => item.active && item.stock <= 5).length;
   const placed = active.filter(order => order.status === "placed");
-  const first = [...placed].sort((a, b) => Date.parse(a.pickup_at) - Date.parse(b.pickup_at))[0];
   const ready = active.filter(order => order.status === "ready").length;
-  const reviewStock = Boolean(!first && !ready && low);
-  const target = "?stall=" + encodeURIComponent(stall.id);
   return <div className="stack">
-    <Recommendation label="FIF · Shift priorities"
-      title={first ? "Review new pickup orders" : ready ? "Prepare for collection" : reviewStock ? "Check low-stock menu items" : "Monitor the kitchen board"}
-      evidence={first ? placed.length + " awaiting acceptance. Earliest pickup · " + pickupWindow(first.pickup_at)
-        : ready ? ready + " ready for collection." : reviewStock ? low + " published items have five portions or fewer."
-          : active.length + " orders in the active kitchen queue."}
-      href={(reviewStock ? "/vendor/menu" : "/vendor/orders") + target}
-      action={reviewStock ? "Review menu" : "Open kitchen board"} />
+    <HostedFif role="vendor" vendorId={stall.id} />
     <div className="metrics">{[
       ["Active orders", active.length], ["Awaiting acceptance", placed.length], ["Ready for pickup", ready],
       ["Low-stock items", low ?? "—"],

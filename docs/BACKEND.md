@@ -15,6 +15,7 @@ Browser requests use a Supabase session cookie. Use the app origin for cookie-au
 
 | Endpoint | Input or scope |
 | --- | --- |
+| `POST /api/fif/recommendations` | `{ role, vendorId?, zoneId? }`; authenticated, active verified membership required. Vendor requests require an assigned stall. Returns server-owned evidence, action link, and `rules` or `gemini` source. |
 | `POST /api/auth/session` | `{ email, password }` returns the user ID and database memberships. GET reads the session and DELETE signs out. |
 | `GET /api/vendors`, `GET /api/vendors/:id/menu`, `GET /api/zones` | Published demo catalogue. Menu records include regular price, discount, stock, and work units. |
 | `POST /api/checkout/quote` | `{ vendorId, items: [{ itemId, quantity, extra }] }` returns `quoteId`, `expiresAt`, `slots`, priced lines, and `totalSen`. Slots use ISO timestamps. |
@@ -34,7 +35,7 @@ For a new server-backed order, represent the pickup window with its actual times
 
 `npm run test:backend` runs the actual SQL migrations in embedded Postgres with minimal Supabase Auth and Realtime schema stand-ins. It checks role policies, stock and capacity conflicts, exact retries, promo pricing, pickup replay and the ledger. `npm run test:hosted` adds concurrent HTTP checkout and redemption against the configured project. Verify real browser sessions and WebSocket subscriptions on the hosted preview. Open order views also refresh periodically to recover from missed broadcasts.
 
-Signed-in carts persist in Supabase with owner isolation and revision checks. Guest carts use local storage; an existing account cart requires an explicit import choice. Only the exact pending checkout attempt stays in per-account session storage. After a lost response, retry that saved request in the same tab. Pickup codes stay in view memory. See [EMAIL_SETUP.md](EMAIL_SETUP.md) for SMTP and Auth template activation, and the [backend delivery plan](BACKEND_PLAN.md) for remaining delivery gates.
+Signed-in carts persist in Supabase with owner isolation and revision checks. Guest carts use local storage; an existing account cart requires an explicit import choice. Cart saves emit a local-storage invalidation marker to refresh other tabs; focus and visibility changes also refetch. Only the exact pending checkout attempt stays in per-account session storage. After a lost response, retry that saved request in the same tab. Pickup codes stay in view memory. See [EMAIL_SETUP.md](EMAIL_SETUP.md) for SMTP and Auth template activation, [verification results](VERIFICATION.md) for checked flows, and the [backend delivery plan](BACKEND_PLAN.md) for remaining delivery gates.
 
 ## Rehearse traffic locally
 

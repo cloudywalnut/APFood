@@ -18,7 +18,11 @@ Signed-in carts are stored in Supabase with owner isolation and revision checks.
 
 Vendor Payment settings accepts merchant-provided QR images. QR checkout reserves inventory and pickup capacity, allows five minutes for payment, and keeps payment status separate from preparation. The designated demonstration project enables owner-authorized “I've paid” confirmation, recorded internally as `customer_claimed_demo`. Unpaid expiry, cancellation, refund tasks, and collection receipts are transactional. This remains a demonstration payment mechanism, not bank verification.
 
-The migrations and six sample accounts are installed in project `vymnnyyuiujmxxycqiod`. Generated sample credentials are in ignored `.env.demo-users.json`; never commit or copy them into documentation. Email setup and the current domain are documented in [EMAIL_SETUP.md](EMAIL_SETUP.md). Domain verification is complete; SMTP activation, templates, and actual Auth email flows remain release checks.
+The migrations and six sample accounts are installed in project `vymnnyyuiujmxxycqiod`. Generated sample credentials are in ignored `.env.demo-users.json`; never commit or copy them into documentation. Email setup and the current domain are documented in [EMAIL_SETUP.md](EMAIL_SETUP.md). Domain verification and an earlier confirmation delivery succeeded; recovery, invitation, email-change delivery, and template activation still need a complete email walkthrough.
+
+On 11 November, the hosted browser walkthrough passed guest import, QR upload, customer payment confirmation, vendor preparation, pickup, one receipt, suspension, cart restoration, and responsive checks. A guest-import race and signed-in cart cross-tab invalidation are fixed. See [verification results](VERIFICATION.md) for exact coverage and remaining gates.
+
+All three signed-in FIF panels now use `POST /api/fif/recommendations`. Candidates, facts, and links are built server-side within the caller's role and stall scope. Rules are currently active. Optional Gemini ranking selects only eligible action/evidence IDs, with a five-second timeout, bounded 30-second scoped cache, and a database-backed limit of 12 provider attempts per user per hour. `GEMINI_API_KEY` and `GEMINI_MODEL` are server-only settings. No chat model is called implicitly. Provider response handling is tested with controlled fixtures; a real Gemini call remains pending the key.
 
 | Area | Current frontend behavior |
 | --- | --- |

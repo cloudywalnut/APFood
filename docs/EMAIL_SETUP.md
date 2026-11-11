@@ -4,7 +4,7 @@ AP Food uses Supabase Auth for signup, confirmation, invitations, email changes,
 
 ## Sending domain
 
-The sending domain is `notify.keyaan.my`, created in Resend's Tokyo region with tracking disabled. DNS for `keyaan.my` uses Exabytes nameservers. All four records below were published on 11 November 2026 and confirmed through Google's public DNS resolver. Resend subsequently confirmed the domain as **Verified**. Supabase SMTP activation and actual Auth email delivery still need verification.
+The sending domain is `notify.keyaan.my`, created in Resend's Tokyo region with tracking disabled. DNS for `keyaan.my` uses Exabytes nameservers. All four records below were published on 11 November 2026 and confirmed through Google's public DNS resolver. Resend subsequently confirmed the domain as **Verified**. A confirmation delivery succeeded in the earlier setup session. The full recovery, invitation, email-change, and template walkthrough remains outstanding; see [verification results](VERIFICATION.md).
 
 Use `keyaan.my` for the current setup. The app's proposed deployed hostname is `food.keyaan.my`, with sender `AP Food <hello@notify.keyaan.my>`. `conceptsquad.my` is reserved for a later migration; its Resend domain has been created, but is not the current sending domain. Keep the local app origin unchanged until deployment exists.
 
@@ -23,7 +23,7 @@ Use the DNS manager's default TTL. Confirm the values against Resend before savi
 
 In the AP Foods Supabase project, open **Authentication → Email → SMTP Settings**.
 
-The sender and connection fields have been prepared in the dashboard. The operator must enter the SMTP password and save to activate delivery; preparation alone does not enable custom SMTP.
+The sender and connection fields were entered during setup, and the operator supplied the SMTP password. The following table records the required configuration for future deployment or troubleshooting.
 
 | Setting | Value |
 | --- | --- |

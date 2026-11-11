@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import {
-  activityRow, adminReportOutput, auditRow, cartOutput, errorBody, menuRow, orderResult, orderRow, paymentOutput, pickupOutput, quoteOutput, sessionOutput, usersOutput, vendorPayment, vendorRow,
+  activityRow, adminReportOutput, auditRow, cartOutput, errorBody, fifOutput, menuRow, orderResult, orderRow, paymentOutput, pickupOutput, quoteOutput, sessionOutput, usersOutput, vendorPayment, vendorRow,
   type CheckoutInput, type QuoteInput,
 } from "./contracts";
 
@@ -33,6 +33,7 @@ async function request<T>(path: string, output: z.ZodType<T>, method = "GET", in
 export function createHostedData(userId?: string) {
   const call = <T>(path: string, output: z.ZodType<T>, method?: string, input?: unknown) => request(path, output, method, input, userId);
   return {
+  recommendations: (input: { role: "student" | "vendor" | "admin"; vendorId?: string; zoneId?: string }) => call("fif/recommendations", fifOutput, "POST", input),
   signIn: (email: string, password: string) => request("auth/session", sessionOutput, "POST", { email, password }),
   register: (input: { email: string; password: string; displayName: string }) => request("auth/register", ok, "POST", input),
   resend: (email: string) => request("auth/resend", ok, "POST", { email }),

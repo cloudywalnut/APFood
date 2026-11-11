@@ -9,6 +9,13 @@ const schema = z.object({ vendorId: id, items: z.array(cartLine).min(1).max(20),
 type Cart = z.infer<typeof schema>;
 const guestKey = "ap-food-guest-cart";
 const eventName = "ap-food-cart-changed";
+const revisionKey = "ap-food-cart-revision";
+
+function broadcastCart() {
+  // The marker contains no cart data; storage events invalidate other tabs.
+  try { localStorage.setItem(revisionKey, crypto.randomUUID()); } catch { /* Refetch on focus still works. */ }
+  window.dispatchEvent(new Event(eventName));
+}
 
 function readCart(storage: Storage, key: string) {
   try {
@@ -35,6 +42,7 @@ export function useHostedCart(userId?: string) {
       const local = readCart(localStorage, guestKey) ??
         (userId ? readCart(sessionStorage, "ap-food-cart:" + userId) : undefined);
       setGuest(local);
+      if (!local) setConflict(undefined);
       if (!userId) { setReady(true); return; }
       const attempt = readCart(sessionStorage, pendingKey);
       const legacy = readCart(sessionStorage, "ap-food-cart:" + userId);
@@ -68,10 +76,12 @@ export function useHostedCart(userId?: string) {
     window.addEventListener("storage", refresh);
     window.addEventListener(eventName, refresh);
     window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
     return () => {
       window.removeEventListener("storage", refresh);
       window.removeEventListener(eventName, refresh);
       window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, [load]);
 
@@ -96,7 +106,7 @@ export function useHostedCart(userId?: string) {
       } catch { throw new Error("Your browser could not save the cart. Check storage settings."); }
       setGuest(next);
     }
-    window.dispatchEvent(new Event(eventName));
+    broadcastCart();
     setError("");
   }
 
@@ -113,14 +123,25 @@ export function useHostedCart(userId?: string) {
     if (userId) sessionStorage.removeItem("ap-food-cart:" + userId);
     setPending(undefined);
     void load();
+    broadcastCart();
   }
 
   async function resolveImport(replace: boolean) {
-    if (replace && conflict) await save(conflict);
+    // Resolve before broadcasting: a refresh must not import the guest cart again.
+    if (replace && conflict) {
+      if (!remote) throw new Error("Wait for your saved cart to load.");
+      try {
+        setRemote(await api.saveCart({ vendorId: conflict.vendorId, items: conflict.items, revision: remote.revision }));
+      } catch (problem) {
+        if (problem instanceof ApiError && problem.code === "CART_CHANGED") await load();
+        throw problem;
+      }
+    }
     localStorage.removeItem(guestKey);
     if (userId) sessionStorage.removeItem("ap-food-cart:" + userId);
     setConflict(undefined);
     setGuest(undefined);
+    broadcastCart();
   }
 
   return { cart, save, persistAttempt, clearAttempt, revision: remote?.revision, ready, error,

@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 export const id = z.string().regex(/^[a-z0-9][a-z0-9-]{0,95}$/);
+export const fifOutput = z.object({
+  recommendation: z.object({ id: z.string(), title: z.string(), evidence: z.string(), href: z.string(), action: z.string() }),
+  source: z.enum(["rules", "gemini"]), generatedAt: z.string(), dataSource: z.literal("standard_demo"),
+});
 export const orderId = z.uuid();
 export const payment = z.enum(["demo", "counter", "duitnow_qr"]);
 export const cartLine = z.object({ itemId: id, quantity: z.number().int().min(1).max(20), extra: z.boolean() }).strict();

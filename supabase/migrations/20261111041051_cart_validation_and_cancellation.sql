@@ -66,5 +66,3 @@ begin
   return jsonb_build_object('id', p_id, 'status', p_status);
 end;
 $$;
-
-\n

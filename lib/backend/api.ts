@@ -6,6 +6,7 @@ import { adminReport } from "./reports";
 import { authAction, authLimit } from "./auth";
 import { inviteAccount, manageAccount, qrUrl, uploadVendorQr } from "./account-actions";
 import { clearRecovery } from "./recovery";
+import { recommendations } from "./fif";
 
 const orderFields = "id,vendor_id,zone_id,pickup_at,status,payment,lines,total_sen,version,created_at,updated_at,ready_at,collected_at,payment_record:order_payments(status)";
 const vendorFields = "id,zone_id,name,description,category,image,status,paused,capacity,lead_minutes,opens_at,closes_at";
@@ -64,6 +65,12 @@ export async function handleRequest(request: Request, path: string[]) {
       throw new BackendError(401, "SESSION_CHANGED", "Your account changed. Sign in as the original account to continue.");
     }
     const query = new URL(request.url).searchParams;
+    if (method === "POST" && key === "fif/recommendations") {
+      const input = await body(request, z.object({ role: z.enum(["student", "vendor", "admin"]), vendorId: id.optional(), zoneId: id.optional() }).strict());
+      const actor = requireMembership(await getSession(), input.role, input.role === "vendor" ? input.vendorId : undefined);
+      if (input.role === "vendor" && !input.vendorId) throw new BackendError(400, "INVALID_INPUT", "Choose a stall.");
+      return result(await recommendations(client, input, actor.userId));
+    }
     if (method === "POST" && path[0] === "auth" && ["register", "resend", "recover", "profile"].includes(path[1]) && path.length === 2) {
       if (path[1] === "profile") await getSession();
       return result(await authAction(request, path[1], client));

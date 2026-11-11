@@ -1,13 +1,14 @@
 "use client";
 
+import { HostedFif } from "./fif";
+
 import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { dayKey, money } from "../../lib/demo";
 import { ApiError, hostedData } from "../../lib/backend/client";
-import { pickupWindow } from "../../lib/pickup-time";
 import { CashflowChart } from "../cashflow-chart";
-import { Empty, ErrorMessage, Modal, OpsShell, Recommendation, replaceFilters } from "../shared";
+import { Empty, ErrorMessage, Modal, OpsShell, replaceFilters } from "../shared";
 import { HostedAccess, messageOf, RemoteStatus, SignOut, useHostedData, useRemote } from "./common";
 import { HostedTraffic } from "./traffic";
 import { Users } from "./users";
@@ -54,12 +55,12 @@ function ReportPanel({ section }: { section: string }) {
       <label className="field compact">Food court<select value={zoneId} onChange={event => replaceFilters({ zoneId: event.target.value, vendorId: "" })}><option value="">All zones</option>{zones.value?.map(zone => <option value={zone.id} key={zone.id}>{zone.name}</option>)}</select></label>
       <label className="field compact">Stall<select value={vendorId} onChange={event => replaceFilters({ vendorId: event.target.value })}><option value="">All stalls</option>{stalls.value?.filter(stall => !zoneId || stall.zone_id === zoneId).map(stall => <option value={stall.id} key={stall.id}>{stall.name}</option>)}</select></label>
     </div>}
-    {section === "home" && <OpsDesk report={report} vendorId={vendorId} zoneId={zoneId} days={days} />}
+    {section === "home" && <OpsDesk report={report} vendorId={vendorId} zoneId={zoneId} />}
     {section === "cashflow" && <><div className="metrics">{[
       ["Collected receipts", report.finance.demo + report.finance.counter + report.finance.duitnow_qr], ["Paid expenses", report.finance.expense],
       ["Expense reversals", report.finance.reversal], ["Demo net flow", report.finance.netSen],
     ].map(([label, amount]) => <section className="metric" key={label}><div><span>{label}</span><strong>{money(Number(amount))}</strong></div></section>)}</div>
-      <div className="panel breakdown"><span>DuitNow QR <strong>{money(report.finance.duitnow_qr)}</strong></span><span>Counter-confirmed <strong>{money(report.finance.counter)}</strong></span><span>Outstanding at counter <strong>{money(report.finance.outstandingCounterSen)}</strong></span><span>Shared overhead <strong>{money(report.finance.sharedOverheadSen)}</strong></span></div></>}
+      <div className="panel breakdown"><span>DuitNow QR <strong>{money(report.finance.duitnow_qr)}</strong></span><span>Recorded refunds <strong>{money(report.finance.refund)}</strong></span><span>Counter-confirmed <strong>{money(report.finance.counter)}</strong></span><span>Outstanding at counter <strong>{money(report.finance.outstandingCounterSen)}</strong></span><span>Shared overhead <strong>{money(report.finance.sharedOverheadSen)}</strong></span></div></>}
     {(section === "home" || section === "cashflow") && (report.ledger.length
       ? <CashflowChart days={Number(days)} asOf={Date.parse(report.asOf)}
         entries={report.ledger.map(row => ({ day: dayKey(0, Date.parse(row.created_at)), type: row.kind, amount: row.amount_sen }))} />
@@ -70,7 +71,7 @@ function ReportPanel({ section }: { section: string }) {
     {section === "home" && <Link className="button secondary" href={"/admin/cashflow?" + params.toString()}>Open cashflow ledger</Link>}
     {section === "cashflow" && <section className="panel"><div className="line spread"><h2>Cashflow ledger</h2><button className="button primary" onClick={() => setExpense(null)}>Record expense</button></div>
       {report.ledger.length ? <div className="table-wrap"><table><thead><tr><th>Date (MYT)</th><th>Description</th><th>Type</th><th>Amount</th><th>Action</th></tr></thead><tbody>
-        {report.ledger.map(row => <tr key={row.id}><td>{formatDate(row.created_at)}</td><th scope="row">{row.label}</th><td>{ledgerLabels[row.kind]}</td><td>{money(row.kind === "expense" ? -row.amount_sen : row.amount_sen)}</td><td>{row.kind === "expense" && !report.ledger.some(entry => entry.reverses_id === row.id) && <button className="button secondary" onClick={() => setExpense(row)}>Reverse</button>}</td></tr>)}
+        {report.ledger.map(row => <tr key={row.id}><td>{formatDate(row.created_at)}</td><th scope="row">{row.label}</th><td>{ledgerLabels[row.kind]}</td><td>{money((row.kind === "expense" || row.kind === "refund") ? -row.amount_sen : row.amount_sen)}</td><td>{row.kind === "expense" && !report.ledger.some(entry => entry.reverses_id === row.id) && <button className="button secondary" onClick={() => setExpense(row)}>Reverse</button>}</td></tr>)}
       </tbody></table></div> : <p>No ledger entries for these filters.</p>}
     </section>}
     {section === "products" && <section className="panel"><div className="table-wrap"><table><thead><tr><th>Product</th><th>Stall</th><th>Units collected</th><th>Fulfilled value</th><th>Stock</th></tr></thead><tbody>
@@ -81,27 +82,14 @@ function ReportPanel({ section }: { section: string }) {
   </div>;
 }
 
-function OpsDesk({ report, vendorId, zoneId, days }: { report: Report; vendorId: string; zoneId: string; days: string }) {
+function OpsDesk({ report, vendorId, zoneId }: { report: Report; vendorId: string; zoneId: string }) {
   const traffic = useRemote(hostedData.traffic);
   const stalls = new Map(report.vendors.filter(stall => (!zoneId || stall.zone_id === zoneId) && (!vendorId || stall.id === vendorId))
     .map(stall => [stall.id, stall.name]));
   const buckets = traffic.value?.buckets.filter(bucket => stalls.has(bucket.vendor_id)) ?? [];
-  const full = buckets.filter(bucket => bucket.total_units > 0 && bucket.reserved_units >= bucket.total_units)
-    .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at))[0];
   const low = report.products.filter(item => item.active && item.stock <= 5);
-  const trafficAction = Boolean(full) || !low.length;
-  const target = new URLSearchParams({ days });
-  if (zoneId) target.set("zoneId", zoneId);
-  const stallTarget = full?.vendor_id ?? low[0]?.vendor_id ?? vendorId;
-  if (stallTarget) target.set("vendorId", stallTarget);
-  const lowAtStall = low.filter(item => item.vendor_id === stallTarget).length;
   return <>
-    <Recommendation label="FIF Ops Desk"
-      title={full ? stalls.get(full.vendor_id) + " has a full pickup window" : low.length ? "Low stock at " + stalls.get(stallTarget) : "Review upcoming pickup activity"}
-      evidence={full ? pickupWindow(full.starts_at) + " · " + full.reserved_units + " of " + full.total_units + " work units booked."
-        : low.length ? lowAtStall + " published items at this stall have five portions or fewer." : "Compare scheduled pickups and booked work units by stall."}
-      href={(trafficAction ? "/admin/traffic?" : "/admin/products?") + target.toString()}
-      action={trafficAction ? "View traffic" : "Review products"} />
+    <HostedFif role="admin" vendorId={vendorId} zoneId={zoneId} />
     <div className="metrics">{[
       ["Demo net flow", money(report.finance.netSen)], ["Pickups in activity window", traffic.value ? buckets.reduce((sum, bucket) => sum + bucket.pickup_count, 0) : "—"],
       ["Active orders in period", report.vendors.reduce((sum, stall) => sum + stall.activeCount, 0)], ["Low-stock products", low.length],

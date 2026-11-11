@@ -15,6 +15,7 @@ import { PickupDialog } from "../student";
 import { HostedVisitor, messageOf, RemoteStatus, useHostedData, useRemote } from "./common";
 import { HostedTraffic } from "./traffic";
 import { OrderPayment } from "./payments";
+import { HostedFif } from "./fif";
 
 type CartAccess = ReturnType<typeof useHostedCart>;
 type MenuItem = Awaited<ReturnType<typeof hostedData.menu>>[number];
@@ -31,10 +32,10 @@ function StudentContent({ route, section, id, userId }: { route: string; section
   return <StudentShell route={route} cartCount={cart.cart?.items.reduce((count, item) => count + item.quantity, 0) ?? 0}>
     {cart.conflict && <CartImport store={cart} />}
     {cart.error && <div className="notice"><p role="alert">{cart.error}</p><button className="button secondary" onClick={() => void cart.reload()}>Reload saved cart</button></div>}
-    {section === "home" && <Catalogue home />}
+    {section === "home" && <Catalogue home signedIn={Boolean(userId)} />}
     {section === "vendors" && (id ? <Menu key={id} id={id} store={cart} /> : <Catalogue />)}
     {section === "cart" && (cart.ready ? <Cart store={cart} /> : <p role="status">Loading your cart…</p>)}
-    {section === "checkout" && (userId ? cart.ready && <Checkout store={cart} /> : <SignInToOrder next="/app/checkout" />)}
+    {section === "checkout" && (userId ? cart.ready ? <Checkout store={cart} /> : <p role="status">Loading your cart…</p> : <SignInToOrder next="/app/checkout" />)}
     {section === "orders" && (userId ? (id ? <OrderDetail key={id} id={id} userId={userId} /> : <Orders userId={userId} />) : <SignInToOrder next={route} />)}
     {section === "traffic" && <HostedTraffic />}
   </StudentShell>;
@@ -64,7 +65,7 @@ async function loadCatalogue() {
   return { vendors, zones };
 }
 
-function Catalogue({ home = false }: { home?: boolean }) {
+function Catalogue({ home = false, signedIn = false }: { home?: boolean; signedIn?: boolean }) {
   const result = useRemote(loadCatalogue);
   const [query, setQuery] = useState("");
   const [zone, setZone] = useState("");
@@ -72,7 +73,7 @@ function Catalogue({ home = false }: { home?: boolean }) {
     (!zone || vendor.zone_id === zone) && (vendor.name + " " + vendor.category).toLowerCase().includes(query.trim().toLowerCase()));
   return <><div className="student-heading"><div><h1>{home ? "Lunch between classes." : "Explore vendors"}</h1><p>Browse campus stalls and schedule a pickup.</p></div>{home && <Link className="button secondary" href="/account">Your account</Link>}</div>
     {!result.value ? <RemoteStatus error={result.error} reload={result.reload} /> : <>
-      {home && <StudentPickup vendors={result.value.vendors} />}
+      {home && (signedIn ? <HostedFif role="student" /> : <StudentPickup vendors={result.value.vendors} />)}
       <div className="filters"><label className="field grow">Find a stall<input type="search" value={query} onChange={event => setQuery(event.target.value)} /></label>
         <label className="field">Food court<select value={zone} onChange={event => setZone(event.target.value)}><option value="">All zones</option>{result.value.zones.map(entry => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label></div>
       {vendors?.length ? <div className="stall-grid">{vendors.map(vendor => <Link className="stall-card" href={"/app/vendors/" + vendor.id} key={vendor.id}>
@@ -243,6 +244,7 @@ function Checkout({ store }: { store: CartAccess }) {
           <label><input type="radio" name="payment" checked={payment === "counter"} onChange={() => { setPayment("counter"); setQuote(undefined); }} />Pay at counter</label>
           {details.value && <label><input type="radio" name="payment" checked={payment === "duitnow_qr"} onChange={() => { setPayment("duitnow_qr"); setQuote(undefined); }} />DuitNow QR</label>}
         </fieldset>
+        {details.error != null && <RemoteStatus error={details.error} reload={details.reload} />}
         <h2>Pickup window</h2>
         <button className="button secondary" disabled={busy || store.conflict != null} onClick={() => void run(async () => {
           setQuote(undefined);
