@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "next typegen && tsc --noEmit"
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "tsc -p tests/tsconfig.json && node --test tests/*.test.cjs"
   },
   "dependencies": {
     "lucide-react": "^1.71.0",

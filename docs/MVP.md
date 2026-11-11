@@ -1,3 +1,5 @@
+> Latest frontend update: see [LATEST_UI_UPDATE.md](LATEST_UI_UPDATE.md). The student basket now supports multiple stalls with one order per stall, and campus browsing starts on the map. Earlier one-stall and persona-entrance descriptions below describe the original MVP. Backend work on `Keyaan` is preserved separately.
+
 # AP Food + FIF · Current MVP
 
 The hackathon demo succeeds when a student can order from a fictional campus stall, a vendor can prepare and hand off the order, and a cafeteria admin can trace the operational and financial result. FIF should visibly help at each step. See the [handoff](HANDOFF.md) for implementation status and the [original specification](../AP_Food_FIF_Agent_Ready_MVP_Spec.md) for the full domain and test reference.

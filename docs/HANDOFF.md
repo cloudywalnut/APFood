@@ -1,3 +1,5 @@
+> Latest frontend update: see [LATEST_UI_UPDATE.md](LATEST_UI_UPDATE.md). The student basket now supports multiple stalls with one order per stall, and campus browsing starts on the map. Earlier one-stall and persona-entrance descriptions below describe the original MVP. Backend work on `Keyaan` is preserved separately.
+
 # AP Food + FIF · Engineering and AI handoff
 
 AP Food is a campus pickup prototype for students, food-stall staff, and cafeteria administrators. FIF, the Food Intelligence Framework, helps each role choose its next action. Start with the [current MVP contract](MVP.md). The [original technical specification](../AP_Food_FIF_Agent_Ready_MVP_Spec.md) provides the detailed domain design and acceptance cases.

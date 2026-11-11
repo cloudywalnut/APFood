@@ -1,0 +1,27 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "../.test-build",
+    "rootDir": "..",
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "incremental": false,
+    "plugins": []
+  },
+  "include": [
+    "../lib/cafeteria/**/*.ts",
+    "../lib/demo.ts",
+    "../lib/demo-store.ts",
+    "../lib/promotions.ts",
+    "../services/cafeteria.ts",
+    "../lib/preview-auth.ts",
+    "../lib/tracking.ts",
+    "../lib/report-model.ts",
+    "../lib/report-export.ts",
+    "../services/mock.ts"
+  ],
+  "exclude": [
+    "../node_modules"
+  ]
+}

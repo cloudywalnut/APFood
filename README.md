@@ -4,6 +4,14 @@ A frontend-only campus pickup demo. All stalls, orders, traffic scenarios, and p
 
 Start with the [current MVP](docs/MVP.md) and [engineering and AI handoff](docs/HANDOFF.md). The [original technical MVP specification](AP_Food_FIF_Agent_Ready_MVP_Spec.md) is also included.
 
+## Latest UI · Dalia
+
+The latest frontend includes the full-width student banner strip, an interactive cafeteria map, multi-stall basket and checkout, order tracking, reports, and contextual help for student, vendor and administrator workspaces.
+
+Use **Preview accounts** on the sign-in page to select a fictional account. Preview password: `APFoods123!`. Account and order state stay in this browser; this frontend does not connect to a production backend.
+
+This UI is published to `Dalia` and `main`. Backend development remains on `Keyaan`; it was not merged or modified by this frontend update. See [the latest UI notes](docs/LATEST_UI_UPDATE.md).
+
 ## Run locally
 
 Use Node.js 20.9 or later.

@@ -1,6 +1,9 @@
 node_modules/
 .next/
+.test-build/
 next-env.d.ts
 *.tsbuildinfo
 .env*
+!.env.example
 .playwright-cli/
+.vercel/

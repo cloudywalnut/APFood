@@ -1,5 +1,8 @@
 "use client";
 
+import { usePreviewSession } from "../lib/preview-auth";
+import { WarmIllustration } from "./apspace/illustration";
+import { RoleHero } from "./apspace/role-hero";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -10,15 +13,15 @@ import { Empty, ErrorMessage, Modal, OpsShell, Recommendation, replaceFilters, S
 
 export function VendorPage({ route, section, id }: { route: string; section: string; id?: string }) {
   const state = useDemo();
-  const selection = useSearchParams().get("stall");
+  const session = usePreviewSession();
   const order = state.orders.find(candidate => candidate.id === id);
-  const vendor = state.vendors.find(candidate => candidate.id === (order?.vendorId ?? selection)) ?? state.vendors[0];
+  const vendor = state.vendors.find(candidate => candidate.id === session?.vendorId) ?? state.vendors[0];
   const title = { home: "Shift dashboard", orders: id ? "Order detail" : "Kitchen board", menu: "Menu & stock", capacity: "Capacity & hours" }[section] ?? "Vendor";
   const orders = state.orders.filter(candidate => candidate.vendorId === vendor.id && candidate.scenario === state.scenario && candidate.day === dayKey());
   return <OpsShell kind="vendor" route={route} title={title}>
-    <div className="page-heading"><div><h1>{title}</h1><p>{vendor.name} · {vendor.zone}</p></div>{!id && <label className="field compact">Stall<select value={vendor.id} onChange={event => replaceFilters({ stall: event.target.value })}>{state.vendors.map(candidate => <option value={candidate.id} key={candidate.id}>{candidate.name}</option>)}</select></label>}</div>
-    {section === "home" && <Shift vendor={vendor} orders={orders} />}
-    {section === "orders" && (id ? order ? <VendorOrder order={order} /> : <Empty title="Order unavailable" detail="Return to the kitchen board." href="/vendor/orders" action="Kitchen board" /> : <Kitchen orders={orders} />)}
+    <div className="page-heading"><div><h1>{title}</h1><p>{vendor.name} · {vendor.zone}</p></div></div>
+    {section === "home" && <><RoleHero role="vendor"/><Shift vendor={vendor} orders={orders} /></>}
+    {section === "orders" && (id ? order && order.vendorId===vendor.id ? <VendorOrder order={order} /> : <Empty title="Order unavailable" detail="Return to the kitchen board." href="/vendor/orders" action="Kitchen board" /> : <Kitchen orders={orders} />)}
     {section === "menu" && <Menu key={vendor.id} vendor={vendor} />}
     {section === "capacity" && <Capacity key={vendor.id} vendor={vendor} />}
   </OpsShell>;
@@ -37,7 +40,7 @@ function Shift({ vendor, orders }: { vendor: Vendor; orders: Order[] }) {
       return <section className="metric" key={String(label)}><div><span>{String(label)}</span><strong>{String(value)}</strong></div><span className="metric-icon"><MetricIcon size={19} aria-hidden /></span></section>;
     })}</div>
     <section className="panel"><div className="line spread"><h2>Upcoming pickups</h2><Link className="quiet-link" href={"/vendor/orders" + stallFilter}>Kitchen board <ArrowRight size={16} aria-hidden /></Link></div>
-    {active.length ? <div className="simple-list">{active.map(order => <Link href={"/vendor/orders/" + order.id} key={order.id}><span><strong>{order.id}</strong><small>{slotLabel(order.slot)}</small></span><StatusBadge status={order.status} /></Link>)}</div> : <p className="muted">New orders appear here when students schedule pickup.</p>}</section></>;
+    {active.length ? <div className="simple-list">{active.map(order => <Link href={"/vendor/orders/" + order.id} key={order.id}><span><strong>{order.id}</strong><small>{slotLabel(order.slot)}</small></span><StatusBadge status={order.status} /></Link>)}</div> : <div className="ops-empty-note"><WarmIllustration name="no_orders"/><p className="muted">You’re all caught up. New orders appear here when students schedule pickup.</p></div>}</section></>;
 }
 
 const kitchenStages = ["placed", "accepted", "preparing", "ready"] as const;
@@ -46,7 +49,7 @@ const nextAction = { placed: "Accept order", accepted: "Start preparing", prepar
 
 function Kitchen({ orders }: { orders: Order[] }) {
   const [error, setError] = useState("");
-  return <><ErrorMessage message={error} /><div className="kitchen-grid">{kitchenStages.map((stage, index) => {
+  return <><ErrorMessage message={error} />{!orders.some(o=>isActive(o.status))&&<section className="panel ops-empty-note"><WarmIllustration name="no_orders"/><div><h2>Your kitchen is all caught up.</h2><p>New orders will appear below when students schedule a pickup.</p></div></section>}<div className="kitchen-grid">{kitchenStages.map((stage, index) => {
     const lane = orders.filter(order => order.status === stage).sort((a, b) => a.slot - b.slot);
     return <section className="kitchen-lane" key={stage}><h2>{stageTitle[stage]} <span className="badge neutral">{lane.length}</span></h2>{lane.length ? lane.map(order => <article className="kitchen-ticket" key={order.id}><div className="line spread"><Link href={"/vendor/orders/" + order.id}><strong>{order.id}</strong></Link><small>{slotLabel(order.slot)}</small></div><ul>{order.lines.map(line => <li key={line.itemId + line.extra}>{line.quantity} × {line.name}</li>)}</ul>{stage === "ready" ? <Link className="button primary" href={"/vendor/orders/" + order.id}>{nextAction[stage]}</Link> : <button className="button primary" onClick={() => { try { transition(order.id, stages[index + 1], "Vendor"); setError(""); } catch (problem) { setError((problem as Error).message); } }}>{nextAction[stage]}</button>}</article>) : <p className="muted small">No {stageTitle[stage].toLowerCase()} orders.</p>}</section>;
   })}</div></>;
@@ -64,11 +67,11 @@ function VendorOrder({ order }: { order: Order }) {
     try { transition(order.id, status, "Vendor", { code, reason, confirmed }); setMode(undefined); setError(""); }
     catch (problem) { setError((problem as Error).message); }
   }
-  return <><Link className="quiet-link back-link" href="/vendor/orders"><ArrowLeft size={16} aria-hidden /> Kitchen board</Link><div className="checkout-layout"><section className="panel order-summary"><div className="line spread"><h2>{order.id}</h2><StatusBadge status={order.status} /></div><p>{slotLabel(order.slot)} · {order.payment === "counter" ? "Pay at counter" : "Demo payment"}</p>{order.lines.map(line => <div className="line spread" key={line.itemId + line.extra}><span>{line.quantity} × {line.name}{line.extra && " + side"}</span><strong>{money(line.unit * line.quantity)}</strong></div>)}<div className="line spread cart-total"><strong>Total</strong><strong>{money(order.total)}</strong></div>
+  return <><Link className="quiet-link back-link" href="/vendor/orders"><ArrowLeft size={16} aria-hidden /> Kitchen board</Link><div className="checkout-layout"><section className="panel order-summary"><div className="line spread"><h2>{order.id}</h2><StatusBadge status={order.status} /></div><p>{slotLabel(order.slot)} · {order.payment === "counter" ? "Pay at counter" : "Sample payment"}</p>{order.lines.map(line => <div className="line spread" key={line.itemId + line.extra}><span>{line.quantity} × {line.name}{line.extra && " + side"}</span><strong>{money(line.unit * line.quantity)}</strong></div>)}<div className="line spread cart-total"><strong>Total</strong><strong>{money(order.total)}</strong></div>
     <div className="line wrap">{isActive(order.status) && next && <button className="button primary" onClick={() => { if (next === "collected") { setError(""); setMode("collect"); } else act(next); }}>{nextAction[order.status as keyof typeof nextAction]}</button>}
       {order.status === "placed" && <button className="button secondary" onClick={() => { setError(""); setMode("reject"); }}>Reject order</button>}
       {["accepted", "preparing"].includes(order.status) && <button className="button secondary" onClick={() => { setError(""); setMode("cancel"); }}>Cancel order</button>}</div>{!mode && <ErrorMessage message={error} />}</section>
-    <section className="panel"><h2>Recent updates</h2><div className="simple-list">{state.audit.filter(event => event.target === order.id).map(event => <div key={event.id}><span>{event.action}<small>{event.actor}</small></span></div>)}</div>{!state.audit.some(event => event.target === order.id) && <p className="muted">This order came from the demo fixtures.</p>}</section></div>
+    <section className="panel"><h2>Recent updates</h2><div className="simple-list">{state.audit.filter(event => event.target === order.id).map(event => <div key={event.id}><span>{event.action}<small>{event.actor}</small></span></div>)}</div>{!state.audit.some(event => event.target === order.id) && <p className="muted">This order came from the sample fixtures.</p>}</section></div>
     {mode && <Modal title={mode === "collect" ? "Verify pickup" : mode === "reject" ? "Reject this order" : "Cancel this order"} close={() => setMode(undefined)}><form className="stack" onSubmit={event => { event.preventDefault(); act(mode === "collect" ? "collected" : mode === "reject" ? "rejected" : "cancelled"); }}>
       {mode === "collect" ? <><label className="field">Pickup code<input value={code} onChange={event => setCode(event.target.value)} required autoComplete="off" /></label>{order.payment === "counter" && <label className="check"><input type="checkbox" required checked={confirmed} onChange={event => setConfirmed(event.target.checked)} /> Confirm counter payment · {money(order.total)}</label>}</> : <label className="field">Reason<textarea maxLength={160} value={reason} onChange={event => setReason(event.target.value)} required /></label>}
       <ErrorMessage message={error} /><button className={"button " + (mode === "collect" ? "primary" : "danger")}>{mode === "collect" ? "Mark collected" : mode === "reject" ? "Reject order" : "Cancel order"}</button></form></Modal>}
