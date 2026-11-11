@@ -19,7 +19,8 @@
     "../lib/tracking.ts",
     "../lib/report-model.ts",
     "../lib/report-export.ts",
-    "../services/mock.ts"
+    "../services/mock.ts",
+    "../lib/login-routing.ts"
   ],
   "exclude": [
     "../node_modules"

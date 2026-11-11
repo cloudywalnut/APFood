@@ -16,6 +16,8 @@ The Dalia UI at `416fcbc` is now merged with the hosted implementation. Read [th
 
 ### Account and checkout milestone
 
+Sign-in now detects the workspace from verified account memberships. There is no role selector in hosted or preview login. The default for multiple memberships is admin, then vendor, then student; an authorized intended destination takes precedence. Unverified accounts go to email confirmation, and a return path into another role's workspace is ignored.
+
 Hosted mode now includes signup, sign-in, email confirmation/resend, recovery, invitation acceptance, and account settings. Student signup creates an active profile and student membership; ordering requires a verified email. Admin Users supports search, pagination, role/status filters, invitations, stall assignments, suspension, and an audit history. Database transactions protect the final active administrator.
 
 Signed-in carts are stored in Supabase with owner isolation and revision checks. Guest carts remain in browser storage, with an explicit conflict choice when a saved account cart exists. Checkout keeps an idempotent pending attempt until the order is confirmed and clears only the purchased cart revision.

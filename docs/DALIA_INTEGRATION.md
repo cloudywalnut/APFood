@@ -7,7 +7,7 @@ Integrated `origin/Dalia` at `416fcbc` into `Keyaan` on 11 November 2026. The so
 | Dalia UI capability | Integrated behavior |
 | --- | --- |
 | Roboto, warm shell, desktop/mobile navigation, modal sheets, help, illustrations, storefront photography | Shared by both modes. Real account, Users and Payment settings destinations remain reachable through More. |
-| Login presentation and role artwork | Hosted email/password login uses Dalia's layout with the existing signup, verification, recovery and invitation flows. Workspace selectors affect presentation; database memberships determine access. Staff access uses invitations and trusted role assignment. |
+| Login presentation | One email/password form uses Dalia's layout with the existing signup, verification, recovery and invitation flows. Verified account memberships automatically select the workspace; there is no role selector. Authorized return destinations are preserved. Staff access uses invitations and trusted role assignment. |
 | Cafeteria map and area selection | Dalia's SVG geometry and photographs, with live published stalls and live menu search. Ten map counters now have seeded hosted menus. Existing business settings and stock are not overwritten. |
 | Menu and item links | Live prices, discounts, stock, quantity and sides. Deep item links open the correct meal editor. Added feedback uses Dalia's five-second dismissible toast. |
 | Multi-stall basket | Guest storage and owner-scoped persistent carts retain meals from multiple stalls. Existing single-stall carts remain compatible. |
