@@ -1,4 +1,4 @@
-> Current UI: see [UI_PRESENTATION_CLEANUP.md](UI_PRESENTATION_CLEANUP.md) and [LATEST_UI_UPDATE.md](LATEST_UI_UPDATE.md). The basket supports multiple stalls, browsing starts on the map, and the UI uses the cream/gold/espresso theme. Backend development remains on Keyaan.
+> Current UI: see [STOREFRONT_UPDATE.md](STOREFRONT_UPDATE.md) for the latest catalogue, AP logo + Foods wordmark, optional preference cookies and guest-access boundaries. Hosted browsing starts with stall cards; the cafeteria map remains available. The basket supports multiple stalls. Changes remain local on Keyaan.
 
 # AP Food + FIF · Engineering and AI handoff
 

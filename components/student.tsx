@@ -28,7 +28,8 @@ export function StudentPage({ route, section, id, itemId }: { route: string; sec
     {section === "vendors" && (id ? <MenuDiscovery stallId={id}/> : <MapDiscovery/>)}
     {section === "cart" && <Cart />}
     {section === "checkout" && <APCheckout />}
-    {section === "orders" && (id ? <OrderDetail id={id} /> : <Orders />)}
+    {section === "orders" && (id ? <OrderDetail id={id} /> : <Orders key="orders" />)}
+    {section === "history" && <Orders key="history" defaultTab="history" />}
     {section === "traffic" && <Traffic />}
   </StudentShell>;
 }
@@ -48,11 +49,11 @@ function Cart() {
     <div className="line spread cart-total"><strong>Subtotal</strong><strong>{money(lines.reduce((sum, line) => sum + line.unit * line.quantity, 0))}</strong></div></div><div className="sticky-action"><Link href="/app/checkout" className="button primary">Choose pickup time <ArrowRight size={17} aria-hidden /></Link></div></>;
 }
 
-function Orders() {
+function Orders({ defaultTab = "all" }: { defaultTab?: "all" | "active" | "history" } = {}) {
   const state = useDemo();
-  const [tab,setTab]=useState("all");
+  const [tab,setTab]=useState(defaultTab);
   const orders = state.orders.filter(order => order.scenario === state.scenario && (tab === "all" || (tab === "active" ? isActive(order.status) : !isActive(order.status)))).sort((a, b) => Number(isActive(b.status)) - Number(isActive(a.status)));
-  return <><div className="student-heading"><div><h1>Orders</h1><p>Track active pickups and find previous orders.</p></div></div><TabBar label="Order list" value={tab} onChange={setTab} tabs={[{id:"all",label:"All orders"},{id:"active",label:"Active"},{id:"history",label:"History"}]}/>{orders.length ? <div className="orders-list panel">{orders.map(order => <Link href={"/app/orders/" + order.id} className="order-list-row" key={order.id}><span><strong>{state.vendors.find(vendor => vendor.id === order.vendorId)?.name}</strong><small>{order.id} · {order.day === dayKey() ? "Today" : order.day} · {slotLabel(order.slot)}</small></span><StatusBadge status={order.status} /><strong>{money(order.total)}</strong><ChevronRight size={16} aria-hidden /></Link>)}</div> : <Empty title="No orders here yet" detail="Your pickups appear after you place an order." href="/app/vendors" action="Explore vendors" />}</>;
+  return <><div className="student-heading"><div><h1>{defaultTab === "history" ? "Order history" : "Orders"}</h1><p>{defaultTab === "history" ? "Review completed, cancelled, and rejected campus pickups." : "Track active pickups and find previous orders."}</p></div></div><TabBar label="Order list" value={tab} onChange={(value) => setTab(value as "all" | "active" | "history")} tabs={[{id:"all",label:"All orders"},{id:"active",label:"Active"},{id:"history",label:"History"}]}/>{orders.length ? <div className="orders-list panel">{orders.map(order => <Link href={"/app/orders/" + order.id} className="order-list-row" key={order.id}><span><strong>{state.vendors.find(vendor => vendor.id === order.vendorId)?.name}</strong><small>{order.id} · {order.day === dayKey() ? "Today" : order.day} · {slotLabel(order.slot)}</small></span><StatusBadge status={order.status} /><strong>{money(order.total)}</strong><ChevronRight size={16} aria-hidden /></Link>)}</div> : <Empty title="No orders here yet" detail="Your pickups appear after you place an order." href="/app/vendors" action="Explore vendors" />}</>;
 }
 
 

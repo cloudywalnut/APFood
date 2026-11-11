@@ -14,8 +14,8 @@ import { useHostedCart } from "../../lib/backend/hosted-cart";
 
 export function HostedExtras({ role, section, route }: { role: Role; section: string; route: string }) {
   return <HostedAccess role={role}>{session => {
-    const content = <><SignOut />{section === "more" ? <><h1>More tools</h1><div className="ap-module-grid">{roleModules(role, true).map(({ href, label, detail, Icon }) => <Link key={href} href={href}><Icon size={24} /><span><strong>{label}</strong><small>{detail}</small></span></Link>)}</div></>
-      : section === "settings" ? <PreferencesView /> : <LiveTools role={role} section={section} />}</>;
+    const content = section === "more" ? <><h1>More tools</h1><div className="ap-module-grid">{roleModules(role, true).map(({ href, label, detail, Icon }) => <Link key={href} href={href}><Icon size={24} /><span><strong>{label}</strong><small>{detail}</small></span></Link>)}</div></>
+      : section === "settings" ? <PreferencesView sessionAction={<SignOut />} /> : <LiveTools role={role} section={section} />;
     return role === "student" ? <ExtraStudentShell userId={session.userId} route={route}>{content}</ExtraStudentShell> : <OpsShell kind={role} route={route} title={section} hosted>{content}</OpsShell>;
   }}</HostedAccess>;
 }

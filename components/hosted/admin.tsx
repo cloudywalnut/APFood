@@ -11,7 +11,7 @@ import { dayKey, money } from "../../lib/demo";
 import { ApiError, hostedData } from "../../lib/backend/client";
 import { CashflowChart } from "../cashflow-chart";
 import { Empty, ErrorMessage, Modal, OpsShell, replaceFilters } from "../shared";
-import { HostedAccess, messageOf, RemoteStatus, SignOut, useHostedData, useRemote } from "./common";
+import { HostedAccess, messageOf, RemoteStatus, useHostedData, useRemote } from "./common";
 import { HostedTraffic } from "./traffic";
 import { Users } from "./users";
 
@@ -26,7 +26,7 @@ const formatDate = (timestamp: string) => localDate.format(new Date(timestamp));
 export function HostedAdmin({ route, section }: { route: string; section: string }) {
   return <HostedAccess role="admin">{() =>
     <OpsShell hosted kind="admin" route={route} title={titles[section]}>
-      <div className="page-heading"><div>{section !== "traffic" && <h1>{titles[section]}</h1>}<p>Standard demo · Fictional transactions</p></div><SignOut /></div>
+      <div className="page-heading"><div>{section !== "traffic" && <h1>{titles[section]}</h1>}<p>Standard demo · Fictional transactions</p></div></div>
       {section === "users" ? <Users /> : section === "audit" ? <Audit /> : section === "traffic" ? <HostedTraffic admin /> : <ReportPanel section={section} />}
     </OpsShell>
   }</HostedAccess>;

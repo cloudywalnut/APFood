@@ -11,7 +11,7 @@ import type { OrderRow } from "../../lib/backend/contracts";
 import { subscribeToOrders } from "../../lib/backend/realtime";
 import { pickupWindow } from "../../lib/pickup-time";
 import { Empty, ErrorMessage, Modal, OpsShell, StatusBadge, replaceFilters } from "../shared";
-import { HostedAccess, RemoteStatus, SignOut, messageOf, useHostedData, useRemote, type Session } from "./common";
+import { HostedAccess, RemoteStatus, messageOf, useHostedData, useRemote, type Session } from "./common";
 import { OrderPayment, VendorPaymentSettings } from "./payments";
 
 type Stall = Awaited<ReturnType<typeof hostedData.assignedStalls>>[number];
@@ -44,7 +44,7 @@ function VendorContent({ session, section, id }: { session: Session; section: st
     <div className="page-heading"><div><h1>{titles[section]}</h1><p>{stall.name}</p></div><div className="line wrap">
       <label className="field compact">Stall<select value={stall.id} onChange={event => replaceFilters({ stall: event.target.value })}>
         {stalls.value.map(entry => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
-      </select></label><SignOut />
+      </select></label>
     </div></div>
     {(section === "home" || section === "orders") && <Kitchen key={stall.id} stall={stall} summary={section === "home"} />}
     {section === "menu" && <VendorMenu key={stall.id} stall={stall} />}

@@ -32,6 +32,7 @@ export const menuRow = z.object({
   id, vendor_id: id, name: z.string(), description: z.string(), price_sen: z.number().int(),
   discount_sen: z.number().int(), stock: z.number().int(), active: z.boolean(), work_units: z.number().int(),
 });
+export const catalogueOutput = z.object({ vendors: z.array(vendorRow), items: z.array(menuRow), zones: z.array(z.object({ id, name: z.string() })) });
 export const membership = z.object({ role: z.enum(["student","vendor","admin"]), vendor_id: id.nullable() });
 export const profileRow = z.object({ id: z.uuid(), display_name: z.string(), status: z.enum(["active", "suspended"]), created_at: z.string() });
 export const sessionOutput = z.object({

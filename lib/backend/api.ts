@@ -94,6 +94,14 @@ export async function handleRequest(request: Request, path: string[]) {
       }
     }
     if (method === "GET" && key === "zones") return result(unwrap(await client.from("zones").select("id,name").order("name")));
+    if (method === "GET" && key === "catalogue") {
+      const [vendors, items, zones] = await Promise.all([
+        client.from("vendors").select(vendorFields).eq("status", "approved").order("name"),
+        client.from("menu_items").select(menuFields + ",vendors!inner()").eq("vendors.status", "approved").eq("active", true).order("name"),
+        client.from("zones").select("id,name").order("name"),
+      ]);
+      return result({ vendors: unwrap(vendors), items: unwrap(items), zones: unwrap(zones) });
+    }
     if (method === "GET" && key === "vendors") return result(unwrap(await client.from("vendors").select(vendorFields).eq("status", "approved").order("name")));
     if (method === "GET" && key === "deals") return result(unwrap(await client.from("menu_items").select(menuFields + ",vendors!inner()")
       .eq("vendors.status", "approved").eq("active", true).gt("discount_sen", 0).gt("stock", 0).order("name")));

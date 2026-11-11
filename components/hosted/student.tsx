@@ -1,26 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { ArrowRight, MapPin, Plus } from "lucide-react";
-import { addonPrice, isActive, money } from "../../lib/demo";
+import { ArrowLeft, ArrowRight, ChevronRight, CircleCheck, Clock3, MapPin, ShieldCheck } from "lucide-react";
+import { addonPrice, isActive, money, statusNames } from "../../lib/demo";
 import { hostedData } from "../../lib/backend/client";
-import { isRejectedCheckout, useHostedCart } from "../../lib/backend/hosted-cart";
+import { useHostedCart } from "../../lib/backend/hosted-cart";
 import { subscribeToOrders } from "../../lib/backend/realtime";
 import { pickupWindow } from "../../lib/pickup-time";
-import { Empty, ErrorMessage, Modal, Recommendation, StatusBadge, StudentShell } from "../shared";
+import { canShowPickup, canStudentCancel, trackingCopy } from "../../lib/tracking";
+import { Empty, ErrorMessage, Modal, StatusBadge, StudentShell } from "../shared";
+import { TabBar } from "../apspace/ui";
+import { WarmIllustration } from "../apspace/illustration";
 import { PickupDialog } from "../student";
 import { HostedVisitor, messageOf, RemoteStatus, useHostedData, useRemote } from "./common";
 import { HostedTraffic } from "./traffic";
 import { OrderPayment } from "./payments";
-import { HostedFif } from "./fif";
 import { BasketCheckout } from "./basket-checkout";
-import { HostedDiscovery } from "./discovery";
-import { sampleLayout } from "../../lib/cafeteria/layout";
 import { HostedTracking } from "./tracking";
-import { RoleHero } from "../apspace/role-hero";
+import { HostedMarketplace } from "./marketplace";
+import { RestaurantMenu } from "../storefront/menu";
+import { StorefrontCart } from "../storefront/cart";
 
 type CartAccess = ReturnType<typeof useHostedCart>;
 type MenuItem = Awaited<ReturnType<typeof hostedData.menu>>[number];
@@ -28,27 +28,30 @@ type MenuItem = Awaited<ReturnType<typeof hostedData.menu>>[number];
 export function HostedStudent({ route, section, id, itemId }: { route: string; section: string; id?: string; itemId?: string }) {
   return <HostedVisitor>{session =>
     <StudentContent key={session?.userId ?? "guest"} route={route} section={section} id={id} itemId={itemId}
+      signedIn={Boolean(session)}
       userId={session?.profile.status === "active" && session.emailVerified ? session.userId : undefined} />
   }</HostedVisitor>;
 }
 
-function StudentContent({ route, section, id, userId, itemId }: { route: string; section: string; id?: string; userId?: string; itemId?: string }) {
+function StudentContent({ route, section, id, signedIn, userId, itemId }: { route: string; section: string; id?: string; signedIn: boolean; userId?: string; itemId?: string }) {
   const cart = useHostedCart(userId);
-  return <StudentShell route={route} cartCount={cart.cart?.items.reduce((count, item) => count + item.quantity, 0) ?? 0}>
+  return <StudentShell route={route} signedIn={signedIn} cartCount={cart.cart?.items.reduce((count, item) => count + item.quantity, 0) ?? 0}>
     {cart.conflict && <CartImport store={cart} />}
     {cart.error && <div className="notice"><p role="alert">{cart.error}</p><button className="button secondary" onClick={() => void cart.reload()}>Reload saved cart</button></div>}
-    {section === "home" && <Catalogue home signedIn={Boolean(userId)} />}
-    {section === "area" && <HostedDiscovery areaId={id} />}
-    {section === "vendors" && (id ? <Menu key={id} id={id} store={cart} itemId={itemId} /> : <HostedDiscovery />)}
-    {section === "cart" && (cart.ready ? <Cart store={cart} /> : <p role="status">Loading your cart…</p>)}
+    {section === "home" && <HostedMarketplace signedIn={Boolean(userId)} userId={userId} />}
+    {section === "map" && <HostedMarketplace signedIn={Boolean(userId)} userId={userId} map />}
+    {section === "area" && <HostedMarketplace signedIn={Boolean(userId)} userId={userId} areaId={id} map />}
+    {section === "vendors" && (id ? <Menu key={id} id={id} store={cart} itemId={itemId} /> : <HostedMarketplace signedIn={Boolean(userId)} userId={userId} />)}
+    {section === "cart" && (cart.ready ? <StorefrontCart store={cart} signedIn={Boolean(userId)} /> : <p role="status">Loading your cart…</p>)}
     {section === "checkout" && (userId ? cart.ready ? <BasketCheckout store={cart} /> : <p role="status">Loading your cart…</p> : <SignInToOrder next="/app/checkout" />)}
-    {section === "orders" && (userId ? (id ? <OrderDetail key={id} id={id} userId={userId} /> : <Orders userId={userId} />) : <SignInToOrder next={route} />)}
+    {section === "orders" && (userId ? (id ? <OrderDetail key={id} id={id} userId={userId} /> : <Orders key="orders" userId={userId} />) : <SignInToOrder next={route} />)}
+    {section === "history" && (userId ? <Orders key="history" userId={userId} defaultTab="history" /> : <SignInToOrder next="/app/history" />)}
     {section === "traffic" && <HostedTraffic />}
   </StudentShell>;
 }
 
 function SignInToOrder({ next }: { next: string }) {
-  return <Empty title="Make it yours." detail="Sign in to save your cart, place an order, and track your pickup."
+  return <Empty art="explore_cafeteria" title="Make it yours." detail="Sign in to save your cart, place an order, and track your pickup."
     href={"/auth/login?next=" + encodeURIComponent(next)} action="Sign in to continue" />;
 }
 
@@ -59,58 +62,6 @@ function CartImport({ store }: { store: CartAccess }) {
     <div className="line wrap">{[false, true].map(replace => <button key={String(replace)} className={"button " + (replace ? "primary" : "secondary")} disabled={busy}
       onClick={async () => { setBusy(true); try { await store.resolveImport(replace); } catch (problem) { setError(messageOf(problem)); } finally { setBusy(false); } }}>
       {replace ? "Replace with this cart" : "Keep saved cart"}</button>)}</div><ErrorMessage message={error} /></section>;
-}
-
-const foodImages = new Set(["noodles", "coffee", "bowl", "lunch"]);
-function StallPhoto({ image, className = "stall-photo" }: { image: string; className?: string }) {
-  return <div className={className}><Image src={"/food/" + (foodImages.has(image) ? image : "lunch") + ".webp"} alt="" fill sizes="(max-width: 650px) 100vw, 33vw" /></div>;
-}
-
-async function loadCatalogue() {
-  const [vendors, zones] = await Promise.all([hostedData.vendors(), hostedData.zones()]);
-  return { vendors, zones };
-}
-
-function Catalogue({ home = false, signedIn = false }: { home?: boolean; signedIn?: boolean }) {
-  const result = useRemote(loadCatalogue);
-  const [query, setQuery] = useState("");
-  const [zone, setZone] = useState("");
-  const vendors = result.value?.vendors.filter(vendor =>
-    (!zone || vendor.zone_id === zone) && (vendor.name + " " + vendor.category).toLowerCase().includes(query.trim().toLowerCase()));
-  return <>{home && <RoleHero role="student" />}<div className="student-heading"><div><h1>{home ? "Lunch between classes." : "Explore vendors"}</h1><p>Browse campus stalls and schedule a pickup.</p></div>{home && <Link className="button secondary" href="/account">Your account</Link>}</div>
-    {!result.value ? <RemoteStatus error={result.error} reload={result.reload} /> : <>
-      {home && (signedIn ? <HostedFif role="student" /> : <StudentPickup vendors={result.value.vendors} />)}
-      {home && <LiveDeals />}
-      <div className="filters"><label className="field grow">Find a stall<input type="search" value={query} onChange={event => setQuery(event.target.value)} /></label>
-        <label className="field">Food court<select value={zone} onChange={event => setZone(event.target.value)}><option value="">All zones</option>{result.value.zones.map(entry => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label></div>
-      {vendors?.length ? <div className="stall-grid">{vendors.map(vendor => <Link className="stall-card" href={"/app/vendors/" + vendor.id} key={vendor.id}>
-        <StallPhoto image={vendor.image} /><div className="stall-content"><h3>{vendor.name}</h3><p><MapPin size={14} aria-hidden /> {result.value?.zones.find(entry => entry.id === vendor.zone_id)?.name}</p><p>{vendor.category}{vendor.paused && " · Intake paused"}</p></div>
-      </Link>)}</div> : <Empty title="No matching stalls" detail="Clear a filter to see more vendors." />}
-    </>}
-  </>;
-}
-
-function LiveDeals() {
-  const deals = useRemote(hostedData.deals);
-  if (!deals.value) return <RemoteStatus error={deals.error} reload={deals.reload} />;
-  if (!deals.value.length) return null;
-  return <section className="stack"><div className="section-head"><h2>Campus deals</h2><Link href="/app/vendors">Explore all stalls</Link></div><div className="stall-grid">{deals.value.map(item => <Link className="panel stack" key={item.id} href={"/app/vendors/" + item.vendor_id + "/item/" + item.id}><span className="badge deal-badge">Save {money(item.discount_sen)}</span><h3>{item.name}</h3><p>{item.description}</p><div><strong>{money(item.price_sen - item.discount_sen)}</strong> <del>{money(item.price_sen)}</del></div></Link>)}</div></section>;
-}
-
-function StudentPickup({ vendors }: { vendors: Awaited<ReturnType<typeof hostedData.vendors>> }) {
-  const result = useRemote(hostedData.traffic);
-  if (!result.value) return <div className="hosted-pick"><RemoteStatus error={result.error} reload={result.reload} /></div>;
-  const accepting = new Map(vendors.filter(stall => stall.status === "approved" && !stall.paused).map(stall => [stall.id, stall]));
-  const now = Date.now();
-  const candidate = result.value.buckets.filter(bucket => {
-    const stall = accepting.get(bucket.vendor_id);
-    return stall && Date.parse(bucket.starts_at) >= now + stall.lead_minutes * 60_000 && bucket.reserved_units < bucket.total_units;
-  })
-    .sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at) || a.reserved_units / a.total_units - b.reserved_units / b.total_units)[0];
-  return <div className="hosted-pick"><Recommendation label="FIF · Suggested pickup"
-    title={candidate ? accepting.get(candidate.vendor_id)!.name : "Check upcoming pickup activity"}
-    evidence={candidate ? pickupWindow(candidate.starts_at) + " · " + candidate.reserved_units + " of " + candidate.total_units + " work units booked. Checkout confirms availability for your cart." : "There is no open window in the current activity view. Check upcoming windows or try another stall."}
-    href={candidate ? "/app/vendors/" + candidate.vendor_id : "/app/traffic"} action={candidate ? "View menu" : "View activity"} /></div>;
 }
 
 function Menu({ id, store, itemId }: { id: string; store: CartAccess; itemId?: string }) {
@@ -124,16 +75,7 @@ function Menu({ id, store, itemId }: { id: string; store: CartAccess; itemId?: s
   if (!result.value) return <RemoteStatus error={result.error} reload={result.reload} />;
   const { vendor, items } = result.value;
   if (!vendor) return <Empty title="Stall unavailable" detail="Choose another campus stall." href="/app/vendors" action="Explore vendors" />;
-  return <>
-    <Link className="quiet-link back-link" href="/app/vendors">Back to stalls</Link>
-    <div className="menu-hero"><div className="menu-photo"><Image src={sampleLayout.locations.find(location => location.stallId === id)?.photo ?? "/food/" + vendor.image + ".webp"} alt={vendor.name + " storefront"} fill sizes="(max-width: 650px) 100vw, 33vw" /></div><div><h1>{vendor.name}</h1><p>{vendor.description}</p><p>{vendor.opens_at.slice(0, 5)}–{vendor.closes_at.slice(0, 5)} MYT</p></div></div>
-    <div className="section-head"><h2>Menu</h2>{vendor.paused && <span className="badge neutral">Intake paused</span>}</div>
-    {store.cart?.pending && <p className="notice">Checkout is awaiting confirmation. <Link href="/app/checkout">Resume checkout</Link></p>}
-    <div className="menu-list">{items.map(entry => <article className="menu-item" key={entry.id} id={entry.id}><div><h3>{entry.name}</h3><p>{entry.description}</p>
-      <div className="menu-price"><strong>{money(entry.price_sen - entry.discount_sen)}</strong>{entry.discount_sen > 0 && <><del>{money(entry.price_sen)}</del><span className="badge deal-badge">Demo deal</span></>}</div>
-    </div><button className="button secondary" aria-label={"Add " + entry.name} disabled={vendor.paused || !entry.stock || Boolean(store.cart?.pending)} onClick={() => setItem(entry)}><Plus size={16} aria-hidden />{entry.stock ? "Add" : "Sold out"}</button></article>)}</div>
-    {!items.length && <p className="muted">This stall has no published items.</p>}
-    {store.cart && <div className="sticky-action"><Link className="button primary" href="/app/cart">View cart <ArrowRight size={17} aria-hidden /></Link></div>}
+  return <><RestaurantMenu vendor={vendor} items={items} store={store} onAdd={setItem} />
     {item && <MealOptions item={item} store={store} close={() => setItem(undefined)} added={() => { window.dispatchEvent(new CustomEvent("apfoods-notice", { detail: item.name + " added to cart." })); setItem(undefined); }} />}
   </>;
 }
@@ -163,85 +105,130 @@ function MealOptions({ item, store, close, added }: { item: MenuItem; store: Car
   </form></Modal>;
 }
 
-function Cart({ store }: { store: CartAccess }) {
-  const { cart } = store;
-  const vendorIds = [...new Set(cart?.items.map(line => line.vendorId ?? cart.vendorId) ?? [])].sort().join(",");
-  const load = useCallback(async () => vendorIds ? (await Promise.all(vendorIds.split(",").map(id => hostedData.menu(id)))).flat() : [], [vendorIds]);
-  const menu = useRemote(load);
-  const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
-  if (!cart?.items.length) return <Empty title="Your cart is empty" detail="Add a meal from a campus stall." href="/app/vendors" action="Explore vendors" />;
-  const total = cart.items.reduce((sum, line) => {
-    const item = menu.value?.find(row => row.id === line.itemId);
-    return sum + (item ? (item.price_sen - item.discount_sen + (line.extra ? addonPrice : 0)) * line.quantity : 0);
-  }, 0);
-  const savings = cart.items.reduce((sum, line) => sum + (menu.value?.find(row => row.id === line.itemId)?.discount_sen ?? 0) * line.quantity, 0);
-  const unavailable = menu.value && cart.items.some(line => {
-    const item = menu.value?.find(row => row.id === line.itemId);
-    return !item || cart.items.filter(row => row.itemId === line.itemId).reduce((sum, row) => sum + row.quantity, 0) > item.stock;
-  });
-  return <section className="panel cart-panel"><h1>Your cart</h1><div className="stack">
-    {!menu.value && <RemoteStatus error={menu.error} reload={menu.reload} />}
-    {menu.value && cart.items.map((line, index) => {
-      const item = menu.value?.find(row => row.id === line.itemId);
-      return <div className="cart-row" key={line.itemId + line.extra}><div><h3>{item?.name ?? line.itemId}</h3><p>{item ? money(item.price_sen - item.discount_sen + (line.extra ? addonPrice : 0)) + " each" : "Item unavailable"}{line.extra && " · With a side"}</p></div>
-        <div className="stepper">{(["Decrease", "Increase", "Remove"] as const).map(action => <button key={action} className="icon-button" aria-label={action + " " + (item?.name ?? line.itemId)}
-          disabled={saving || Boolean(cart.pending) || (action === "Increase" && (!item || line.quantity >= 20 || cart.items.filter(entry => entry.itemId === line.itemId).reduce((sum, entry) => sum + entry.quantity, 0) >= item.stock))}
-          onClick={async () => {
-            const quantity = action === "Remove" ? 0 : line.quantity + (action === "Increase" ? 1 : -1);
-            const items = cart.items.flatMap((entry, i) => index !== i ? [entry] : quantity ? [{ ...entry, quantity }] : []);
-            setSaving(true);
-            try { await store.save(items.length ? { ...cart, items } : undefined); setError(""); } catch (problem) { setError(messageOf(problem)); }
-            finally { setSaving(false); }
-          }}>{action === "Increase" ? "+" : action === "Decrease" ? "−" : "Remove"}</button>)}
-          <strong aria-label="Quantity">{line.quantity}</strong><strong>{item && money((item.price_sen - item.discount_sen + (line.extra ? addonPrice : 0)) * line.quantity)}</strong></div></div>;
-    })}
-    {menu.value && <><div className="line spread"><span>Subtotal</span><strong>{money(total + savings)}</strong></div>
-      {savings > 0 && <div className="line spread"><span>Meal savings</span><strong>−{money(savings)}</strong></div>}
-      <div className="line spread cart-total"><strong>Total</strong><strong>{money(total)}</strong></div></>}
-    {unavailable && <p className="error" role="alert">Some items are unavailable or exceed current stock. Update the quantities before checkout.</p>}
-    <ErrorMessage message={error} />
-    {(cart.pending || (menu.value && !unavailable)) && <Link className="button primary" href="/app/checkout">{cart.pending ? "Resume checkout" : "Choose pickup time"}</Link>}
-  </div></section>;
-}
-
-
-function Orders({ userId }: { userId: string }) {
+function Orders({ userId, defaultTab = "all" }: { userId: string; defaultTab?: "all" | "active" | "history" }) {
   const api = useHostedData();
   const orders = useRemote(api.orders);
+  const catalogue = useRemote(hostedData.catalogue);
+  const [tab, setTab] = useState(defaultTab);
   useEffect(() => subscribeToOrders({ studentId: userId }, orders.reload), [userId, orders.reload]);
-  return <><div className="student-heading"><h1>Orders</h1></div>{!orders.value ? <RemoteStatus error={orders.error} reload={orders.reload} /> :
-    orders.value.length ? <div className="panel orders-list">{orders.value.map(order => <Link className="order-list-row" href={"/app/orders/" + order.id} key={order.id}><span><strong>{order.vendor_id}</strong><small>{pickupWindow(order.pickup_at)}</small></span><StatusBadge status={order.status} /><strong>{money(order.total_sen)}</strong></Link>)}</div>
-    : <Empty title="No orders yet" detail="Your pickups appear after checkout." href="/app/vendors" action="Explore vendors" />}</>;
+  const stalls = new Map(catalogue.value?.vendors.map(vendor => [vendor.id, vendor.name]) ?? []);
+  const visible = orders.value?.filter(order => tab === "all" || (tab === "active" ? isActive(order.status) : !isActive(order.status))) ?? [];
+  return <>
+    <div className="student-heading"><div><h1>{defaultTab === "history" ? "Order history" : "Orders"}</h1><p>{defaultTab === "history" ? "Review completed, cancelled, and rejected campus pickups." : "Track active pickups and find previous orders."}</p></div></div>
+    {orders.value && orders.value.length > 0 && <TabBar label="Order list" value={tab} onChange={value => setTab(value as "all" | "active" | "history")} tabs={[{ id: "all", label: "All orders" }, { id: "active", label: "Active" }, { id: "history", label: "History" }]} />}
+    {!orders.value ? <RemoteStatus error={orders.error} reload={orders.reload} /> :
+      visible.length ? <div className="panel orders-list">{visible.map(order =>
+        <Link className="order-list-row" href={"/app/orders/" + order.id} key={order.id}>
+          <span><strong>{stalls.get(order.vendor_id) ?? order.vendor_id}</strong><small>{order.id.slice(0, 8).toUpperCase()} · {pickupWindow(order.pickup_at)}</small></span>
+          <StatusBadge status={order.status} />
+          <strong>{money(order.total_sen)}</strong>
+          <ChevronRight size={16} aria-hidden />
+        </Link>,
+      )}</div>
+      : orders.value.length ? <Empty title="No orders in this filter" detail="Switch tabs to view your other campus pickups." />
+      : <Empty title="No orders yet" detail="Your pickups appear after checkout." href="/app/vendors" action="Explore vendors" />}
+  </>;
 }
 
 function OrderDetail({ id, userId }: { id: string; userId: string }) {
   const api = useHostedData();
   const load = useCallback(() => api.order(id), [id, api]);
   const result = useRemote(load);
+  const catalogue = useRemote(hostedData.catalogue);
   const [credential, setCredential] = useState<Awaited<ReturnType<typeof hostedData.issuePickup>>>();
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => subscribeToOrders({ studentId: userId }, result.reload), [userId, result.reload]);
   if (!result.value) return <RemoteStatus error={result.error} reload={result.reload} />;
   const order = result.value;
+  const vendor = catalogue.value?.vendors.find(entry => entry.id === order.vendor_id);
+  const zone = catalogue.value?.zones.find(entry => entry.id === (vendor?.zone_id ?? order.zone_id));
+  const copy = trackingCopy[order.status];
+  const terminal = order.status === "cancelled" || order.status === "rejected";
+  const itemCount = order.lines.reduce((sum, line) => sum + line.quantity, 0);
+  const paymentNote = order.payment === "duitnow_qr"
+    ? ({ pending: "Awaiting QR payment confirmation", paid: "QR payment confirmed", expired: "Payment window expired", refund_pending: "Refund pending from stall", refunded: "Refund recorded" }[order.payment_record?.status ?? "pending"])
+    : order.payment === "counter"
+      ? (order.status === "collected" ? "Confirmed at counter" : terminal ? "No counter payment collected" : "Pay when you collect")
+      : "Online demo payment";
   const issue = async () => { setCredential(await api.issuePickup(id)); };
-  return <><Link className="quiet-link back-link" href="/app/orders">Order history</Link>
-    <div className="student-heading"><div><h1>{order.status === "ready" ? "Ready for pickup" : order.status === "collected" ? "Order collected" : "Track your order"}</h1><p>{order.vendor_id} · {pickupWindow(order.pickup_at)}</p></div><StatusBadge status={order.status} /></div>
-    {order.payment === "duitnow_qr" && <OrderPayment customer id={id} total={order.total_sen} version={order.version} changed={result.reload} />}
-    <HostedTracking order={order} />
-    <section className="panel order-summary"><h2>Order summary</h2>{order.lines.map(line => <div className="line spread" key={line.itemId + line.extra}><span>{line.quantity} × {line.name}{line.extra && " + side"}</span><strong>{money(line.quantity * line.unit)}</strong></div>)}
-      <div className="line spread cart-total"><strong>Total</strong><strong>{money(order.total_sen)}</strong></div>
-      {order.status === "ready" && <button className="button primary" disabled={busy} onClick={async () => {
-        setBusy(true); setError("");
-        try { await issue(); } catch (problem) { setError(messageOf(problem)); } finally { setBusy(false); }
-      }}>Show pickup code</button>}
-      {isActive(order.status) && ["placed","accepted"].includes(order.status) && <button className="button secondary" disabled={busy} onClick={async () => {
-        setBusy(true); setError("");
-        try { await api.cancel(id); result.reload(); } catch (problem) { setError(messageOf(problem)); } finally { setBusy(false); }
-      }}>Cancel order</button>}
+  return <>
+    <Link className="quiet-link back-link" href="/app/orders"><ArrowLeft size={16} aria-hidden />Order history</Link>
+    <header className="track-heading">
+      <div>
+        <p className="caf-eyebrow">YOUR CAMPUS PICKUP</p>
+        <h1>{order.status === "ready" ? "Ready for pickup" : order.status === "collected" ? "Order collected" : "Track your order"}</h1>
+        <p>Order {order.id.slice(0, 8).toUpperCase()} · {vendor?.name ?? order.vendor_id} · {zone?.name ?? order.zone_id}</p>
+      </div>
+      <StatusBadge status={order.status} />
+    </header>
+    <div className="track-layout">
+      <div className="track-main">
+        <section className={"panel track-hero " + (terminal ? "terminal" : "")}>
+          <WarmIllustration name={copy.art} />
+          <div>
+            <span className="caf-eyebrow">{statusNames[order.status]}</span>
+            <h2>{copy.title}</h2>
+            <p>{copy.description}</p>
+            <strong className="track-pickup-time"><Clock3 size={16} aria-hidden />{pickupWindow(order.pickup_at)}</strong>
+            {order.status === "collected" && <span className="track-complete"><CircleCheck size={16} aria-hidden />Collection confirmed</span>}
+            <div className="line wrap">
+              {canShowPickup(order.status) && <button className="button primary" disabled={busy} onClick={async () => {
+                setBusy(true); setError("");
+                try { await issue(); } catch (problem) { setError(messageOf(problem)); } finally { setBusy(false); }
+              }}>Show pickup code</button>}
+              {canStudentCancel(order.status) && <button className="button secondary" disabled={busy} onClick={() => { setError(""); setConfirmCancel(true); }}>Cancel order</button>}
+              {terminal && <Link className="button secondary" href="/app/vendors">Explore cafeteria <ArrowRight size={15} aria-hidden /></Link>}
+            </div>
+            {!confirmCancel && <ErrorMessage message={error} />}
+          </div>
+        </section>
+        {order.payment === "duitnow_qr" && <OrderPayment customer id={id} total={order.total_sen} version={order.version} changed={result.reload} />}
+        <HostedTracking order={order} />
+      </div>
+      <aside className="track-aside">
+        <section className="panel track-facts">
+          <h2>Pickup details</h2>
+          <dl>
+            <div><dt><Clock3 size={15} aria-hidden />Pickup time</dt><dd>{pickupWindow(order.pickup_at)}</dd></div>
+            <div><dt><MapPin size={15} aria-hidden />Collect from</dt><dd>{vendor?.name ?? order.vendor_id}<small>{zone?.name ?? order.zone_id}</small></dd></div>
+            <div><dt><ShieldCheck size={15} aria-hidden />Payment</dt><dd>{order.payment === "duitnow_qr" ? "DuitNow QR" : order.payment === "counter" ? "Pay at counter" : "Online payment"}<small>{paymentNote}</small></dd></div>
+            <div><dt>Order status</dt><dd><StatusBadge status={order.status} /></dd></div>
+          </dl>
+          <Link className="quiet-link" href={"/app/vendors/" + order.vendor_id}>View stall menu <ArrowRight size={15} aria-hidden /></Link>
+        </section>
+        <section className="panel track-accordions">
+          <details open className="ap-accordion">
+            <summary>Order breakdown <span>{itemCount} {itemCount === 1 ? "item" : "items"} · {money(order.total_sen)}</span></summary>
+            <div>
+              {order.lines.map(line => <div className="track-order-line" key={line.itemId + line.extra}>
+                <span><strong>{line.quantity} × {line.name}</strong><small>{line.extra ? "Includes a side · " : ""}{money(line.unit)} per meal</small></span>
+                <strong>{money(line.quantity * line.unit)}</strong>
+              </div>)}
+              <dl className="track-totals">
+                <div><dt>Order total</dt><dd>{money(order.total_sen)}</dd></div>
+              </dl>
+              <p className="small muted">Prices reflect any deals applied when this order was placed.</p>
+            </div>
+          </details>
+        </section>
+        <p className="track-source">Live order status · Malaysia time (MYT). Updates automatically.</p>
+      </aside>
+    </div>
+    {confirmCancel && <Modal title="Cancel this order?" close={() => { if (!busy) setConfirmCancel(false); }}>
+      <p>The stall will be notified in its kitchen board. Your pickup reservation will be released.</p>
       <ErrorMessage message={error} />
-    </section>
+      <div className="ap-dialog-actions">
+        <button className="button secondary" disabled={busy} onClick={() => setConfirmCancel(false)}>Keep order</button>
+        <button className="button danger" disabled={busy} onClick={async () => {
+          setBusy(true); setError("");
+          try { await api.cancel(id); setConfirmCancel(false); result.reload(); }
+          catch (problem) { setError(messageOf(problem)); }
+          finally { setBusy(false); }
+        }}>{busy ? "Cancelling…" : "Cancel order"}</button>
+      </div>
+    </Modal>}
     {credential && order.status === "ready" && <PickupDialog code={credential.code} expiresAt={Date.parse(credential.expiresAt)} close={() => setCredential(undefined)} regenerate={issue} />}
   </>;
 }

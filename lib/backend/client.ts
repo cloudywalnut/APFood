@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import {
-  activityRow, adminReportOutput, auditRow, basketCheckoutInput, cartOutput, errorBody, fifOutput, menuRow, orderResult, orderRow, paymentOutput, pickupOutput, quoteOutput, sessionOutput, usersOutput, vendorPayment, vendorRow,
+  activityRow, adminReportOutput, auditRow, basketCheckoutInput, cartOutput, catalogueOutput, errorBody, fifOutput, menuRow, orderResult, orderRow, paymentOutput, pickupOutput, quoteOutput, sessionOutput, usersOutput, vendorPayment, vendorRow,
   type CheckoutInput, type QuoteInput,
 } from "./contracts";
 
@@ -43,6 +43,7 @@ export function createHostedData(userId?: string) {
   signOut: () => call("auth/session", ok, "DELETE"),
   zones: () => request("zones", z.array(z.object({ id: z.string(), name: z.string() }))),
   vendors: () => request("vendors", z.array(vendorRow)),
+  catalogue: () => request("catalogue", catalogueOutput),
   deals: () => request("deals", z.array(menuRow)),
   menu: (vendorId: string) => request("vendors/" + encodeURIComponent(vendorId) + "/menu", z.array(menuRow)),
   quote: (input: QuoteInput) => call("checkout/quote", quoteOutput, "POST", input),
