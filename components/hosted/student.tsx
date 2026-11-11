@@ -16,26 +16,32 @@ import { HostedVisitor, messageOf, RemoteStatus, useHostedData, useRemote } from
 import { HostedTraffic } from "./traffic";
 import { OrderPayment } from "./payments";
 import { HostedFif } from "./fif";
+import { BasketCheckout } from "./basket-checkout";
+import { HostedDiscovery } from "./discovery";
+import { sampleLayout } from "../../lib/cafeteria/layout";
+import { HostedTracking } from "./tracking";
+import { RoleHero } from "../apspace/role-hero";
 
 type CartAccess = ReturnType<typeof useHostedCart>;
 type MenuItem = Awaited<ReturnType<typeof hostedData.menu>>[number];
 
-export function HostedStudent({ route, section, id }: { route: string; section: string; id?: string }) {
+export function HostedStudent({ route, section, id, itemId }: { route: string; section: string; id?: string; itemId?: string }) {
   return <HostedVisitor>{session =>
-    <StudentContent key={session?.userId ?? "guest"} route={route} section={section} id={id}
+    <StudentContent key={session?.userId ?? "guest"} route={route} section={section} id={id} itemId={itemId}
       userId={session?.profile.status === "active" && session.emailVerified ? session.userId : undefined} />
   }</HostedVisitor>;
 }
 
-function StudentContent({ route, section, id, userId }: { route: string; section: string; id?: string; userId?: string }) {
+function StudentContent({ route, section, id, userId, itemId }: { route: string; section: string; id?: string; userId?: string; itemId?: string }) {
   const cart = useHostedCart(userId);
   return <StudentShell route={route} cartCount={cart.cart?.items.reduce((count, item) => count + item.quantity, 0) ?? 0}>
     {cart.conflict && <CartImport store={cart} />}
     {cart.error && <div className="notice"><p role="alert">{cart.error}</p><button className="button secondary" onClick={() => void cart.reload()}>Reload saved cart</button></div>}
     {section === "home" && <Catalogue home signedIn={Boolean(userId)} />}
-    {section === "vendors" && (id ? <Menu key={id} id={id} store={cart} /> : <Catalogue />)}
+    {section === "area" && <HostedDiscovery areaId={id} />}
+    {section === "vendors" && (id ? <Menu key={id} id={id} store={cart} itemId={itemId} /> : <HostedDiscovery />)}
     {section === "cart" && (cart.ready ? <Cart store={cart} /> : <p role="status">Loading your cart…</p>)}
-    {section === "checkout" && (userId ? cart.ready ? <Checkout store={cart} /> : <p role="status">Loading your cart…</p> : <SignInToOrder next="/app/checkout" />)}
+    {section === "checkout" && (userId ? cart.ready ? <BasketCheckout store={cart} /> : <p role="status">Loading your cart…</p> : <SignInToOrder next="/app/checkout" />)}
     {section === "orders" && (userId ? (id ? <OrderDetail key={id} id={id} userId={userId} /> : <Orders userId={userId} />) : <SignInToOrder next={route} />)}
     {section === "traffic" && <HostedTraffic />}
   </StudentShell>;
@@ -71,9 +77,10 @@ function Catalogue({ home = false, signedIn = false }: { home?: boolean; signedI
   const [zone, setZone] = useState("");
   const vendors = result.value?.vendors.filter(vendor =>
     (!zone || vendor.zone_id === zone) && (vendor.name + " " + vendor.category).toLowerCase().includes(query.trim().toLowerCase()));
-  return <><div className="student-heading"><div><h1>{home ? "Lunch between classes." : "Explore vendors"}</h1><p>Browse campus stalls and schedule a pickup.</p></div>{home && <Link className="button secondary" href="/account">Your account</Link>}</div>
+  return <>{home && <RoleHero role="student" />}<div className="student-heading"><div><h1>{home ? "Lunch between classes." : "Explore vendors"}</h1><p>Browse campus stalls and schedule a pickup.</p></div>{home && <Link className="button secondary" href="/account">Your account</Link>}</div>
     {!result.value ? <RemoteStatus error={result.error} reload={result.reload} /> : <>
       {home && (signedIn ? <HostedFif role="student" /> : <StudentPickup vendors={result.value.vendors} />)}
+      {home && <LiveDeals />}
       <div className="filters"><label className="field grow">Find a stall<input type="search" value={query} onChange={event => setQuery(event.target.value)} /></label>
         <label className="field">Food court<select value={zone} onChange={event => setZone(event.target.value)}><option value="">All zones</option>{result.value.zones.map(entry => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label></div>
       {vendors?.length ? <div className="stall-grid">{vendors.map(vendor => <Link className="stall-card" href={"/app/vendors/" + vendor.id} key={vendor.id}>
@@ -81,6 +88,13 @@ function Catalogue({ home = false, signedIn = false }: { home?: boolean; signedI
       </Link>)}</div> : <Empty title="No matching stalls" detail="Clear a filter to see more vendors." />}
     </>}
   </>;
+}
+
+function LiveDeals() {
+  const deals = useRemote(hostedData.deals);
+  if (!deals.value) return <RemoteStatus error={deals.error} reload={deals.reload} />;
+  if (!deals.value.length) return null;
+  return <section className="stack"><div className="section-head"><h2>Campus deals</h2><Link href="/app/vendors">Explore all stalls</Link></div><div className="stall-grid">{deals.value.map(item => <Link className="panel stack" key={item.id} href={"/app/vendors/" + item.vendor_id + "/item/" + item.id}><span className="badge deal-badge">Save {money(item.discount_sen)}</span><h3>{item.name}</h3><p>{item.description}</p><div><strong>{money(item.price_sen - item.discount_sen)}</strong> <del>{money(item.price_sen)}</del></div></Link>)}</div></section>;
 }
 
 function StudentPickup({ vendors }: { vendors: Awaited<ReturnType<typeof hostedData.vendors>> }) {
@@ -99,29 +113,28 @@ function StudentPickup({ vendors }: { vendors: Awaited<ReturnType<typeof hostedD
     href={candidate ? "/app/vendors/" + candidate.vendor_id : "/app/traffic"} action={candidate ? "View menu" : "View activity"} /></div>;
 }
 
-function Menu({ id, store }: { id: string; store: CartAccess }) {
+function Menu({ id, store, itemId }: { id: string; store: CartAccess; itemId?: string }) {
   const load = useCallback(async () => {
     const [vendors, items] = await Promise.all([hostedData.vendors(), hostedData.menu(id)]);
     return { vendor: vendors.find(vendor => vendor.id === id), items };
   }, [id]);
   const result = useRemote(load);
   const [item, setItem] = useState<MenuItem>();
-  const [note, setNote] = useState("");
+  useEffect(() => { if (itemId && result.value) setItem(result.value.items.find(row => row.id === itemId)); }, [itemId, result.value]);
   if (!result.value) return <RemoteStatus error={result.error} reload={result.reload} />;
   const { vendor, items } = result.value;
   if (!vendor) return <Empty title="Stall unavailable" detail="Choose another campus stall." href="/app/vendors" action="Explore vendors" />;
   return <>
     <Link className="quiet-link back-link" href="/app/vendors">Back to stalls</Link>
-    <div className="menu-hero"><StallPhoto image={vendor.image} className="menu-photo" /><div><h1>{vendor.name}</h1><p>{vendor.description}</p><p>{vendor.opens_at.slice(0, 5)}–{vendor.closes_at.slice(0, 5)} MYT</p></div></div>
+    <div className="menu-hero"><div className="menu-photo"><Image src={sampleLayout.locations.find(location => location.stallId === id)?.photo ?? "/food/" + vendor.image + ".webp"} alt={vendor.name + " storefront"} fill sizes="(max-width: 650px) 100vw, 33vw" /></div><div><h1>{vendor.name}</h1><p>{vendor.description}</p><p>{vendor.opens_at.slice(0, 5)}–{vendor.closes_at.slice(0, 5)} MYT</p></div></div>
     <div className="section-head"><h2>Menu</h2>{vendor.paused && <span className="badge neutral">Intake paused</span>}</div>
     {store.cart?.pending && <p className="notice">Checkout is awaiting confirmation. <Link href="/app/checkout">Resume checkout</Link></p>}
     <div className="menu-list">{items.map(entry => <article className="menu-item" key={entry.id} id={entry.id}><div><h3>{entry.name}</h3><p>{entry.description}</p>
       <div className="menu-price"><strong>{money(entry.price_sen - entry.discount_sen)}</strong>{entry.discount_sen > 0 && <><del>{money(entry.price_sen)}</del><span className="badge deal-badge">Demo deal</span></>}</div>
     </div><button className="button secondary" aria-label={"Add " + entry.name} disabled={vendor.paused || !entry.stock || Boolean(store.cart?.pending)} onClick={() => setItem(entry)}><Plus size={16} aria-hidden />{entry.stock ? "Add" : "Sold out"}</button></article>)}</div>
     {!items.length && <p className="muted">This stall has no published items.</p>}
-    {note && <p className="success" role="status">{note}</p>}
     {store.cart && <div className="sticky-action"><Link className="button primary" href="/app/cart">View cart <ArrowRight size={17} aria-hidden /></Link></div>}
-    {item && <MealOptions item={item} store={store} close={() => setItem(undefined)} added={() => { setNote(item.name + " added to cart."); setItem(undefined); }} />}
+    {item && <MealOptions item={item} store={store} close={() => setItem(undefined)} added={() => { window.dispatchEvent(new CustomEvent("apfoods-notice", { detail: item.name + " added to cart." })); setItem(undefined); }} />}
   </>;
 }
 
@@ -130,32 +143,30 @@ function MealOptions({ item, store, close, added }: { item: MenuItem; store: Car
   const [extra, setExtra] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const replacing = Boolean(store.cart && store.cart.vendorId !== item.vendor_id);
-  const items = replacing ? [] : store.cart?.items ?? [];
+  const items = (store.cart?.items ?? []).map(line => ({ ...line, vendorId: line.vendorId ?? store.cart!.vendorId }));
   const maximum = Math.min(20, item.stock - items.filter(line => line.itemId === item.id).reduce((sum, line) => sum + line.quantity, 0));
   return <Modal title={item.name} close={() => { if (!busy) close(); }}><form className="stack" onSubmit={async event => {
     event.preventDefault();
     if (store.cart?.pending || !Number.isInteger(quantity) || quantity < 1 || quantity > maximum) return;
     const exists = items.some(line => line.itemId === item.id && line.extra === extra);
     const next = exists ? items.map(line => line.itemId === item.id && line.extra === extra ? { ...line, quantity: line.quantity + quantity } : line)
-      : [...items, { itemId: item.id, quantity, extra }];
+      : [...items, { itemId: item.id, vendorId: item.vendor_id, quantity, extra }];
     setBusy(true);
-    try { await store.save({ vendorId: item.vendor_id, items: next }); added(); }
+    try { await store.save({ vendorId: store.cart?.vendorId ?? item.vendor_id, items: next }); added(); }
     catch (problem) { setError(messageOf(problem)); }
     finally { setBusy(false); }
   }}>
-    {replacing && <p>Adding this meal replaces the cart from your other stall.</p>}
     <label className="check"><input type="checkbox" checked={extra} onChange={event => setExtra(event.target.checked)} /> Add a side · {money(addonPrice)}</label>
     {maximum > 0 ? <label className="field">Quantity<input required type="number" min="1" max={maximum} value={quantity} onChange={event => setQuantity(Number(event.target.value))} /></label> : <p>All available portions are already in your cart.</p>}
     <ErrorMessage message={error} />
-    <button className="button primary" disabled={maximum < 1 || busy || !store.ready}>{busy ? "Saving…" : replacing ? "Replace cart" : "Add to cart"} · {money((item.price_sen - item.discount_sen + (extra ? addonPrice : 0)) * quantity)}</button>
+    <button className="button primary" disabled={maximum < 1 || busy || !store.ready}>{busy ? "Saving…" : "Add to cart"} · {money((item.price_sen - item.discount_sen + (extra ? addonPrice : 0)) * quantity)}</button>
   </form></Modal>;
 }
 
 function Cart({ store }: { store: CartAccess }) {
   const { cart } = store;
-  const vendorId = cart?.vendorId;
-  const load = useCallback(() => vendorId ? hostedData.menu(vendorId) : Promise.resolve([]), [vendorId]);
+  const vendorIds = [...new Set(cart?.items.map(line => line.vendorId ?? cart.vendorId) ?? [])].sort().join(",");
+  const load = useCallback(async () => vendorIds ? (await Promise.all(vendorIds.split(",").map(id => hostedData.menu(id)))).flat() : [], [vendorIds]);
   const menu = useRemote(load);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -194,80 +205,6 @@ function Cart({ store }: { store: CartAccess }) {
   </div></section>;
 }
 
-function Checkout({ store }: { store: CartAccess }) {
-  const router = useRouter();
-  const api = useHostedData();
-  const [quote, setQuote] = useState<Awaited<ReturnType<typeof hostedData.quote>>>();
-  const [slot, setSlot] = useState("");
-  const [payment, setPayment] = useState<"counter" | "duitnow_qr">("counter");
-  const [quoteRevision, setQuoteRevision] = useState<number>();
-  const [now, setNow] = useState(Date.now());
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const working = useRef(false);
-  const { cart } = store;
-  const vendorId = cart?.vendorId;
-  const paymentLoad = useCallback(() => vendorId ? hostedData.vendorPayment(vendorId) : Promise.resolve(null), [vendorId]);
-  const details = useRemote(paymentLoad);
-  useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
-  if (!cart?.items.length) return <Empty title="Your cart is empty" detail="Add a meal before choosing a pickup time." href="/app/vendors" action="Explore vendors" />;
-  const activeCart = cart;
-  async function run(action: () => Promise<void>) {
-    if (working.current) return;
-    working.current = true;
-    setBusy(true);
-    setError("");
-    try { await action(); } catch (problem) { setError(messageOf(problem)); }
-    finally { working.current = false; setBusy(false); }
-  }
-
-  async function submit() {
-    const attempt = activeCart.pending ?? (quote && slot ? { quoteId: quote.quoteId, pickupAt: slot, payment, idempotencyKey: crypto.randomUUID(), cartRevision: quoteRevision } : undefined);
-    if (!attempt) return;
-    if (!activeCart.pending) store.persistAttempt(attempt);
-    let id: string;
-    try { ({ id } = await api.place(attempt)); }
-    catch (problem) {
-      if (isRejectedCheckout(problem)) {
-        store.clearAttempt();
-        setQuote(undefined);
-      }
-      throw problem;
-    }
-    try { store.clearAttempt(); } finally { router.replace("/app/orders/" + id); }
-  }
-
-  return <><Link className="quiet-link back-link" href="/app/cart">Back to cart</Link><div className="student-heading"><div><h1>Schedule pickup</h1><p>Use the current price and windows from SmartQueue.</p></div></div>
-    {cart.pending ? <section className="panel stack"><h2>Confirm your checkout</h2><p>The last request might have reached the stall. Retry it to recover the order safely.</p><ErrorMessage message={error} /><button className="button primary" disabled={busy} onClick={() => void run(submit)}>{busy ? "Checking…" : "Retry the same checkout"}</button></section> : <>
-      <div className="checkout-layout"><section className="panel stack"><h2>Payment method</h2>
-        <fieldset className="choice-list"><legend className="sr-only">Payment method</legend>
-          <label><input type="radio" name="payment" checked={payment === "counter"} onChange={() => { setPayment("counter"); setQuote(undefined); }} />Pay at counter</label>
-          {details.value && <label><input type="radio" name="payment" checked={payment === "duitnow_qr"} onChange={() => { setPayment("duitnow_qr"); setQuote(undefined); }} />DuitNow QR</label>}
-        </fieldset>
-        {details.error != null && <RemoteStatus error={details.error} reload={details.reload} />}
-        <h2>Pickup window</h2>
-        <button className="button secondary" disabled={busy || store.conflict != null} onClick={() => void run(async () => {
-          setQuote(undefined);
-          const next = await api.quote({ vendorId: activeCart.vendorId, items: activeCart.items, payment });
-          setSlot(next.slots[0] ?? "");
-          setQuote(next);
-          setQuoteRevision(store.revision);
-        })}>{busy && !quote ? "Checking…" : quote ? "Refresh quote" : "Find pickup times"}</button>
-        {quote && <><fieldset className="slot-grid"><legend className="sr-only">Pickup time</legend>{quote.slots.map(value =>
-          <label className="slot-option" key={value}><input type="radio" name="pickup" checked={slot === value} onChange={() => setSlot(value)} />{pickupWindow(value)}</label>,
-        )}</fieldset>
-          {!quote.slots.length && <p className="error">No windows fit this order. Try a later visit or another stall.</p>}</>}
-        <ErrorMessage message={error} />
-      </section><section className="panel order-summary"><h2>Order summary</h2>
-        {quote ? <>{quote.lines.map(line => <div className="line spread" key={line.itemId + line.extra}><span>{line.quantity} × {line.name}{line.extra && " + side"}</span><strong>{money(line.unit * line.quantity)}</strong></div>)}
-          <div className="line spread cart-total"><strong>Total</strong><strong>{money(quote.totalSen)}</strong></div>
-          {Date.parse(quote.expiresAt) <= now && <p className="error">Your quote expired. Refresh it to continue.</p>}
-          <button className="button primary" disabled={!slot || busy || Date.parse(quote.expiresAt) <= now || store.conflict != null} onClick={() => void run(submit)}>{busy ? "Placing…" : payment === "duitnow_qr" ? "Continue to payment" : "Place order"}</button>
-        </> : <p>Get a quote to see the final price.</p>}
-      </section></div>
-    </>}
-  </>;
-}
 
 function Orders({ userId }: { userId: string }) {
   const api = useHostedData();
@@ -292,6 +229,7 @@ function OrderDetail({ id, userId }: { id: string; userId: string }) {
   return <><Link className="quiet-link back-link" href="/app/orders">Order history</Link>
     <div className="student-heading"><div><h1>{order.status === "ready" ? "Ready for pickup" : order.status === "collected" ? "Order collected" : "Track your order"}</h1><p>{order.vendor_id} · {pickupWindow(order.pickup_at)}</p></div><StatusBadge status={order.status} /></div>
     {order.payment === "duitnow_qr" && <OrderPayment customer id={id} total={order.total_sen} version={order.version} changed={result.reload} />}
+    <HostedTracking order={order} />
     <section className="panel order-summary"><h2>Order summary</h2>{order.lines.map(line => <div className="line spread" key={line.itemId + line.extra}><span>{line.quantity} × {line.name}{line.extra && " + side"}</span><strong>{money(line.quantity * line.unit)}</strong></div>)}
       <div className="line spread cart-total"><strong>Total</strong><strong>{money(order.total_sen)}</strong></div>
       {order.status === "ready" && <button className="button primary" disabled={busy} onClick={async () => {

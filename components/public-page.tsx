@@ -7,9 +7,11 @@ import { ArrowRight, ChefHat, LayoutDashboard, ShoppingBag } from "lucide-react"
 import { clearDemo } from "../lib/demo-store";
 import { Brand, Footer } from "./shared";
 import { HeroDeal, Promotions } from "./promotions";
+import { APLogin } from "./apspace/login";
 
 export function PublicPage({ page, hosted = false }: { page: string; hosted?: boolean }) {
   const [cleared, setCleared] = useState(false);
+  if (!hosted && ["home", "login", "register"].includes(page)) return <APLogin />;
   const titles: Record<string, string> = { privacy: "Privacy Policy", terms: "Terms and Conditions", cookies: "Cookies and browser storage", login: "Sign in", register: "Student registration" };
   const entrances = [
     { href: "/app", label: "Student", detail: "Browse stalls and schedule pickup", Icon: ShoppingBag },
@@ -41,7 +43,7 @@ export function PublicPage({ page, hosted = false }: { page: string; hosted?: bo
           localStorage.removeItem("ap-food-cart-revision");
           clearDemo(); setCleared(true);
         }}>Clear demo data</button><p className="small muted">Clears the guest cart and browser demo. Pending checkout recovery details are retained so an uncertain order can be recovered.</p>{cleared && <p className="success" role="status">Local demo data cleared.</p>}</>
-          : <><p>AP Food keeps the demo in browser local storage. The app does not set sign-in or marketing cookies.</p><h2>What is stored</h2><p>The <code>ap-food-demo-v1</code> key holds your demo cart, orders, stall settings, selected traffic scenario, and changes to the demo ledger.</p><h2>Reset this browser</h2><p>Clearing demo data removes your changes from this browser and restores the fictional starting dataset.</p><button className="button primary" onClick={() => { clearDemo(); setCleared(true); }}>Clear demo data</button>{cleared && <p className="success" role="status">Demo data cleared.</p>}</>)}
+          : <><p>AP Food keeps the demo in browser local storage. The app does not set sign-in or marketing cookies.</p><h2>What is stored</h2><p>The <code>ap-food-apspace-demo-v1</code> key holds your demo cart, orders, stall settings, selected traffic scenario, and changes to the demo ledger.</p><h2>Reset this browser</h2><p>Clearing demo data removes your changes from this browser and restores the fictional starting dataset.</p><button className="button primary" onClick={() => { clearDemo(); setCleared(true); }}>Clear demo data</button>{cleared && <p className="success" role="status">Demo data cleared.</p>}</>)}
         <p className="muted">Draft for review before a public launch.</p>
       </article>}
     </main><Footer />

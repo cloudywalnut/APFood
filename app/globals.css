@@ -1,3 +1,4 @@
+@font-face { font-family: "Roboto"; src: url("/fonts/roboto-latin.woff2") format("woff2"); font-style: normal; font-weight: 100 900; font-display: swap; }
 :root {
   color-scheme: light;
   --cream: #fbf7ef;
@@ -5,8 +6,8 @@
   --mustard: #f2b705;
   --ops-bg: #f1f4f8;
   --ops-blue: #3154c7;
-  --serif: "Fraunces", Georgia, serif;
-  --sans: "Inter", "Segoe UI", sans-serif;
+  --serif: var(--sans);
+  --sans: "Roboto", Arial, sans-serif;
 }
 * { box-sizing: border-box; }
 body { margin: 0; color: #222935; font-family: var(--sans); font-weight: 500; line-height: 1.55; }

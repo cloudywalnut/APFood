@@ -15,6 +15,8 @@ Browser requests use a Supabase session cookie. Use the app origin for cookie-au
 
 | Endpoint | Input or scope |
 | --- | --- |
+| `POST /api/checkout/basket` | `{ orders: [{ vendorId, quoteId, pickupAt, payment, idempotencyKey }], idempotencyKey, cartRevision }`; atomic multi-stall placement with exact retry recovery. |
+| `GET /api/admin/orders`, `GET /api/vendor/report` | Role-scoped report sources. Admin orders accept `days`, `vendorId`, and `zoneId`; vendor reports require an assigned `vendorId`. |
 | `POST /api/fif/recommendations` | `{ role, vendorId?, zoneId? }`; authenticated, active verified membership required. Vendor requests require an assigned stall. Returns server-owned evidence, action link, and `rules` or `gemini` source. |
 | `POST /api/auth/session` | `{ email, password }` returns the user ID and database memberships. GET reads the session and DELETE signs out. |
 | `GET /api/vendors`, `GET /api/vendors/:id/menu`, `GET /api/zones` | Published demo catalogue. Menu records include regular price, discount, stock, and work units. |

@@ -1,36 +1,19 @@
-"use client";
+'use client';
+import { InfoTip } from "./apspace/info-tip";
+import { useState } from 'react';
+import Link from 'next/link';
+import { ArrowRight, Check, Clock3, MapPin, Utensils } from 'lucide-react';
+import { available, dayKey, isActive, loadFor, scenarioNames, slotLabel, slots } from '../lib/demo';
+import { useDemo } from '../lib/demo-store';
+import { Empty, ScenarioSelect } from './shared';
+import { WarmIllustration } from './apspace/illustration';
+export function Traffic({admin=false,zone='',vendorId=''}:{admin?:boolean;zone?:string;vendorId?:string}){const state=useDemo();const [court,setCourt]=useState(''),[chosen,setChosen]=useState<number>();const vendors=state.vendors.filter(v=>v.status==='approved'&&(!zone||v.zone===zone)&&(!vendorId||v.id===vendorId)&&(!court||v.zone===court));const next=slots.find(s=>vendors.some(v=>available(state,v,s)));const selected=chosen??next??0;const active=state.orders.filter(o=>o.scenario===state.scenario&&o.day===dayKey()&&isActive(o.status)&&vendors.some(v=>v.id===o.vendorId));const accepting=vendors.filter(v=>available(state,v,selected));const preparingCount=active.filter(o=>o.status==='preparing'||o.status==='accepted').length,readyCount=active.filter(o=>o.status==='ready').length;return <>
+ <header className="student-heading"><div><p className="caf-eyebrow">{admin?'CAFETERIA OPERATIONS':'LESS GUESSWORK. BETTER BREAKS.'}</p><h1>{admin?'Pickup traffic & capacity':'Find a good time to pick up.'}</h1><p>{admin?'Explore bookings by stall and pickup window.':'Choose a time. See which kitchens have room for your order.'}</p></div>{admin&&<ScenarioSelect/>}</header>
+ <div className="activity-overview"><section className="panel"><span><Utensils size={18}/>Taking orders</span><strong>{accepting.length}<small>of {vendors.length} stalls</small></strong><p>For your selected pickup window</p></section><section className="panel"><span><Clock3 size={18}/>In the kitchen</span><strong>{preparingCount}<small>{preparingCount===1?'order':'orders'}</small></strong><p>Accepted or being prepared today</p></section><section className="panel"><span><Check size={18}/>Ready to collect</span><strong>{readyCount}<small>{readyCount===1?'order':'orders'}</small></strong><p>Marked ready by the stall</p></section></div>
+ {!admin&&<div className="activity-court-filter"><MapPin size={16}/><label className="sr-only" htmlFor="activity-court">Food court</label><select id="activity-court" value={court} onChange={e=>{setCourt(e.target.value);setChosen(undefined)}}><option value="">All food courts</option>{[...new Set(state.vendors.map(v=>v.zone))].map(name=><option key={name}>{name}</option>)}</select></div>}
+ <section className="panel activity-planner"><div className="line spread wrap"><div><h2>When would you like to collect?</h2><p className="muted small">Today · Malaysia time · Availability is confirmed at checkout.</p></div></div><div className="activity-windows" aria-label="Explore pickup window">{slots.map(slot=>{const count=vendors.filter(v=>available(state,v,slot)).length;return <button key={slot} aria-pressed={selected===slot} onClick={()=>setChosen(slot)}><strong>{slotLabel(slot)}</strong><small>{count?count+' stalls taking orders':'No pickup space'}</small>{slot===selected&&<Check size={15}/>}</button>})}</div></section>
+ {admin&&<section className="panel capacity-matrix"><h2>Where are the busy windows?</h2><p className="small muted">Tap a window to explore it. Percentages show booked kitchen capacity, not people in the food court.</p><div className="table-wrap"><table><thead><tr><th>Stall</th>{slots.map(s=><th key={s}>{slotLabel(s)}</th>)}</tr></thead><tbody>{vendors.map(v=><tr key={v.id}><th>{v.name}</th>{slots.map(s=>{const ratio=loadFor(state,v,s).units/v.capacity;return <td key={s}><button className={'matrix-cell '+(v.paused?'closed':ratio>=1?'full':ratio>=.75?'busy':'space')} aria-label={v.name+' '+slotLabel(s)+': '+(v.paused?'closed':Math.round(ratio*100)+'% booked')} aria-pressed={selected===s} onClick={()=>setChosen(s)}>{v.paused?'Closed':Math.round(ratio*100)+'%'}</button></td>})}</tr>)}</tbody></table></div></section>}
+ <div className="activity-result-heading"><div><h2>{accepting.length?'There’s room for your next meal.':'This window is full.'}</h2><p>{slotLabel(selected)} · {accepting.length} stalls accepting new orders</p></div><span className="small muted">Booked kitchen capacity<InfoTip label="Booked kitchen capacity" text="Scheduled meal workload, not the number of people in the cafeteria."/></span></div>
+ <div className="activity-stalls">{vendors.map(v=>{const load=loadFor(state,v,selected),percent=Math.round(load.units/v.capacity*100),canOrder=available(state,v,selected);const later=slots.find(s=>s>selected&&available(state,v,s));const label=v.paused?'Counter closed':!canOrder?'Fully booked':percent>=75?'A little busy':'Pickup available';return <section key={v.id} className="panel activity-stall"><div className="line spread"><div><h3>{v.name}</h3><p>{v.zone}</p></div><span className={'badge '+(canOrder?'good':'neutral')}>{label}</span></div><div className="activity-capacity"><div role="meter" aria-label={v.name+' booked kitchen capacity'} aria-valuenow={Math.min(100,percent)} aria-valuemin={0} aria-valuemax={100}><span style={{width:Math.min(100,percent)+'%'}}/></div><strong>{percent}% booked</strong></div><p className="activity-reservations">{v.paused?'New orders are paused.':load.count?load.count+' scheduled pickup'+(load.count===1?'':'s')+' in this window.':'No pickups booked in this window yet.'}</p>{v.paused&&<WarmIllustration name="stall_closed"/>}{!v.paused&&!canOrder&&later!==undefined&&<button className="quiet-link" onClick={()=>setChosen(later)}>Try {slotLabel(later)} →</button>}{canOrder&&<Link className="quiet-link" href={admin?'/admin/products?stall='+v.id:'/app/vendors/'+v.id}>{admin?'View stall products':'Explore menu'} <ArrowRight size={15}/></Link>}</section>})}</div>{!vendors.length&&<Empty title="No matching stalls" detail="Choose another food court to explore availability."/>}
 
-import Link from "next/link";
-import { ArrowRight, MapPin } from "lucide-react";
-import { available, isActive, loadFor, scenarioNames, slotLabel, slotTime, slots } from "../lib/demo";
-import { useDemo } from "../lib/demo-store";
-import { Empty, ScenarioSelect } from "./shared";
-
-export function Traffic({ admin = false, zone = "", vendorId = "" }: { admin?: boolean; zone?: string; vendorId?: string }) {
-  const state = useDemo();
-  const vendors = state.vendors.filter(vendor => vendor.status === "approved" && (!zone || vendor.zone === zone) && (!vendorId || vendor.id === vendorId));
-  const zones = [...new Set(vendors.map(vendor => vendor.zone))];
-  const active = state.orders.filter(order => order.scenario === state.scenario && vendors.some(vendor => vendor.id === order.vendorId));
-  const counts = { placed: active.length, collected: active.filter(order => order.status === "collected").length, cancelled: active.filter(order => order.status === "cancelled" || order.status === "rejected").length };
-  return <>
-    <div className={admin ? "page-heading" : "student-heading"}><div><h1>{admin ? "Traffic & scenarios" : "Food Court Activity"}</h1><p>Compare scheduled pickups and kitchen load by food court.</p></div>{admin && <ScenarioSelect label="Browser scenario" />}</div>
-    <div className="traffic-note"><strong>Physical crowd not verified</strong><p>Source · {scenarioNames[state.scenario]} browser fixtures and local demo orders.</p></div>
-    {admin && <div className="panel run-summary"><div><small>Orders in this dataset</small><strong>{counts.placed}</strong></div><div><small>Collected</small><strong>{counts.collected}</strong></div><div><small>Cancelled or rejected</small><strong>{counts.cancelled}</strong></div><div><small>Active pickups</small><strong>{active.filter(order => isActive(order.status)).length}</strong></div></div>}
-    {zones.length === 0 && <Empty title="No matching food courts" detail="Choose a different stall or zone." />}
-    <div className="zone-grid">{zones.map(name => {
-      const zoneVendors = vendors.filter(vendor => vendor.zone === name);
-      const serving = zoneVendors.filter(vendor => !vendor.paused);
-      const capacity = serving.reduce((sum, vendor) => sum + vendor.capacity, 0);
-      const buckets = slots.map(slot => ({ slot, units: zoneVendors.reduce((sum, vendor) => sum + loadFor(state, vendor, slot).units, 0), count: zoneVendors.reduce((sum, vendor) => sum + loadFor(state, vendor, slot).count, 0) }));
-      const peak = capacity ? Math.max(...buckets.map(bucket => bucket.units / capacity)) : 0;
-      const next = buckets.find(bucket => serving.some(vendor => available(state, vendor, bucket.slot)));
-      return <section className="panel zone-card" key={name}>
-        <div className="line spread"><h2><MapPin size={18} aria-hidden /> {name}</h2><span className={"badge " + (peak >= .75 ? "warning" : "neutral")}>{!capacity || !buckets.some(bucket => bucket.count) ? "Limited data" : peak >= .75 ? "High load" : peak >= .4 ? "Moderate load" : "Low load"}</span></div>
-        <p className="muted">{serving.length} accepting stall{serving.length === 1 ? "" : "s"} · {capacity} work units per window</p>
-        <div className="bucket-chart">{buckets.map(bucket => <div key={bucket.slot}><span className="bucket-number">{bucket.count}</span><div className="bucket-track" aria-hidden><span style={{ height: Math.min(100, capacity ? bucket.units / capacity * 100 : 0) + "%" }} /></div><small>{slotTime(bucket.slot)}</small><span className="sr-only"> PM, {bucket.count} scheduled pickups</span></div>)}</div>
-        <p className="small muted">Scheduled pickups by window · Malaysia time</p>
-        <div className="zone-foot"><strong>{next ? "Next available · " + slotLabel(next.slot) : "No available pickup windows"}</strong>{!admin && <Link className="quiet-link" href="/app/vendors">Browse vendors <ArrowRight size={15} aria-hidden /></Link>}</div>
-      </section>;
-    })}</div>
-  </>;
-}
+ </>}

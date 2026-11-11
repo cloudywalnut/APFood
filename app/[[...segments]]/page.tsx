@@ -1,4 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { HostedExtras } from "../../components/hosted/extras";
+import { APExtraPage } from "../../components/apspace/extras";
+import { APLanding } from "../../components/apspace/landing";
 import { AdminPage } from "../../components/admin";
 import { PublicPage } from "../../components/public-page";
 import { StudentPage } from "../../components/student";
@@ -16,8 +19,16 @@ export default async function Page({ params }: { params: Promise<{ segments?: st
   const dataMode = process.env.AP_FOOD_DATA_MODE || "mock";
   if (dataMode !== "mock" && dataMode !== "supabase") throw new Error("AP_FOOD_DATA_MODE must be mock or supabase.");
   const hosted = dataMode === "supabase";
+  if (portal === "app" && section === "map") redirect("/app/vendors");
+  if (portal === "app" && section === "vendors" && id === "area" && segments.length === 4) return hosted ? <HostedStudent route={route} section="area" id={segments[3]} /> : <StudentPage route={route} section="area" id={segments[3]} />;
+  if (portal === "app" && section === "vendors" && segments[3] === "item" && segments.length === 5) return hosted ? <HostedStudent route={route} section="vendors" id={id} itemId={segments[4]} /> : <StudentPage route={route} section="item" id={id} itemId={segments[4]} />;
   if (segments.length > 3) notFound();
-  if (!portal) return <PublicPage page="home" hosted={hosted} />;
+  if (["app", "vendor", "admin"].includes(portal ?? "") && ["more", "reports", "settings", "notifications"].includes(section) && !id) {
+    const role = portal === "app" ? "student" : portal as "vendor" | "admin";
+    return hosted ? <HostedExtras role={role} section={section} route={route} /> : <APExtraPage role={role} section={section} route={route} />;
+  }
+  if (!portal) return hosted ? <AuthScreen screen="login" /> : <PublicPage page="home" />;
+  if (portal === "welcome" && segments.length === 1) return hosted ? <PublicPage page="home" hosted /> : <APLanding />;
   if (segments.length === 1 && ["privacy", "terms", "cookies"].includes(portal)) return <PublicPage page={portal} hosted={hosted} />;
   if (portal === "auth" && !id && ["login", "register", "verify-email", "forgot-password", "reset-password", "accept-invite"].includes(section)) return hosted ? <AuthScreen screen={section} /> : <PublicPage page={section === "register" ? "register" : "login"} />;
   if (portal === "account" && segments.length === 1) return hosted ? <AccountScreen /> : <PublicPage page="login" />;

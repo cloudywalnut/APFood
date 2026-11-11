@@ -16,7 +16,7 @@ test("backend migrations, role isolation, allocations, pickup and ledger", async
     call(user, "public.place_order($1,$2,$3,$4)", [q.quoteId, pickup, payment, key]);
   const transition = (user, id, status, reason = null) => call(user, "public.transition_order($1,$2,$3)", [id,status,reason]);
 
-  assert.equal((await queryAs(null, "select id from vendors")).length, 3);
+  assert.equal((await queryAs(null, "select id from vendors")).length, 10);
   await assert.rejects(() => queryAs(null, "select id from orders"), /permission denied/);
   await assert.rejects(() => quote(vendor), /FORBIDDEN/);
   await assert.rejects(() => queryAs(student, "select * from private.pickup_codes"), /permission denied/);
@@ -57,6 +57,8 @@ test("backend migrations, role isolation, allocations, pickup and ledger", async
   await assert.rejects(() => collect(pickup.code), /PICKUP_ALREADY_USED/);
   assert.deepEqual(await queryAs(admin, "select kind, amount_sen from cash_entries"), [{ kind: "counter", amount_sen: 900 }]);
   assert.deepEqual(await queryAs(student, "select id from cash_entries"), []);
+  assert.equal((await queryAs(vendor, "select id from cash_entries")).length, 1);
+  assert.equal((await queryAs(otherVendor, "select id from cash_entries")).length, 0);
 
   const capacityQuotes = [];
   for (let n = 0; n < 6; n++) capacityQuotes.push(await quote());

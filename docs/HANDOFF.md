@@ -1,8 +1,12 @@
+> Current UI: see [UI_PRESENTATION_CLEANUP.md](UI_PRESENTATION_CLEANUP.md) and [LATEST_UI_UPDATE.md](LATEST_UI_UPDATE.md). The basket supports multiple stalls, browsing starts on the map, and the UI uses the cream/gold/espresso theme. Backend development remains on Keyaan.
+
 # AP Food + FIF · Engineering and AI handoff
 
 AP Food is a campus pickup prototype for students, food-stall staff, and cafeteria administrators. FIF, the Food Intelligence Framework, helps each role choose its next action. Start with the [current MVP contract](MVP.md). The [original technical specification](../AP_Food_FIF_Agent_Ready_MVP_Spec.md) provides the detailed domain design and acceptance cases.
 
 ## Start here
+
+The Dalia UI at `416fcbc` is now merged with the hosted implementation. Read [the integration feature map](DALIA_INTEGRATION.md) for the combined navigation, live map, multi-stall checkout, reports and verification. Both original feature sets remain in the repository.
 
 1. Install the locked dependencies with `npm ci` and start Next.js with `npm run dev`.
 2. Open `http://localhost:3000` and use the Student, Vendor, or Admin demo entrance. Keep the same origin in each tab to share demo state.
@@ -46,7 +50,7 @@ The mock preview has 25 primary screens and uses fictional stalls and payments. 
 | `lib/promotions.ts`, `components/promotions.tsx` | Demo promotion rules and cards. The same unit-price function is used by the menu and cart calculations. |
 | `docs/UI_IMAGE_PROMPT_KIT.md` | Prototype screen inventory, visual direction, and image prompts. |
 
-The store uses `localStorage` under `ap-food-demo-v1` and syncs changes across tabs via browser events. Cashflow and orders are scoped to the selected scenario. Inventory uses a shared stall configuration and counts orders against that scenario. Policy copy describes this browser-only behavior. Use integer MYR sen and display operational dates and times in `Asia/Kuala_Lumpur`. Preserve order-line price snapshots when catalogue pricing changes.
+The preview store uses `localStorage` under `ap-food-apspace-demo-v1`, with a read fallback for the earlier `ap-food-demo-v1` key and syncs changes across tabs via browser events. Cashflow and orders are scoped to the selected scenario. Inventory uses a shared stall configuration and counts orders against that scenario. Policy copy describes this browser-only behavior. Use integer MYR sen and display operational dates and times in `Asia/Kuala_Lumpur`. Preserve order-line price snapshots when catalogue pricing changes.
 
 ## Backend implementation order
 

@@ -1,9 +1,9 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { addonPrice, available, cartDetails, dayKey, seedDemo, stages, uniqueId, withAudit, type CartLine, type DemoState, type Entry, type Item, type Order, type Payment, type Scenario, type Status, type Vendor } from "./demo";
+import { migrateCatalogue, addonPrice, available, cartDetails, dayKey, seedDemo, stages, uniqueId, withAudit, type CartLine, type DemoState, type Entry, type Item, type Order, type Payment, type Scenario, type Status, type Vendor } from "./demo";
 
-export const storageKey = "ap-food-demo-v1";
+export const storageKey = "ap-food-apspace-demo-v1";
 const eventName = "ap-food-change";
 const initial = seedDemo();
 let lastRaw: string | null = null;
@@ -11,9 +11,9 @@ let lastValue = initial;
 
 function snapshot() {
   try {
-    const raw = localStorage.getItem(storageKey);
+    const raw = localStorage.getItem(storageKey) ?? localStorage.getItem("ap-food-demo-v1");
     if (raw !== lastRaw) {
-      lastValue = raw ? JSON.parse(raw) as DemoState : seedDemo();
+      lastValue = raw ? migrateCatalogue(JSON.parse(raw) as DemoState) : seedDemo();
       lastRaw = raw;
     }
   } catch {
@@ -24,7 +24,7 @@ function snapshot() {
 
 function subscribe(listener: () => void) {
   const onStorage = (event: StorageEvent) => {
-    if (event.key === storageKey || event.key === null) listener();
+    if (event.key === storageKey || event.key === "ap-food-demo-v1" || event.key === null) listener();
   };
   window.addEventListener("storage", onStorage);
   window.addEventListener(eventName, listener);
@@ -39,7 +39,8 @@ export function useDemo() {
 }
 
 function update(change: (state: DemoState) => DemoState) {
-  const state = change(snapshot());
+  const before = snapshot();
+  const state = change(before);
   try {
     localStorage.setItem(storageKey, JSON.stringify(state));
     lastRaw = localStorage.getItem(storageKey);
@@ -48,11 +49,14 @@ function update(change: (state: DemoState) => DemoState) {
   }
   lastValue = state;
   window.dispatchEvent(new Event(eventName));
+  const message=state.audit[0]?.id!==before.audit[0]?.id?state.audit[0]?.action:JSON.stringify(state.cart)!==JSON.stringify(before.cart)?'Basket updated':state.scenario!==before.scenario?'Activity scenario updated':undefined;
+  if(message) window.dispatchEvent(new CustomEvent('apfoods-notice',{detail:message}));
 }
 
 export function clearDemo() {
   try {
     localStorage.removeItem(storageKey);
+    localStorage.removeItem("ap-food-demo-v1");
   } finally {
     lastRaw = null;
     lastValue = seedDemo();
@@ -70,10 +74,8 @@ export const selectScenario = (scenario: Scenario) => update(state => ({ ...stat
 export function addToCart(line: CartLine, replace = false) {
   update(state => {
     const item = state.items.find(candidate => candidate.id === line.itemId);
-    if (!item || !item.active || line.quantity < 1) throw new Error("This item is unavailable.");
+    if (!item || !item.active || !Number.isInteger(line.quantity) || line.quantity < 1) throw new Error("This item is unavailable.");
     const cart = replace ? [] : state.cart;
-    const cartVendor = state.items.find(candidate => candidate.id === cart[0]?.itemId)?.vendorId;
-    if (cartVendor && cartVendor !== item.vendorId) throw new Error("Switch stalls to add this item.");
     const matching = cart.find(candidate => candidate.itemId === line.itemId && candidate.extra === line.extra);
     const already = cart.filter(candidate => candidate.itemId === line.itemId).reduce((sum, candidate) => sum + candidate.quantity, 0);
     if (line.quantity + already > itemStock(state, item)) throw new Error("There are only " + itemStock(state, item) + " portions left.");
@@ -90,16 +92,29 @@ export function placeOrder(slot: number, payment: Payment) {
   const id = "AP-D" + uniqueId().slice(0, 6).toUpperCase();
   update(state => {
     const cart = cartDetails(state);
-    const vendor = state.vendors.find(candidate => candidate.id === cart[0]?.item.vendorId);
-    if (!vendor || !cart.length) throw new Error("Your cart is empty.");
-    for (const { item } of cart) {
-      const requested = cart.filter(line => line.item.id === item.id).reduce((sum, line) => sum + line.quantity, 0);
-      if (!item.active || requested > itemStock(state, item)) throw new Error(item.name + " does not have enough stock. Edit your cart and try again.");
-    }
-    const units = cart.reduce((sum, line) => sum + line.quantity * line.item.work, 0);
-    if (!available(state, vendor, slot, units)) throw new Error("This pickup window is no longer available. Choose another one.");
-    const order: Order = { id, vendorId: vendor.id, lines: cart.map(({ item, ...line }) => ({ ...line, name: item.name, work: item.work })), total: cart.reduce((sum, line) => sum + line.unit * line.quantity, 0), day: dayKey(), slot, status: "placed", payment, scenario: state.scenario, code: "" };
-    return { ...state, orders: [order, ...state.orders], cart: [], audit: withAudit(state, "Student", "Placed order", id, vendor.name) };
+    if (!cart.length) throw new Error("Your cart is empty.");
+    const groups = [...new Set(cart.map(line => line.item.vendorId))].map(vendorId => {
+      const vendor = state.vendors.find(candidate => candidate.id === vendorId);
+      if (!vendor || vendor.status !== 'approved') throw new Error("A stall is unavailable. Review your cart.");
+      const lines = cart.filter(line => line.item.vendorId === vendorId);
+      for (const { item } of lines) {
+        const requested = lines.filter(line => line.item.id === item.id).reduce((sum, line) => sum + line.quantity, 0);
+        if (!item.active || requested > itemStock(state, item)) throw new Error(item.name + " does not have enough stock. Edit your cart and try again.");
+      }
+      const units = lines.reduce((sum, line) => sum + line.quantity * line.item.work, 0);
+      if (!available(state, vendor, slot, units)) throw new Error(vendor.name + ": this pickup window is no longer available. Choose another one.");
+      return {vendor, lines};
+    });
+    // Validate every stall before committing any orders or clearing the basket.
+    const orders: Order[] = groups.map(({vendor, lines}, index) => ({
+      id: index === 0 ? id : "AP-D" + uniqueId().slice(0, 6).toUpperCase(), vendorId: vendor.id,
+      lines: lines.map(({item, ...line}) => ({...line, name:item.name, work:item.work})),
+      total: lines.reduce((sum, line) => sum + line.unit * line.quantity, 0), day:dayKey(), slot,
+      status:"placed", payment, scenario:state.scenario, code:""
+    }));
+    let next = {...state, orders:[...orders, ...state.orders], cart:[]};
+    for (const order of orders) next = {...next, audit:withAudit(next, "Student", "Placed order", order.id, groups.find(group => group.vendor.id === order.vendorId)?.vendor.name)};
+    return next;
   });
   return id;
 }
@@ -159,3 +174,6 @@ export function reverseExpense(id: string, reason: string) {
     return { ...state, entries: [{ ...entry, type: "reversal", id: uniqueId(), originalId: id, label: entry.label + " reversal", day: dayKey() }, ...state.entries], audit: withAudit(state, "Admin", "Reversed expense", entry.label, reason) };
   });
 }
+
+// Read boundary for the browser mock service. Domain operations are unchanged.
+export const getDemoSnapshot = snapshot;

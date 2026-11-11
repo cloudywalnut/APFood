@@ -8,8 +8,10 @@ export const fifOutput = z.object({
 export const orderId = z.uuid();
 export const payment = z.enum(["demo", "counter", "duitnow_qr"]);
 export const cartLine = z.object({ itemId: id, quantity: z.number().int().min(1).max(20), extra: z.boolean() }).strict();
+export const basketLine = cartLine.extend({ vendorId: id.optional() });
 export const quoteInput = z.object({ vendorId: id, items: z.array(cartLine).min(1).max(20), payment: payment.optional() }).strict();
 export const checkoutInput = z.object({ quoteId: z.uuid(), pickupAt: z.iso.datetime({ offset: true }), payment, idempotencyKey: z.uuid(), cartRevision: z.number().int().nonnegative().optional() }).strict();
+export const basketCheckoutInput = z.object({ orders: z.array(checkoutInput.omit({ cartRevision: true }).extend({ vendorId: id })).min(1).max(10), idempotencyKey: z.uuid(), cartRevision: z.number().int().nonnegative() }).strict();
 export const orderLine = cartLine.extend({ name: z.string(), unit: z.number().int(), work: z.number().int() });
 export const quoteOutput = z.object({ quoteId: z.uuid(), expiresAt: z.string(), totalSen: z.number().int(), slots: z.array(z.string()), lines: z.array(orderLine) });
 export const pickupOutput = z.object({ code: z.string(), expiresAt: z.string() });
@@ -35,8 +37,8 @@ export const profileRow = z.object({ id: z.uuid(), display_name: z.string(), sta
 export const sessionOutput = z.object({
   userId: z.uuid(), memberships: z.array(membership), email: z.string(), emailVerified: z.boolean(), profile: profileRow,
 });
-export const cartOutput = z.object({ vendor_id: id.nullable(), items: z.array(cartLine), revision: z.number().int().nonnegative() });
-export const cartInput = z.object({ vendorId: id.nullable(), items: z.array(cartLine).max(20), revision: z.number().int().nonnegative() }).strict();
+export const cartOutput = z.object({ vendor_id: id.nullable(), items: z.array(basketLine), revision: z.number().int().nonnegative() });
+export const cartInput = z.object({ vendorId: id.nullable(), items: z.array(basketLine).max(20), revision: z.number().int().nonnegative() }).strict();
 export const userRow = profileRow.extend({ email: z.string(), email_confirmed_at: z.string().nullable(), memberships: z.array(membership) });
 export const usersOutput = z.object({ total: z.number().int(), users: z.array(userRow) });
 export const vendorPayment = z.object({ vendor_id: id, merchant_name: z.string(), qr_path: z.string(), qrUrl: z.string().optional() });

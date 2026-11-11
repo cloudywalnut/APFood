@@ -1,5 +1,11 @@
 # Verification · 11 November 2026
 
+## Dalia integration follow-up
+
+The subsequent integration at [DALIA_INTEGRATION.md](DALIA_INTEGRATION.md) adds 42 inherited frontend checks and a sixth backend test. The full combined suite, typecheck, and production build pass. Hosted browser checks cover the live ten-counter map, two-stall atomic checkout/retry, real CSV records, the retained QR order-to-receipt flow, and vendor finance export. Vendor finance rejects another stall with 403; the vendor cannot call admin order reporting. The merged admin dashboard and additional screens passed overflow checks at 390, 768 and 1440 pixels. The CLI security advisor reported no warning/error issues against the hosted database.
+
+Two schema migrations and the idempotent catalogue expansion have been applied to the dedicated project. Browser preview records can fall back to the older storage key, while authenticated cart data remains in Supabase. Hosted traffic simulation and full external email verification remain the wider pending milestones listed below.
+
 Target: dedicated fictional Supabase project `vymnnyyuiujmxxycqiod`; local application at `http://127.0.0.1:3000`. These checks create fictional transactions in that project.
 
 ## Passed

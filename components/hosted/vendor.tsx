@@ -164,10 +164,12 @@ function VendorMenu({ stall }: { stall: Stall }) {
   const load = useCallback(() => api.vendorMenu(stall.id), [stall.id, api]);
   const result = useRemote(load);
   const [edit, setEdit] = useState<MenuItem | null>();
+  const [search, setSearch] = useState("");
   if (!result.value) return <RemoteStatus error={result.error} reload={result.reload} />;
   return <section className="panel"><div className="line spread"><h2>Menu items</h2><button className="button primary" onClick={() => setEdit(null)}>Add item</button></div>
+    <label className="field">Search menu<input type="search" value={search} onChange={event => setSearch(event.target.value)} /></label>
     <div className="table-wrap"><table><thead><tr><th>Item</th><th>Regular price</th><th>Stock</th><th>Visibility</th><th>Action</th></tr></thead><tbody>
-      {result.value.map(item => <tr key={item.id}><th scope="row">{item.name}</th><td>{money(item.price_sen)}</td><td>{item.stock}</td><td>{item.active ? "Published" : "Hidden"}</td><td><button className="button secondary" onClick={() => setEdit(item)}>Edit</button></td></tr>)}
+      {result.value.filter(item => (item.name + " " + item.description).toLowerCase().includes(search.trim().toLowerCase())).map(item => <tr key={item.id}><th scope="row">{item.name}</th><td>{money(item.price_sen)}</td><td>{item.stock}</td><td>{item.active ? "Published" : "Hidden"}</td><td><button className="button secondary" onClick={() => setEdit(item)}>Edit</button></td></tr>)}
     </tbody></table></div>
     {edit !== undefined && <EditItem item={edit} stall={stall} close={() => setEdit(undefined)} saved={() => { setEdit(undefined); result.reload(); }} />}
   </section>;

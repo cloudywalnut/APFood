@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import {
-  activityRow, adminReportOutput, auditRow, cartOutput, errorBody, fifOutput, menuRow, orderResult, orderRow, paymentOutput, pickupOutput, quoteOutput, sessionOutput, usersOutput, vendorPayment, vendorRow,
+  activityRow, adminReportOutput, auditRow, basketCheckoutInput, cartOutput, errorBody, fifOutput, menuRow, orderResult, orderRow, paymentOutput, pickupOutput, quoteOutput, sessionOutput, usersOutput, vendorPayment, vendorRow,
   type CheckoutInput, type QuoteInput,
 } from "./contracts";
 
@@ -43,9 +43,11 @@ export function createHostedData(userId?: string) {
   signOut: () => call("auth/session", ok, "DELETE"),
   zones: () => request("zones", z.array(z.object({ id: z.string(), name: z.string() }))),
   vendors: () => request("vendors", z.array(vendorRow)),
+  deals: () => request("deals", z.array(menuRow)),
   menu: (vendorId: string) => request("vendors/" + encodeURIComponent(vendorId) + "/menu", z.array(menuRow)),
   quote: (input: QuoteInput) => call("checkout/quote", quoteOutput, "POST", input),
   place: (input: CheckoutInput) => call("orders", orderResult, "POST", input),
+  placeBasket: (input: z.infer<typeof basketCheckoutInput>) => call("checkout/basket", z.object({ orders: z.array(orderResult) }), "POST", input),
   cart: () => call("cart", cartOutput),
   saveCart: (input: { vendorId: string | null; items: QuoteInput["items"]; revision: number }) => call("cart", cartOutput, "PUT", input),
   vendorPayment: (vendorId: string) => request("vendors/" + encodeURIComponent(vendorId) + "/payment", vendorPayment.nullable()),
@@ -57,6 +59,8 @@ export function createHostedData(userId?: string) {
   manageUser: (id: string, input: { status: "active" | "suspended"; memberships: { role: "student" | "vendor" | "admin"; vendor_id: string | null }[]; reason: string }) => call("admin/users/" + encodeURIComponent(id), ok, "PATCH", input),
   invite: (input: { email: string; displayName: string; role: "student" | "vendor" | "admin"; vendorId: string | null }) => call("admin/users/invite", ok, "POST", input),
   orders: () => call("orders", z.array(orderRow)),
+  adminOrders: (params: URLSearchParams) => call("admin/orders?" + params, z.array(orderRow)),
+  vendorReport: (vendorId: string, days: string) => call("vendor/report?" + new URLSearchParams({ vendorId, days }), adminReportOutput),
   order: (id: string) => call("orders/" + encodeURIComponent(id), orderRow),
   kitchen: (vendorId: string) => call("vendor/orders?vendorId=" + encodeURIComponent(vendorId), z.array(orderRow)),
   assignedStalls: () => call("vendor/stalls", z.array(vendorRow)),

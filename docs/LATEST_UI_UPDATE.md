@@ -1,0 +1,28 @@
+# Latest UI update · 11 November 2026
+
+This update applies only to APFoods-Latest-UI. The original APFood checkout and backend are unchanged.
+
+- Student banner is composed in HTML/CSS with live text, navigation and individual meal artwork. Its cream/gold background fills the banner on desktop and phone.
+- The cafeteria is an interactive SVG floor plan with warm tiled flooring, stepped walls, striped counters, seating, planters and area labels, following the supplied visual guide. The full map stays visible: no viewBox zoom, animation or zoom controls. Hover or keyboard focus previews a stall and sample storefront; selecting it opens its existing menu. Phone users tap a counter, then select the stall. Storefronts remain configurable placeholders.
+- Campus browse, recommendations, promotions and student meal search enter through the map. Promotional and search links prefill the map filter. Existing specific-stall menus and item pages remain available after selecting a stall.
+- The browser basket retains meals from different stalls. Checkout offers pickup windows available at every selected stall, validates all groups before mutation, and creates one order per stall. Each order keeps its own item prices, kitchen scope, tracking, collection code and receipt flow. Multi-stall checkout opens the order list. These are frontend mock changes; no production backend was modified.
+- Added-to-cart feedback uses one dismissible notification lasting five seconds, with no persistent confirmation below the item editor.
+- Shared plain-language descriptions appear on hover and keyboard focus across student, vendor and administrator navigation, controls, metrics and sections. Section-card information icons also expose help. Escape dismisses help. This follows AIDA's concise explanation pattern; AIDA was inspected read-only.
+
+Validation: 38 automated checks, TypeScript and production build. Browser checks cover full-view map, keyboard stall preview → menu, preserving a cross-stall basket, checkout’s shared pickup times, automatic toast dismissal, student/admin/vendor help, and no horizontal overflow at 390 px. Test-added basket item was removed after verification.
+
+The map is drawn as vector artwork to follow the reference’s colours and layout; it is not a pixel-identical bitmap of the supplied diagram. Real storefront photos remain to be supplied.
+
+## Local Corner navigation
+
+Both Local Corner counters now resolve to separate menus, meal customisation, basket and checkout. Catalogue migration adds the two stalls and their temporary menus while preserving saved carts, orders and existing stall edits. Map graphics and positioning are unchanged. Verified with 42 tests, typecheck and production build. No push.
+
+## Welcome panel alignment and typography
+
+Centered the welcome text and role illustration in the available panel space for Student, Vendor and Administrator. The logo stays at the top. Shared typography now uses locally hosted variable Roboto, matching the supplied welcome screen, including map labels and help descriptions. Verified all three roles, tall viewport alignment, mobile overflow, typecheck and production build. No push.
+
+## Actual storefront photos
+
+Replaced all ten dummy map photos with the supplied storefront images, matched in the user’s stated attachment order. Updated map and catalogue names to Japan & Korea, Let’s Kopitiam, Local cuisine and Local corner while preserving stable IDs, saved activity, map positions and the compact photo-only preview. Original photo files are copied without editing. See STOREFRONT_PHOTOS.json for the exact mapping. Verified all ten preview mappings, 42 tests, typecheck and production build. Saved locally; no push.
+
+Photo previews increased from 150 px to 180 px wide, keeping their proportions and photo-only appearance. Popup placement accounts for the larger dimensions and viewport edges.

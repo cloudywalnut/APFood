@@ -1,12 +1,13 @@
 import { z } from "zod";
 import { BackendError, unwrap } from "./errors";
-import { cartInput, checkoutInput, id, orderId, quoteInput } from "./contracts";
+import { basketCheckoutInput, cartInput, checkoutInput, id, orderId, quoteInput } from "./contracts";
 import { requestClient, type RequestClient } from "./supabase";
 import { adminReport } from "./reports";
 import { authAction, authLimit } from "./auth";
 import { inviteAccount, manageAccount, qrUrl, uploadVendorQr } from "./account-actions";
 import { clearRecovery } from "./recovery";
 import { recommendations } from "./fif";
+import { dayKey } from "../demo";
 
 const orderFields = "id,vendor_id,zone_id,pickup_at,status,payment,lines,total_sen,version,created_at,updated_at,ready_at,collected_at,payment_record:order_payments(status)";
 const vendorFields = "id,zone_id,name,description,category,image,status,paused,capacity,lead_minutes,opens_at,closes_at";
@@ -94,6 +95,8 @@ export async function handleRequest(request: Request, path: string[]) {
     }
     if (method === "GET" && key === "zones") return result(unwrap(await client.from("zones").select("id,name").order("name")));
     if (method === "GET" && key === "vendors") return result(unwrap(await client.from("vendors").select(vendorFields).eq("status", "approved").order("name")));
+    if (method === "GET" && key === "deals") return result(unwrap(await client.from("menu_items").select(menuFields + ",vendors!inner()")
+      .eq("vendors.status", "approved").eq("active", true).gt("discount_sen", 0).gt("stock", 0).order("name")));
     if (method === "GET" && path.length === 3 && path[0] === "vendors" && path[2] === "menu") {
       const vendor = id.parse(path[1]);
       const rows = unwrap(await client.from("menu_items").select(menuFields + ",vendors!inner()").eq("vendor_id", vendor)
@@ -119,6 +122,11 @@ export async function handleRequest(request: Request, path: string[]) {
         p_quote: input.quoteId, p_pickup: input.pickupAt, p_payment: input.payment, p_key: input.idempotencyKey,
         ...(input.cartRevision === undefined ? {} : { p_revision: input.cartRevision }),
       })), 201);
+    }
+    if (method === "POST" && key === "checkout/basket") {
+      requireMembership(await getSession(), "student");
+      const input = await body(request, basketCheckoutInput);
+      return result(unwrap(await client.rpc("checkout_basket", { p_orders: input.orders, p_key: input.idempotencyKey, p_revision: input.cartRevision })), 201);
     }
     if (key === "cart") {
       const actor = requireMembership(await getSession(), "student");
@@ -242,6 +250,22 @@ export async function handleRequest(request: Request, path: string[]) {
     if (method === "GET" && key === "admin/report") {
       requireMembership(await getSession(), "admin");
       return result(await adminReport(client, query));
+    }
+    if (method === "GET" && key === "vendor/report") {
+      const vendor = id.parse(query.get("vendorId"));
+      requireMembership(await getSession(), "vendor", vendor);
+      return result(await adminReport(client, new URLSearchParams({ vendorId: vendor, days: query.get("days") ?? "7" })));
+    }
+    if (method === "GET" && key === "admin/orders") {
+      requireMembership(await getSession(), "admin");
+      const days = z.coerce.number().int().min(1).max(14).parse(query.get("days") ?? 7);
+      let rows = client.from("orders").select(orderFields, { count: "exact" }).gte("created_at", new Date(dayKey(1 - days) + "T00:00:00+08:00").toISOString()).order("created_at", { ascending: false });
+      if (query.get("vendorId")) rows = rows.eq("vendor_id", id.parse(query.get("vendorId")));
+      if (query.get("zoneId")) rows = rows.eq("zone_id", id.parse(query.get("zoneId")));
+      const response = await rows;
+      const orders = unwrap(response) ?? [];
+      if ((response.count ?? 0) > orders.length) throw new BackendError(400, "REPORT_RANGE_TOO_LARGE", "Filter by stall or choose a shorter period.");
+      return result(orders);
     }
     if (method === "GET" && key === "admin/audit") {
       requireMembership(await getSession(), "admin");

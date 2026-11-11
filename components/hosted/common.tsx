@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Brand, ErrorMessage, Footer } from "../shared";
 import { createHostedData, hostedData, sessionInvalidated } from "../../lib/backend/client";
+import { RoleHero } from "../apspace/role-hero";
 
 export type Session = Awaited<ReturnType<typeof hostedData.session>>;
 export type Role = Session["memberships"][number]["role"];
@@ -71,7 +72,8 @@ export function RemoteStatus({ error, reload }: { error?: unknown; reload: () =>
   </div></div> : <p className="muted" role="status">Loading…</p>;
 }
 
-export function HostedFrame({ children }: { children: ReactNode }) {
+export function HostedFrame({ children, authRole }: { children: ReactNode; authRole?: Role }) {
+  if (authRole) return <div className="student-theme"><main id="main-content" className="ap-login-page"><section className="ap-login-brand"><Brand /><div className="ap-login-story"><span className="caf-eyebrow">A LITTLE LESS WAIT. A LOT MORE CAMPUS.</span><h1>Your campus.<br />Your next good meal.</h1><p>Order ahead, pick up on time.<br />Make more of your campus break.</p><RoleHero role={authRole} artworkOnly /></div></section><section className="ap-login-form-side"><div className="ap-login-form">{children}</div><Footer /></section></main></div>;
   return <div className="student-theme public-shell">
     <header className="student-header"><div className="student-bar"><Brand /></div></header>
     <main id="main-content" className="student-main public-main"><section className="policy">{children}</section></main><Footer />

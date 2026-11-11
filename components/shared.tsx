@@ -4,67 +4,34 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, ArrowUpRight, BarChart3, ChefHat, ClipboardList, Clock3, House, LayoutDashboard, ReceiptText, ShoppingBag, Store, UserRound, UsersRound, Utensils, WalletCards, X } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BarChart3, ChefHat, ClipboardList, Clock3, House, LayoutDashboard, ReceiptText, ShoppingBag, Store, Utensils, WalletCards, X } from "lucide-react";
+import { WarmIllustration, type WarmArt } from "./apspace/illustration";
+import { APSpaceBrand, APSpaceHeader, MobileTour, roleModules } from "./apspace/shell";
+import { BackNavigation } from "./apspace/back-navigation";
+import { ModalSheet } from "./apspace/ui";
 import { scenarioNames, scenarios, statusNames, type Scenario, type Status } from "../lib/demo";
 import { selectScenario, useDemo } from "../lib/demo-store";
 
 export function Brand() {
-  return <Link className="brand" href="/" aria-label="AP Food home"><Image src="/ap-food-mark.svg" width={37} height={37} alt="" unoptimized /><span>AP<span className="brand-food">Food</span></span></Link>;
+  return <APSpaceBrand />;
 }
 
 export function Footer() {
-  return <footer className="footer"><span>AP Food · Campus pickup demo</span><nav aria-label="Policies"><Link href="/privacy">Privacy Policy</Link><Link href="/terms">Terms and Conditions</Link><Link href="/cookies">Cookies</Link></nav></footer>;
-}
-
-const studentLinks = [
-  ["/app", "Home", House], ["/app/vendors", "Explore", Store], ["/app/orders", "Orders", ReceiptText], ["/app/traffic", "Traffic", BarChart3],
-] as const;
-const vendorLinks = [
-  ["/vendor", "Shift", LayoutDashboard], ["/vendor/orders", "Kitchen", ChefHat], ["/vendor/menu", "Menu", Utensils], ["/vendor/capacity", "Capacity", Clock3],
-] as const;
-const adminLinks = [
-  ["/admin", "Overview", LayoutDashboard], ["/admin/cashflow", "Cashflow", WalletCards], ["/admin/products", "Products", ShoppingBag], ["/admin/vendors", "Vendors", Store], ["/admin/traffic", "Traffic", BarChart3], ["/admin/audit", "Audit", ClipboardList],
-] as const;
-
-function CartLink({ count }: { count: number }) {
-  return <Link className="button secondary cart-link" href="/app/cart"><ShoppingBag size={17} aria-hidden /> Cart{count > 0 && <span className="cart-count">{count}</span>}</Link>;
-}
-
-function MockCartLink() {
-  const { cart } = useDemo();
-  return <CartLink count={cart.reduce((sum, line) => sum + line.quantity, 0)} />;
+  return <footer className="footer"><nav aria-label="Policies"><Link href="/privacy">Privacy Policy</Link><Link href="/terms">Terms and Conditions</Link><Link href="/cookies">Cookies</Link></nav></footer>;
 }
 
 export function StudentShell({ route, children, cartCount }: { route: string; children: ReactNode; cartCount?: number }) {
-  return <div className="student-theme">
-    <header className="student-header"><div className="student-bar"><Brand /><nav className="student-nav" aria-label="Student navigation">
-      {studentLinks.map(([href, label, Icon], index) => {
-        const current = route === href || (index > 0 && route.startsWith(href + "/"));
-        return <Link href={href} key={href} aria-current={current ? "page" : undefined}><Icon size={17} aria-hidden /><span>{label}</span></Link>;
-      })}
-    </nav>{cartCount === undefined ? <MockCartLink /> : <><Link className="icon-button" href="/account" aria-label="Your account"><UserRound size={20} aria-hidden /></Link><CartLink count={cartCount} /></>}</div></header>
-    <main id="main-content" className="student-main">{cartCount === undefined && <ScenarioNotice />}{children}</main><Footer />
-  </div>;
+  const state = useDemo();
+  const count = state.cart.reduce((sum, line) => sum + line.quantity, 0);
+  return <div className="student-theme ap-role-shell"><APSpaceHeader role="student" route={route} cartCount={cartCount} hosted={cartCount !== undefined}/><main id="main-content" className="student-main"><BackNavigation route={route}/>{children}</main><Footer/><MobileTour/></div>;
+
 }
 
 export function OpsShell({ kind, route, title, children, hosted = false }: { kind: "vendor" | "admin"; route: string; title: string; children: ReactNode; hosted?: boolean }) {
-  const links = kind === "vendor" ? [...vendorLinks, ...(hosted ? [["/vendor/payments", "Payments", WalletCards] as const] : [])]
-    : [...adminLinks, ...(hosted ? [["/admin/users", "Users", UsersRound] as const] : [])];
-  const filters = useSearchParams().toString();
-  return <div className="ops-theme">
-    <aside className="ops-sidebar"><div className="ops-brand"><Brand /></div>
-      <div className="workspace-label">{kind === "admin" ? "Cafeteria management" : "Vendor workspace"}</div>
-      <nav aria-label={kind + " navigation"}>{links.map(([href, label, Icon], index) => {
-        const current = route === href || (index > 0 && route.startsWith(href + "/"));
-        return <Link href={filters ? href + "?" + filters : href} key={href} aria-current={current ? "page" : undefined}><Icon size={18} aria-hidden /><span>{label}</span></Link>;
-      })}</nav>
-      <div className="ops-profile"><span className="profile-initials">{kind === "admin" ? "CO" : "FO"}</span><span><strong>{kind === "admin" ? "Campus operations" : "Food stall operator"}</strong>{hosted ? <Link href="/account">Your account</Link> : <small>Demo workspace</small>}</span></div>
-    </aside>
-    <div className="ops-body">
-      <header className="ops-top"><span className="ops-title">{title}</span><div className="ops-top-actions"><span className="badge neutral">{hosted ? "Hosted demo" : "Frontend demo"}</span><Link href="/" className="quiet-link">Switch portal <ArrowUpRight size={15} aria-hidden /></Link></div></header>
-      <main id="main-content" className="ops-main">{!hosted && <ScenarioNotice />}{children}</main><Footer />
-    </div>
-  </div>;
+  const searchParams=useSearchParams();
+  const filters = kind === "vendor" ? "" : searchParams.toString();
+  return <div className="ops-theme ap-role-shell"><APSpaceHeader role={kind} route={route} hosted={hosted}/><div className="ap-ops-content"><main id="main-content" className="ops-main"><BackNavigation route={route}/>{children}</main></div><Footer/></div>;
+
 }
 
 export function replaceFilters(changes: Record<string, string>) {
@@ -76,14 +43,11 @@ export function replaceFilters(changes: Record<string, string>) {
   window.history.replaceState(null, "", url);
 }
 
-export function ScenarioNotice() {
-  const { scenario } = useDemo();
-  return scenario !== "standard" ? <div className="notice" role="status"><strong>Simulated traffic · {scenarioNames[scenario]}</strong><span>Using fictional orders and pickup activity.</span></div> : null;
-}
+export function ScenarioNotice() { return null; }
 
-export function ScenarioSelect({ label = "Data source" }: { label?: string }) {
+export function ScenarioSelect() {
   const { scenario } = useDemo();
-  return <label className="field compact">{label}<select value={scenario} onChange={event => selectScenario(event.target.value as Scenario)}>{scenarios.map(value => <option key={value} value={value}>{scenarioNames[value]}</option>)}</select></label>;
+  return <label className="field compact">Data source<select value={scenario} onChange={event => selectScenario(event.target.value as Scenario)}>{scenarios.map(value => <option key={value} value={value}>{scenarioNames[value]}</option>)}</select></label>;
 }
 
 export function StatusBadge({ status }: { status: Status }) {
@@ -91,25 +55,17 @@ export function StatusBadge({ status }: { status: Status }) {
 }
 
 export function Recommendation({ label, title, evidence, href, action }: { label: string; title: string; evidence: string; href: string; action: string }) {
-  return <section className="recommendation"><div><div className="recommendation-meta"><span>{label}</span><span className="badge neutral">Demo recommendation</span></div><h2>{title}</h2><p>{evidence}</p></div><Link href={href} className="button secondary">{action} <ArrowRight size={16} aria-hidden /></Link></section>;
+  return <section className="recommendation"><div><div className="recommendation-meta"><span>{label}</span></div><h2>{title}</h2><p>{evidence}</p></div><Link href={href} className="button secondary">{action} <ArrowRight size={16} aria-hidden /></Link></section>;
 }
 
 export function Empty({ title, detail, href, action }: { title: string; detail: string; href?: string; action?: string }) {
-  return <section className="panel empty"><h2>{title}</h2><p>{detail}</p>{href && <Link className="button primary" href={href}>{action}</Link>}</section>;
+  const art:WarmArt=title.toLowerCase().includes("cart")?"empty_cart":title.toLowerCase().includes("order")?(title.toLowerCase().includes("unavailable")?"invalid_session":"no_orders"):title.toLowerCase().includes("stall")?"stall_closed":"item_unavailable";
+  return <section className="panel empty"><WarmIllustration name={art}/><h2>{title}</h2><p>{detail}</p>{href && <Link className="button primary" href={href}>{action}</Link>}</section>;
 }
 
 export function Modal({ title, close, children }: { title: string; close: () => void; children: ReactNode }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const titleId = useId();
-  useEffect(() => {
-    const dialog = ref.current;
-    dialog?.showModal();
-    return () => dialog?.close();
-  }, []);
-  return <dialog className="dialog" ref={ref} aria-labelledby={titleId} onCancel={event => { event.preventDefault(); close(); }}>
-    <div className="dialog-head"><h2 id={titleId}>{title}</h2><button className="icon-button" aria-label="Close dialog" onClick={close}><X size={19} aria-hidden /></button></div>
-    {children}
-  </dialog>;
+  return <ModalSheet title={title} close={close}>{children}</ModalSheet>;
+
 }
 
 export function ErrorMessage({ message }: { message: string }) {

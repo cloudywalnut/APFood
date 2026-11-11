@@ -1,6 +1,8 @@
 "use client";
 
 import { HostedFif } from "./fif";
+import { AdminInsights } from "../apspace/admin-insights";
+import { insightsView } from "../../lib/backend/insights-view";
 
 import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
@@ -43,12 +45,20 @@ function ReportPanel({ section }: { section: string }) {
     return api.report(section === "vendors" ? new URLSearchParams({ days: "1" }) : filter);
   }, [days, zoneId, vendorId, section, api]);
   const result = useRemote(load);
+  const loadOrders = useCallback(() => api.adminOrders(new URLSearchParams({ days, ...(vendorId ? { vendorId } : {}), ...(zoneId ? { zoneId } : {}) })), [api, days, vendorId, zoneId]);
+  const insights = useRemote(loadOrders);
   const zones = useRemote(hostedData.zones);
   const stalls = useRemote(hostedData.vendors);
   const [vendor, setVendor] = useState<Vendor>();
   const [expense, setExpense] = useState<LedgerEntry | null>();
+  const [search, setSearch] = useState("");
+  const [lowOnly, setLowOnly] = useState(false);
+  const [sort, setSort] = useState("name");
+  const [ledgerKind, setLedgerKind] = useState("");
   if (!result.value) return <RemoteStatus error={result.error} reload={result.reload} />;
   const report = result.value;
+  const products = report.products.filter(item => item.name.toLowerCase().includes(search.trim().toLowerCase()) && (!lowOnly || item.stock <= 5))
+    .sort((a,b) => sort === "stock" ? a.stock-b.stock : sort === "units" ? b.units-a.units : sort === "value" ? b.fulfilledValueSen-a.fulfilledValueSen : a.name.localeCompare(b.name));
   return <div className="stack">
     {section !== "vendors" && <div className="filters ops-filters">
       <label className="field compact">Period<select value={days} onChange={event => replaceFilters({ days: event.target.value })}><option value="1">Today</option><option value="7">Last 7 days</option><option value="14">Last 14 days</option></select></label>
@@ -56,6 +66,7 @@ function ReportPanel({ section }: { section: string }) {
       <label className="field compact">Stall<select value={vendorId} onChange={event => replaceFilters({ vendorId: event.target.value })}><option value="">All stalls</option>{stalls.value?.filter(stall => !zoneId || stall.zone_id === zoneId).map(stall => <option value={stall.id} key={stall.id}>{stall.name}</option>)}</select></label>
     </div>}
     {section === "home" && <OpsDesk report={report} vendorId={vendorId} zoneId={zoneId} />}
+    {section === "home" && (insights.value ? <AdminInsights data={insightsView(report, insights.value)} days={Number(days)} vendorParam="vendorId" /> : <RemoteStatus error={insights.error} reload={insights.reload} />)}
     {section === "cashflow" && <><div className="metrics">{[
       ["Collected receipts", report.finance.demo + report.finance.counter + report.finance.duitnow_qr], ["Paid expenses", report.finance.expense],
       ["Expense reversals", report.finance.reversal], ["Demo net flow", report.finance.netSen],
@@ -70,12 +81,13 @@ function ReportPanel({ section }: { section: string }) {
     </tbody></table></div></section>}
     {section === "home" && <Link className="button secondary" href={"/admin/cashflow?" + params.toString()}>Open cashflow ledger</Link>}
     {section === "cashflow" && <section className="panel"><div className="line spread"><h2>Cashflow ledger</h2><button className="button primary" onClick={() => setExpense(null)}>Record expense</button></div>
+      <label className="field">Entry type<select value={ledgerKind} onChange={event => setLedgerKind(event.target.value)}><option value="">All entries</option>{Object.entries(ledgerLabels).map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       {report.ledger.length ? <div className="table-wrap"><table><thead><tr><th>Date (MYT)</th><th>Description</th><th>Type</th><th>Amount</th><th>Action</th></tr></thead><tbody>
-        {report.ledger.map(row => <tr key={row.id}><td>{formatDate(row.created_at)}</td><th scope="row">{row.label}</th><td>{ledgerLabels[row.kind]}</td><td>{money((row.kind === "expense" || row.kind === "refund") ? -row.amount_sen : row.amount_sen)}</td><td>{row.kind === "expense" && !report.ledger.some(entry => entry.reverses_id === row.id) && <button className="button secondary" onClick={() => setExpense(row)}>Reverse</button>}</td></tr>)}
+        {report.ledger.filter(row => !ledgerKind || row.kind === ledgerKind).map(row => <tr key={row.id}><td>{formatDate(row.created_at)}</td><th scope="row">{row.label}</th><td>{ledgerLabels[row.kind]}</td><td>{money((row.kind === "expense" || row.kind === "refund") ? -row.amount_sen : row.amount_sen)}</td><td>{row.kind === "expense" && !report.ledger.some(entry => entry.reverses_id === row.id) && <button className="button secondary" onClick={() => setExpense(row)}>Reverse</button>}</td></tr>)}
       </tbody></table></div> : <p>No ledger entries for these filters.</p>}
     </section>}
-    {section === "products" && <section className="panel"><div className="table-wrap"><table><thead><tr><th>Product</th><th>Stall</th><th>Units collected</th><th>Fulfilled value</th><th>Stock</th></tr></thead><tbody>
-      {report.products.map(item => <tr key={item.id}><th scope="row">{item.name}</th><td>{report.vendors.find(stall => stall.id === item.vendor_id)?.name ?? item.vendor_id}</td><td>{item.units}</td><td>{money(item.fulfilledValueSen)}</td><td>{item.stock}</td></tr>)}
+    {section === "products" && <section className="panel"><div className="filters"><label className="field">Search products<input type="search" value={search} onChange={event => setSearch(event.target.value)} /></label><label className="field">Sort<select value={sort} onChange={event => setSort(event.target.value)}><option value="name">Name</option><option value="stock">Lowest stock</option><option value="units">Most collected</option><option value="value">Highest fulfilled value</option></select></label><label className="check"><input type="checkbox" checked={lowOnly} onChange={event => setLowOnly(event.target.checked)} />Low stock only</label></div><div className="table-wrap"><table><thead><tr><th>Product</th><th>Stall</th><th>Units collected</th><th>Fulfilled value</th><th>Stock</th></tr></thead><tbody>
+      {products.map(item => <tr key={item.id}><th scope="row">{item.name}</th><td>{report.vendors.find(stall => stall.id === item.vendor_id)?.name ?? item.vendor_id}</td><td>{item.units}</td><td>{money(item.fulfilledValueSen)}</td><td>{item.stock}</td></tr>)}
     </tbody></table></div></section>}
     {vendor && zones.value && <ManageVendor vendor={vendor} zones={zones.value} close={() => setVendor(undefined)} saved={() => { setVendor(undefined); result.reload(); stalls.reload(); }} />}
     {expense !== undefined && <ExpenseForm entry={expense} stalls={report.vendors} defaultStall={vendorId || (zoneId ? report.vendors[0]?.id : "")} close={() => setExpense(undefined)} saved={() => { setExpense(undefined); result.reload(); }} />}
@@ -156,9 +168,11 @@ function ExpenseForm({ entry, stalls, defaultStall, close, saved }: { entry: Led
 function Audit() {
   const api = useHostedData();
   const audit = useRemote(api.audit);
+  const [query, setQuery] = useState("");
+  const [actor, setActor] = useState("");
   if (!audit.value) return <RemoteStatus error={audit.error} reload={audit.reload} />;
   if (!audit.value.length) return <Empty title="No audit events yet" detail="Changes to orders, stalls, and expenses will appear here." />;
-  return <section className="panel"><div className="table-wrap"><table><thead><tr><th>Date (MYT)</th><th>Actor</th><th>Action</th><th>Target</th><th>Reason</th></tr></thead><tbody>
-    {audit.value.map(entry => <tr key={entry.id}><td>{formatDate(entry.created_at)}</td><td>{entry.actor_role}</td><th scope="row">{entry.action}</th><td>{entry.target}</td><td>{entry.reason ?? "—"}</td></tr>)}
+  return <section className="panel"><div className="filters"><label className="field">Search audit<input type="search" value={query} onChange={event => setQuery(event.target.value)} /></label><label className="field">Actor<select value={actor} onChange={event => setActor(event.target.value)}><option value="">All roles</option>{["student","vendor","admin"].map(role => <option key={role}>{role}</option>)}</select></label></div><div className="table-wrap"><table><thead><tr><th>Date (MYT)</th><th>Actor</th><th>Action</th><th>Target</th><th>Reason</th></tr></thead><tbody>
+    {audit.value.filter(entry => (!actor || entry.actor_role === actor) && (entry.action + " " + entry.target + " " + (entry.reason ?? "")).toLowerCase().includes(query.toLowerCase().trim())).map(entry => <tr key={entry.id}><td>{formatDate(entry.created_at)}</td><td>{entry.actor_role}</td><th scope="row">{entry.action}</th><td>{entry.target}</td><td>{entry.reason ?? "—"}</td></tr>)}
   </tbody></table></div></section>;
 }

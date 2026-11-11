@@ -40,11 +40,13 @@ export function AuthScreen({ screen }: { screen: string }) {
     "reset-password": "Choose a new password.", "accept-invite": "Welcome to the team.",
   };
   const next = returnPath(params.get("next"));
-  return <HostedFrame><div className="auth-heading"><span className="auth-icon">{reset ? <LockKeyhole aria-hidden /> : verify || recover ? <Mail aria-hidden /> : <UserRound aria-hidden />}</span>
+  const role = params.get("role") === "vendor" ? "vendor" : params.get("role") === "admin" ? "admin" : "student";
+  return <HostedFrame authRole={role}><div className="auth-heading"><span className="auth-icon">{reset ? <LockKeyhole aria-hidden /> : verify || recover ? <Mail aria-hidden /> : <UserRound aria-hidden />}</span>
     <span className="section-label">AP Food · Campus pickup</span><h1>{titles[screen]}</h1>
     <p>{signup ? "Create your account to save your cart and pick up food between classes."
       : verify ? "Open the confirmation email to activate your account." : recover ? "We'll email you a link to reset your password."
         : reset ? "Use at least 12 characters to secure your account." : "Sign in to your account and pick up where you left off."}</p></div>
+    {screen === "login" && <div className="ap-login-roles" aria-label="Sign in workspace">{(["student", "vendor", "admin"] as const).map(value => <Link className="button secondary" aria-current={value === role ? "page" : undefined} key={value} href={"/auth/login?role=" + value + (next ? "&next=" + encodeURIComponent(next) : "")}>{value === "admin" ? "Administrator" : value[0].toUpperCase() + value.slice(1)}</Link>)}</div>}
     <form className="stack" onSubmit={async event => {
       event.preventDefault();
       if (busy) return;
@@ -83,7 +85,7 @@ export function AuthScreen({ screen }: { screen: string }) {
       {reset && notice && <Link className="button secondary" href="/auth/login">Continue to workspace</Link>}
     </form>
     <div className="auth-links">{screen === "login" && <><Link href="/auth/forgot-password">Forgot password?</Link><Link href={"/auth/register" + (next ? "?next=" + encodeURIComponent(next) : "")}>Create an account</Link></>}
-      {screen !== "login" && <Link href="/auth/login">Back to sign in</Link>}<Link href="/app">Browse the menu</Link></div>
+      {screen !== "login" && <Link href="/auth/login">Back to sign in</Link>}<Link href="/app">Browse the menu</Link><Link href="/welcome">About APFoods</Link></div>
   </HostedFrame>;
 }
 

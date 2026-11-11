@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
-import { cartLine, cartOutput, checkoutInput, id, type CheckoutInput } from "./contracts";
+import { basketLine, basketCheckoutInput, cartOutput, checkoutInput, id } from "./contracts";
 import { ApiError, createHostedData } from "./client";
 
-const schema = z.object({ vendorId: id, items: z.array(cartLine).min(1).max(20), pending: checkoutInput.optional() });
+const attemptSchema = z.union([checkoutInput, basketCheckoutInput]);
+const schema = z.object({ vendorId: id, items: z.array(basketLine).min(1).max(20), pending: attemptSchema.optional() });
 type Cart = z.infer<typeof schema>;
 const guestKey = "ap-food-guest-cart";
 const eventName = "ap-food-cart-changed";
@@ -110,7 +111,7 @@ export function useHostedCart(userId?: string) {
     setError("");
   }
 
-  function persistAttempt(attempt: CheckoutInput) {
+  function persistAttempt(attempt: z.infer<typeof attemptSchema>) {
     if (!cart) throw new Error("Add an item before checking out.");
     const saved = { ...cart, pending: attempt };
     try { sessionStorage.setItem(pendingKey, JSON.stringify(saved)); }
