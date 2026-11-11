@@ -48,12 +48,12 @@ export const uniqueId = () => crypto.randomUUID();
 const baseVendors: Vendor[] = [
   { id: "campus-noodle-bar", name: "Chinese", zone: "Main Food Court", category: "Noodles & rice", description: "Wok-tossed campus favourites, made to order.", image: "noodles", status: "approved", paused: false, capacity: 5, lead: 10, hours: "10:00 AM – 3:00 PM" },
   { id: "brew-and-bites", name: "Malay", zone: "Main Food Court", category: "Malay cuisine & kopi", description: "Good coffee and quick bites between classes.", image: "coffee", status: "approved", paused: false, capacity: 6, lead: 5, hours: "9:00 AM – 4:00 PM" },
-  { id: "green-bowl-kitchen", name: "Japanese & Korean", zone: "Annex Cafeteria", category: "Japanese & Korean cuisine", description: "Colourful bowls, crunchy greens and warm rice.", image: "bowl", status: "approved", paused: false, capacity: 7, lead: 10, hours: "10:00 AM – 3:00 PM" },
+  { id: "green-bowl-kitchen", name: "Japan & Korea", zone: "Annex Cafeteria", category: "Japanese & Korean cuisine", description: "Colourful bowls, crunchy greens and warm rice.", image: "bowl", status: "approved", paused: false, capacity: 7, lead: 10, hours: "10:00 AM – 3:00 PM" },
   { id: "indian", name: "Indian", zone: "Main Food Court", category: "Indian cuisine", description: "Rice, curries and freshly made roti.", image: "bowl", status: "approved", paused: false, capacity: 8, lead: 10, hours: "9:00 AM – 4:00 PM" },
   { id: "arab-shawarma", name: "Arab Shawarma", zone: "Annex Cafeteria", category: "Middle Eastern", description: "Shawarma wraps and fragrant rice plates.", image: "noodles", status: "approved", paused: false, capacity: 6, lead: 10, hours: "10:00 AM – 5:00 PM" },
-  { id: "drinks-counter", name: "Refreshments", zone: "Main Food Court", category: "Drinks", description: "Cold drinks between classes.", image: "coffee", status: "approved", paused: true, capacity: 6, lead: 5, hours: "Temporarily closed" },
-  { id: "local-corner-left", name: "Local Corner · Left", zone: "Main Food Court", category: "Local rice dishes", description: "Rice plates and vegetables at the left side of the glass window.", image: "bowl", status: "approved", paused: false, capacity: 6, lead: 10, hours: "10:00 AM – 3:00 PM" },
-  { id: "local-corner-right", name: "Local Corner · Right", zone: "Main Food Court", category: "Local noodles & rice", description: "Freshly cooked noodles and rice at the right side of the glass window.", image: "noodles", status: "approved", paused: false, capacity: 6, lead: 10, hours: "10:00 AM – 3:00 PM" },
+  { id: "drinks-counter", name: "Let’s Kopitiam", zone: "Main Food Court", category: "Drinks", description: "Cold drinks between classes.", image: "coffee", status: "approved", paused: true, capacity: 6, lead: 5, hours: "Temporarily closed" },
+  { id: "local-corner-left", name: "Local cuisine", zone: "Main Food Court", category: "Local rice dishes", description: "Rice plates and vegetables at the left side of the glass window.", image: "bowl", status: "approved", paused: false, capacity: 6, lead: 10, hours: "10:00 AM – 3:00 PM" },
+  { id: "local-corner-right", name: "Local corner", zone: "Main Food Court", category: "Local noodles & rice", description: "Freshly cooked noodles and rice at the right side of the glass window.", image: "noodles", status: "approved", paused: false, capacity: 6, lead: 10, hours: "10:00 AM – 3:00 PM" },
 ];
 
 const menuRows = [
@@ -146,6 +146,6 @@ export function withAudit(state: DemoState, actor: string, action: string, targe
 
 // Add new sample records without discarding a saved cart, orders or vendor edits.
 export function migrateCatalogue(state:DemoState):DemoState {
- const aliases:Record<string,string>={"Campus Noodle Bar":"Chinese","Brew & Bites":"Malay","Green Bowl Kitchen":"Japanese & Korean"};
+ const aliases:Record<string,string>={"Campus Noodle Bar":"Chinese","Brew & Bites":"Malay","Green Bowl Kitchen":"Japan & Korea","Japanese & Korean":"Japan & Korea","Refreshments":"Let’s Kopitiam","Local Corner · Left":"Local cuisine","Local Corner · Right":"Local corner"};
  return {...state,audit:state.audit.map(a=>({...a,actor:a.actor==="Initial setup"?"Initial setup":a.actor,target:a.target==="AP Food"?"APFoods":a.target})),vendors:[...state.vendors.map(v=>({...v,name:aliases[v.name]??v.name,category:v.id==="brew-and-bites"&&v.category==="Coffee & light bites"?"Malay cuisine & kopi":v.id==="green-bowl-kitchen"&&v.category==="Rice bowls & greens"?"Japanese & Korean cuisine":v.category})),...baseVendors.filter(v=>!state.vendors.some(old=>old.id===v.id))],items:[...state.items,...baseItems.filter(i=>!state.items.some(old=>old.id===i.id))]};
 }

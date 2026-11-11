@@ -1,25 +1,24 @@
 import type { CafeteriaLayout } from './types';
 // Physical positions follow the supplied cafeteria layout; vendor IDs stay stable.
-const photo='/cafeteria/sample-storefront.webp';
-const storefront={photo,photoAlt:'Cafeteria storefront'};
+const storefront=(id:string,name:string)=>({photo:'/cafeteria/stalls/'+id+'-storefront.jpg',photoAlt:name+' storefront'});
 export const sampleLayout:CafeteriaLayout={id:'campus-sample',name:'Campus cafeteria',sample:true,width:900,height:660,
  areas:[
-  {id:'north',name:'Glass Window',subtitle:'Local Corner · Shawarma · Local Corner',x:200,y:70,width:505,height:145,fill:'#f8e6b1'},
+  {id:'north',name:'Glass Window',subtitle:'Local cuisine · Shawarma · Local corner',x:200,y:70,width:505,height:145,fill:'#f8e6b1'},
   {id:'central',name:'Seating Area',subtitle:'Shared tables',x:230,y:265,width:440,height:230,fill:'#edf0de'},
-  {id:'drinks',name:'Left Wing',subtitle:'Japanese & Korean · Kopitiam · Fried Chicken · Chinese',x:55,y:95,width:135,height:490,fill:'#f5e4c5'},
+  {id:'drinks',name:'Left Wing',subtitle:'Japan & Korea · Let’s Kopitiam · Fried Chicken · Chinese',x:55,y:95,width:135,height:490,fill:'#f5e4c5'},
   {id:'noodle',name:'Right Wing',subtitle:'Western · Malay · Indian',x:720,y:145,width:145,height:415,fill:'#f5e4c5'},
   {id:'dessert',name:'Entrance',subtitle:'Enter here',x:380,y:585,width:140,height:55,fill:'#f0e4db'}],
  locations:[
-  {id:'left-japanese',stallId:'green-bowl-kitchen',areaId:'drinks',label:'Japanese & Korean',x:65,y:105,width:110,height:76,...storefront},
-  {id:'left-kopitiam',stallId:'drinks-counter',areaId:'drinks',label:'Kopitiam',x:65,y:225,width:110,height:76,...storefront},
-  {id:'left-chicken',stallId:'fried-chicken',areaId:'drinks',label:'Fried Chicken',x:65,y:345,width:110,height:76,...storefront},
-  {id:'left-chinese',stallId:'campus-noodle-bar',areaId:'drinks',label:'Chinese',x:65,y:465,width:110,height:76,...storefront},
-  {id:'glass-local-left',stallId:'local-corner-left',areaId:'north',label:'Local Corner',x:220,y:100,width:120,height:76,...storefront},
-  {id:'glass-shawarma',stallId:'arab-shawarma',areaId:'north',label:'Shawarma',x:390,y:100,width:120,height:76,...storefront},
-  {id:'glass-local-right',stallId:'local-corner-right',areaId:'north',label:'Local Corner',x:560,y:100,width:120,height:76,...storefront},
-  {id:'right-western',stallId:'western',areaId:'noodle',label:'Western',x:735,y:155,width:110,height:76,...storefront},
-  {id:'right-malay',stallId:'brew-and-bites',areaId:'noodle',label:'Malay',x:735,y:310,width:110,height:76,...storefront},
-  {id:'right-indian',stallId:'indian',areaId:'noodle',label:'Indian',x:735,y:465,width:110,height:76,...storefront}
+  {id:'left-japanese',stallId:'green-bowl-kitchen',areaId:'drinks',label:'Japan & Korea',x:65,y:105,width:110,height:76,...storefront('green-bowl-kitchen','Japan & Korea')},
+  {id:'left-kopitiam',stallId:'drinks-counter',areaId:'drinks',label:"Let’s Kopitiam",x:65,y:225,width:110,height:76,...storefront('drinks-counter','Let’s Kopitiam')},
+  {id:'left-chicken',stallId:'fried-chicken',areaId:'drinks',label:'Fried Chicken',x:65,y:345,width:110,height:76,...storefront('fried-chicken','Fried Chicken')},
+  {id:'left-chinese',stallId:'campus-noodle-bar',areaId:'drinks',label:'Chinese',x:65,y:465,width:110,height:76,...storefront('campus-noodle-bar','Chinese')},
+  {id:'glass-local-left',stallId:'local-corner-left',areaId:'north',label:'Local cuisine',x:220,y:100,width:120,height:76,...storefront('local-corner-left','Local cuisine')},
+  {id:'glass-shawarma',stallId:'arab-shawarma',areaId:'north',label:'Shawarma',x:390,y:100,width:120,height:76,...storefront('arab-shawarma','Shawarma')},
+  {id:'glass-local-right',stallId:'local-corner-right',areaId:'north',label:'Local corner',x:560,y:100,width:120,height:76,...storefront('local-corner-right','Local corner')},
+  {id:'right-western',stallId:'western',areaId:'noodle',label:'Western',x:735,y:155,width:110,height:76,...storefront('western','Western')},
+  {id:'right-malay',stallId:'brew-and-bites',areaId:'noodle',label:'Malay',x:735,y:310,width:110,height:76,...storefront('brew-and-bites','Malay')},
+  {id:'right-indian',stallId:'indian',areaId:'noodle',label:'Indian',x:735,y:465,width:110,height:76,...storefront('indian','Indian')}
  ]};
 export const seatingPositions=[{x:290,y:310},{x:450,y:310},{x:610,y:310},{x:290,y:435},{x:450,y:435},{x:610,y:435}];
 export const glassCounter={x:205,y:177,width:490,height:40};
