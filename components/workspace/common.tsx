@@ -17,6 +17,9 @@ export const portalFor: Record<Role, string> = { student: "/app", vendor: "/vend
 const roles: Role[] = ["student", "vendor", "admin"];
 const SessionUserContext = createContext<string | null>(null);
 
+/** Set to true inside OpsShell so RemoteStatus shows the branded loading overlay. */
+export const OpsShellContext = createContext(false);
+
 export function OptionalSession({ children }: { children: (session?: Session) => ReactNode }) {
   const result = useHostedSession();
   if (!result.value && !result.error)
@@ -98,21 +101,42 @@ export function useRemote<T>(load: () => Promise<T>) {
 }
 
 export function RemoteStatus({ error, reload }: { error?: unknown; reload: () => void }) {
-  return error ? (
-    <div className="panel stack">
-      <ErrorMessage message={messageOf(error)} />
-      <div className="line wrap">
-        <button className="button secondary" onClick={reload}>
-          Retry
-        </button>
-        {typeof error === "object" && error !== null && "status" in error && error.status === 401 && (
-          <Link className="button primary" href="/auth/login">
-            Sign in
-          </Link>
-        )}
+  const isOps = useContext(OpsShellContext);
+  if (error) {
+    return (
+      <div className="panel stack">
+        <ErrorMessage message={messageOf(error)} />
+        <div className="line wrap">
+          <button className="button secondary" onClick={reload}>
+            Retry
+          </button>
+          {typeof error === "object" && error !== null && "status" in error && error.status === 401 && (
+            <Link className="button primary" href="/auth/login">
+              Sign in
+            </Link>
+          )}
+        </div>
       </div>
-    </div>
-  ) : (
+    );
+  }
+  // Inside vendor/admin shells, show the branded AP × FIF AI loading overlay.
+  if (isOps) {
+    return (
+      <div className="ops-loading-screen ops-loading-inline" role="status" aria-label="Loading">
+        <div className="ops-loading-brand">
+          <div className="ops-loading-logo-row">
+            <img src="/brand/apfoods-wordmark-v1.png" alt="AP Food" className="ops-loading-wordmark" />
+            <span className="ops-loading-sep" aria-hidden>×</span>
+            <span className="ops-loading-fif">FIF AI</span>
+          </div>
+          <div className="ops-loading-bar-track" aria-hidden>
+            <div className="ops-loading-bar-fill ops-loading-bar-indeterminate" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return (
     <p className="muted" role="status">
       Loading…
     </p>

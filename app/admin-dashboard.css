@@ -1385,15 +1385,13 @@
   align-items: center;
   justify-content: center;
   background: #fffefa;
-  animation: ops-screen-fade-out 0.28s ease forwards;
-  animation-play-state: paused;
 }
-.ops-loading-screen.is-done {
-  animation-play-state: running;
-}
-@keyframes ops-screen-fade-out {
-  from { opacity: 1; pointer-events: all; }
-  to   { opacity: 0; pointer-events: none; }
+/* Inline variant: fills the content area, not the full viewport */
+.ops-loading-inline {
+  position: static;
+  min-height: 260px;
+  background: transparent;
+  z-index: auto;
 }
 .ops-loading-brand {
   display: flex;
@@ -1430,11 +1428,25 @@
   background: #f0e8d8;
   overflow: hidden;
 }
+  border-radius: 999px;
+  background: #f0e8d8;
+  overflow: hidden;
+}
 .ops-loading-bar-fill {
   height: 100%;
   border-radius: 999px;
   background: linear-gradient(90deg, #f2b705 0%, #e8830a 100%);
   transition: width 0.12s ease;
+}
+/* Indeterminate sweep used while RemoteStatus is loading */
+.ops-loading-bar-indeterminate {
+  width: 40% !important;
+  transition: none;
+  animation: ops-bar-sweep 1.4s ease-in-out infinite;
+}
+@keyframes ops-bar-sweep {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(280%); }
 }
 
 /* ── Admin FIF AI floating assistant ───────────────────────────────────── */
