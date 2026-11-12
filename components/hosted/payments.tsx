@@ -39,7 +39,7 @@ export function OrderPayment({ id, total, version, customer = false, changed }: 
       }}>{busy ? "Confirming…" : "I've paid"}</button>
     </>}
     {customer && pending && remaining === 0 && <p>The payment window has ended. Your reservation will be released automatically.</p>}
-    {payment.status === "paid" && <p>Payment received · {money(total)}. Follow the order status for your pickup.</p>}
+    {payment.status === "paid" && <p>Payment received · {money(total)}.{customer ? " Follow the order status for your pickup." : " Recorded from the student’s payment confirmation."}</p>}
     {payment.status === "refund_pending" && (customer ? <p>The stall will arrange your refund. Contact them with your order reference.</p>
       : <form className="stack" onSubmit={async event => {
         event.preventDefault(); const data = new FormData(event.currentTarget);

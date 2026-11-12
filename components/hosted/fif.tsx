@@ -16,5 +16,5 @@ export function HostedFif({ role, vendorId, zoneId }: { role: "student" | "vendo
   }, [result.reload]);
   if (!result.value) return <RemoteStatus error={result.error} reload={result.reload} />;
   return <div><Recommendation {...result.value.recommendation} label={role === "admin" ? "FIF Ops Desk" : role === "vendor" ? "FIF · Shift priorities" : "FIF · Best pickup option"} />
-    <p className="muted small">Demo recommendation · {result.value.source === "gemini" ? "Gemini ranking" : "Rules fallback"} · App activity</p></div>;
+    <p className="muted small">FIF intelligence · {result.value.source === "gemini" ? "Gemini ranking" : "Smart rules"} · Live app activity</p></div>;
 }

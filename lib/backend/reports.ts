@@ -3,6 +3,7 @@ import { dayKey } from "../demo";
 import { id, ledgerRow, orderLine, payment, status } from "./contracts";
 import { BackendError, unwrap } from "./errors";
 import type { RequestClient } from "./supabase";
+import { operationalAnalytics } from "../operational-analytics";
 
 const filters = z.object({ days: z.enum(["1", "7", "14"]).transform(Number), vendorId: id.optional(), zoneId: id.optional() });
 const reportOrder = z.object({ vendor_id: id, zone_id: id, payment, status,
@@ -56,6 +57,7 @@ export async function adminReport(client: RequestClient, params: URLSearchParams
   const vendorReportIds = new Set([...vendorIds, ...entries.map(entry => entry.vendor_id), ...orders.map(order => order.vendor_id)]);
   return {
     asOf, source: "standard_demo", since,
+    analytics: operationalAnalytics(orders, since, filter.days),
     finance: {
       ...totals(entries),
       orderedValueSen: orders.filter(o => o.status !== "cancelled" && o.status !== "rejected").reduce((sum, o) => sum + o.total_sen, 0),

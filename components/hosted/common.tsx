@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { Brand, ErrorMessage, Footer } from "../shared";
 import { createHostedData, hostedData, sessionInvalidated } from "../../lib/backend/client";
+import { useHostedSession } from "./session-provider";
+import { canUseWorkspace, loginDestination } from "../../lib/login-routing";
 import { RoleHero } from "../apspace/role-hero";
 
 export type Session = Awaited<ReturnType<typeof hostedData.session>>;
@@ -15,18 +17,11 @@ const roles: Role[] = ["student", "vendor", "admin"];
 const HostedUser = createContext<string | null>(null);
 
 export function HostedVisitor({ children }: { children: (session?: Session) => ReactNode }) {
-  const result = useRemote(hostedData.session);
-  useEffect(() => {
-    const refresh = () => { if (document.visibilityState === "visible") result.reload(); };
-    window.addEventListener("focus", refresh);
-    window.addEventListener(sessionInvalidated, result.reload);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      window.removeEventListener("focus", refresh);
-      window.removeEventListener(sessionInvalidated, result.reload);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [result.reload]);
+  const result = useHostedSession();
+  const router = useRouter();
+  const vendor = result.value?.memberships.some(entry => entry.role === "vendor");
+  useEffect(() => { if (vendor && result.value) router.replace(loginDestination(result.value)); }, [vendor, result.value, router]);
+  if (vendor) return null;
   if (!result.value && !result.error) return <HostedFrame><p role="status">Loading your workspace…</p></HostedFrame>;
   const guest = typeof result.error === "object" && result.error !== null && "status" in result.error && result.error.status === 401;
   if (result.error && !guest) return <HostedFrame><RemoteStatus error={result.error} reload={result.reload} /></HostedFrame>;
@@ -93,7 +88,7 @@ export function HostedFrame({ children, authRole }: { children: ReactNode; authR
 }
 
 function PortalLinks({ session }: { session: Session }) {
-  const available = roles.filter(role => session.memberships.some(entry => entry.role === role));
+  const available = roles.filter(role => canUseWorkspace(session, role));
   return available.length ? <div className="entrances auth-entrances">{available.map(role =>
     <Link href={portalFor[role]} key={role}><strong>Continue as {role}</strong></Link>,
   )}</div> : <p>This account has no AP Food membership.</p>;
@@ -112,22 +107,17 @@ export function SignOut() {
 }
 
 export function HostedAccess({ role, children }: { role: Role; children: (session: Session) => ReactNode }) {
-  const session = useRemote(hostedData.session);
-  useEffect(() => {
-    const visible = () => { if (document.visibilityState === "visible") session.reload(); };
-    document.addEventListener("visibilitychange", visible);
-    window.addEventListener(sessionInvalidated, session.reload);
-    return () => {
-      document.removeEventListener("visibilitychange", visible);
-      window.removeEventListener(sessionInvalidated, session.reload);
-    };
-  }, [session.reload]);
+  const session = useHostedSession();
+  const router = useRouter();
+  const vendorInStudent = role === "student" && session.value?.memberships.some(entry => entry.role === "vendor");
+  useEffect(() => { if (vendorInStudent && session.value) router.replace(loginDestination(session.value)); }, [vendorInStudent, session.value, router]);
+  if (vendorInStudent) return null;
   if (!session.value) {
     const guest = typeof session.error === "object" && session.error !== null && "status" in session.error && session.error.status === 401;
     return <HostedFrame authRole={guest ? "student" : undefined}>{guest ? <><div className="auth-heading"><span className="section-label">Welcome to APFoods</span><h1>Sign in to continue</h1><p>Your orders, reports and workspace tools are available after sign-in.</p></div><div className="stack"><Link className="button primary" href="/auth/login">Log in</Link><Link className="button secondary" href="/app">Browse campus food</Link></div></> : <RemoteStatus error={session.error} reload={session.reload} />}</HostedFrame>;
   }
   if (!session.value.emailVerified) return <HostedFrame><h1>Confirm your email</h1><p>Verify your email to continue.</p><Link className="button primary" href="/auth/verify-email">Resend confirmation</Link><SignOut /></HostedFrame>;
   if (session.value.profile.status !== "active") return <HostedFrame><h1>Account suspended</h1><p>Contact cafeteria support to review your account.</p><SignOut /></HostedFrame>;
-  if (!session.value.memberships.some(entry => entry.role === role)) return <HostedFrame><h1>Workspace unavailable</h1><p>Choose a workspace assigned to your account.</p><PortalLinks session={session.value} /><SignOut /></HostedFrame>;
+  if (!canUseWorkspace(session.value, role)) return <HostedFrame><h1>Workspace unavailable</h1><p>Choose a workspace assigned to your account.</p><PortalLinks session={session.value} /><SignOut /></HostedFrame>;
   return <HostedUser.Provider value={session.value.userId} key={session.value.userId + ":" + role}>{children(session.value)}</HostedUser.Provider>;
 }

@@ -1,9 +1,10 @@
 "use client";
 
 import { z } from "zod";
+import { scenarioInput, scenarioOutput } from "../fif-scenarios";
 import {
-  activityRow, adminReportOutput, auditRow, basketCheckoutInput, cartOutput, catalogueOutput, errorBody, fifOutput, menuRow, orderResult, orderRow, paymentOutput, pickupOutput, quoteOutput, sessionOutput, usersOutput, vendorPayment, vendorRow,
-  type CheckoutInput, type QuoteInput,
+  activityRow, adminReportOutput, auditRow, basketCheckoutInput, cartOutput, catalogueOutput, copilotExecuteOutput, copilotOutput, errorBody, fifOutput, menuRow, orderResult, orderRow, paymentOutput, pickupOutput, quoteOutput, sessionOutput, usersOutput, vendorPayment, vendorRow,
+  type CheckoutInput, type CopilotHistoryTurn, type CopilotProposedAction, type QuoteInput,
 } from "./contracts";
 
 export class ApiError extends Error {
@@ -34,13 +35,26 @@ export function createHostedData(userId?: string) {
   const call = <T>(path: string, output: z.ZodType<T>, method?: string, input?: unknown) => request(path, output, method, input, userId);
   return {
   recommendations: (input: { role: "student" | "vendor" | "admin"; vendorId?: string; zoneId?: string }) => call("fif/recommendations", fifOutput, "POST", input),
-  signIn: (email: string, password: string) => request("auth/session", sessionOutput, "POST", { email, password }),
+  vendorScenarios: (input: z.infer<typeof scenarioInput>) => call("fif/vendor-scenarios", scenarioOutput, "POST", input),
+  vendorCopilot: (input: { vendorId: string; message: string; history?: CopilotHistoryTurn[] }) =>
+    call("fif/copilot", copilotOutput, "POST", input),
+  executeVendorCopilot: (input: { vendorId: string; action: CopilotProposedAction }) =>
+    call("fif/copilot/execute", copilotExecuteOutput, "POST", input),
+  signIn: async (email: string, password: string) => {
+    const session = await request("auth/session", sessionOutput, "POST", { email, password });
+    window.dispatchEvent(new CustomEvent(sessionInvalidated, { detail: { session } }));
+    return session;
+  },
   register: (input: { email: string; password: string; displayName: string }) => request("auth/register", ok, "POST", input),
   resend: (email: string) => request("auth/resend", ok, "POST", { email }),
   recover: (email: string) => request("auth/recover", ok, "POST", { email }),
   updateProfile: (input: { displayName?: string; email?: string; password?: string; currentPassword?: string }) => call("auth/profile", ok, "POST", input),
   session: () => request("auth/session", sessionOutput),
-  signOut: () => call("auth/session", ok, "DELETE"),
+  signOut: async () => {
+    const response = await call("auth/session", ok, "DELETE");
+    window.dispatchEvent(new CustomEvent(sessionInvalidated, { detail: { session: null } }));
+    return response;
+  },
   zones: () => request("zones", z.array(z.object({ id: z.string(), name: z.string() }))),
   vendors: () => request("vendors", z.array(vendorRow)),
   catalogue: () => request("catalogue", catalogueOutput),
@@ -66,7 +80,8 @@ export function createHostedData(userId?: string) {
   kitchen: (vendorId: string) => call("vendor/orders?vendorId=" + encodeURIComponent(vendorId), z.array(orderRow)),
   assignedStalls: () => call("vendor/stalls", z.array(vendorRow)),
   vendorMenu: (vendorId: string) => call("vendor/menu-items?vendorId=" + encodeURIComponent(vendorId), z.array(menuRow)),
-  saveMenu: (input: { id: string; vendorId: string; name: string; description: string; priceSen: number; stock: number; expectedStock: number | null; active: boolean; workUnits: number }) =>
+  uploadMenuImage: (vendorId: string, data: FormData) => call("vendor/menu-images/" + encodeURIComponent(vendorId), z.object({ url: z.string() }), "POST", data),
+  saveMenu: (input: { id: string; vendorId: string; name: string; description: string; priceSen: number; stock: number; expectedStock: number | null; active: boolean; workUnits?: number; image?: string }) =>
     call("vendor/menu-items", ok, "POST", input),
   settings: (vendorId: string, input: { capacity?: number; leadMinutes?: number; opensAt?: string; closesAt?: string; paused?: boolean }) =>
     call("vendor/capacity/" + encodeURIComponent(vendorId), ok, "PATCH", input),

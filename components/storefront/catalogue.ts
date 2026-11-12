@@ -1,4 +1,5 @@
 import type { hostedData } from "../../lib/backend/client";
+import { isValidImageSrc } from "../../lib/backend/contracts";
 
 export type Catalogue = Awaited<ReturnType<typeof hostedData.catalogue>>;
 export type Meal = Catalogue["items"][number];
@@ -19,8 +20,9 @@ export function cuisineMatches(stall: Stall, meals: Meal[], cuisine: string) {
   return cuisine === "all" || Boolean(patterns[cuisine]?.test(text));
 }
 
-// Use only supplied photos that actually identify the dish.
+// Use vendor-supplied dish photo first, falling back to bundled dish photos.
 export function mealPhoto(item: Meal) {
   const photos: Record<string, string> = { "chicken-noodles": "/food/noodles.webp", "chilli-rice": "/food/lunch.webp", "nasi-lemak": "/food/lunch.webp", "tofu-bowl": "/food/bowl.webp", "iced-coffee": "/food/coffee.webp" };
-  return photos[item.id];
+  const custom = item.image?.trim();
+  return (custom && isValidImageSrc(custom) ? custom : undefined) || photos[item.id];
 }

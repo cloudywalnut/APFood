@@ -1,3 +1,5 @@
+> Latest vendor changes: see [FIF_IMPLEMENTATION_STATUS.md](FIF_IMPLEMENTATION_STATUS.md). Capacity navigation is replaced by AI Insights; vendor accounts stay out of student ordering; confirmed sessions are reused during navigation.
+
 > Current UI: see [STOREFRONT_UPDATE.md](STOREFRONT_UPDATE.md) for the latest catalogue, AP logo + Foods wordmark, optional preference cookies and guest-access boundaries. Hosted browsing starts with stall cards; the cafeteria map remains available. The basket supports multiple stalls. Changes remain local on Keyaan.
 
 # AP Food + FIF · Engineering and AI handoff

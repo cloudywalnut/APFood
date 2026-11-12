@@ -1,0 +1,163 @@
+/*
+ * APFoods UI review repairs based on Kiro Opus 5.5 screenshot findings.
+ * Import AFTER app/cookies.css in app/layout.tsx:  import "./ui-review-fixes.css";
+ * (or copy into the matching existing stylesheet).
+ *
+ * Rules:
+ * - Every selector is scoped to an existing component class. Nothing targets bare
+ *   elements globally.
+ * - Nothing hides overflow. Wide content gets a scroll container plus a visual cue.
+ * - Section numbers (§1, §2, ...) match REVIEW.md / FIXES.md.
+ * - Palette: cream #fffefa / #fbf7ef, espresso #3b2a1e, mustard #d7a123 family only.
+ */
+
+/* §1  Bottom-nav clearance including the iOS safe area (REVIEW M9) ---------- */
+/* Storefront nav: min-height 66px (border-box) grows by max(8px, safe-area) - 8px. */
+@media (max-width: 700px) {
+  .storefront-theme { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+  /* Ops nav (.ap-bottom-nav): min-height 64px, grows by max(7px, safe-area) - 7px. */
+  .ops-theme.ap-role-shell { padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* §2  Current Traffic map legible on phones (REVIEW T1) ---------------------- */
+/* Scoped to the traffic page only; the Discover map is unchanged. */
+@media (max-width: 600px) {
+  .current-traffic-map .caf-map-stage {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 16px;
+    scrollbar-width: thin;
+    scrollbar-color: #d8c49a transparent;
+  }
+  .current-traffic-map .reference-map .reference-floorplan { min-width: 640px; }
+  /* Optional visible cue; pair with the markup hint in FIXES F6.4. */
+  .current-traffic-map .caf-map-scroll-hint { display: block; margin: 0 0 10px; font-size: 12px; color: #7d6649; }
+}
+.current-traffic-map .caf-map-scroll-hint { display: none; }
+@media(max-width:600px) { .current-traffic-map .caf-map-scroll-hint { display:block; } }
+
+/* Load chip drawn inside each counter in traffic mode (FIXES F6.3). */
+.caf-load-chip rect { fill: #fffefa; stroke: #8b6a3f; stroke-width: 1; }
+.caf-load-chip text { font: 700 12px var(--sans); fill: #3b2a1e; }
+
+/* Traffic status text floors (REVIEW T6). */
+.traffic-stall-title b { font-size: 11px; }
+.traffic-stall-load > span:last-child { font-size: 12px; color: #7a6548; }
+@media (max-width: 520px) { .traffic-colour-key { font-size: 12px; } }
+/* The two disclosures share one look (REVIEW T9). */
+.current-traffic-map ~ .traffic-windows,
+.stack > .traffic-windows { border: 1px solid #e3d9c8; border-radius: 10px; box-shadow: none; }
+
+/* §3  Cart and header touch targets (REVIEW C3, C4, C5) --------------------- */
+@media (max-width: 700px) {
+  .market-account, .market-cart-link { width: 44px; height: 44px; min-height: 44px; }
+  .food-cart-heading > a { font-size: 12px; min-height: 44px; }
+}
+.food-cart-stall > header a { display: inline-flex; align-items: center; min-height: 44px; font-size: 13px; }
+.food-cart-storage-note { font-size: 12px; }
+/* Regular price shown next to the discounted unit price (FIXES F3). */
+.food-cart-description del { margin-left: 6px; color: #9a8669; font-size: 12px; }
+/* Checkout: give the second section heading breathing room (REVIEW C8). */
+.checkout-layout .panel > .small.muted + h2 { margin-top: 14px; }
+.checkout-layout .checkout-summary-placeholder { color: #7a6548; font-size: 13px; line-height: 1.7; }
+
+/* §4  Minimum readable text sizes (REVIEW M13) -------------------------------- */
+/* Desktop storefront. */
+.market-location small { font-size: 11px; }
+.market-stall-time { font-size: 11px; }
+.market-stall-description > div { font-size: 11px; }
+.market-stall-description > div > strong { font-size: 12px; }
+.market-offer-card > div > span, .market-meal-saving { font-size: 11px; }
+.market-offer-card p, .market-meal-price del, .market-offer-card del { font-size: 11px; }
+.market-basket-lines small, .market-basket-note, .market-basket-more { font-size: 11px; }
+.market-intelligence > div > .muted { font-size: 11px; }
+@media (max-width: 700px) {
+  .market-hero > div > span { font-size: 10px; letter-spacing: .04em; }
+  .market-hero-offer { font-size: 11px; }
+  .market-restaurant-category, .market-restaurant-meta { font-size: 11px; }
+  /* Restore "10 min preparation" on mobile; it's useful and fits on two lines. */
+  .market-restaurant-meta span:first-child { display: inline-flex; }
+  .market-mobile-navigation a { font-size: 11px; }
+}
+@media (max-width: 700px) {
+  /* Longest ops label is "Menu & stock"; 10.5px fits a 73px slot at 375px. */
+  .ap-bottom-nav > a { font-size: 10.5px; }
+  .kitchen-lane > h2 .badge { font-size: 11px; }
+  .track-timeline time { font-size: 11px; }
+}
+
+/* §5  Wide tables on phones (REVIEW H2, H4) ---------------------------------- */
+/* 5a: every existing horizontally scrolling table gets a scroll-shadow cue.
+       Uses background-attachment local/scroll; no overflow is hidden. */
+@media (max-width: 700px) {
+  .ap-role-shell .table-wrap {
+    background:
+      linear-gradient(to right, #fffefa 30%, #fffefa00) left center / 28px 100% no-repeat local,
+      linear-gradient(to left, #fffefa 30%, #fffefa00) right center / 28px 100% no-repeat local,
+      radial-gradient(farthest-side at 0 50%, #3b2a1e2e, #3b2a1e00) left center / 12px 100% no-repeat scroll,
+      radial-gradient(farthest-side at 100% 50%, #3b2a1e2e, #3b2a1e00) right center / 12px 100% no-repeat scroll,
+      #fffefa;
+  }
+  /* Keep pickup windows on one line in report tables instead of 6-line wraps. */
+  .ap-role-shell .table-wrap td.nowrap, .ap-role-shell .table-wrap td:has(> .nowrap) { white-space: nowrap; }
+}
+
+/* 5b: opt-in stacked layout for tables whose last column is the primary action.
+       Add className="table-stack" to <table> and data-label="…" to each <td>
+       (FIXES F13). Tables without the class are unaffected. */
+@media (max-width: 700px) {
+  .ap-role-shell table.table-stack { min-width: 0; }
+  .ap-role-shell table.table-stack thead {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+  .ap-role-shell table.table-stack,
+  .ap-role-shell table.table-stack tbody,
+  .ap-role-shell table.table-stack tr { display: block; }
+  .ap-role-shell table.table-stack tr { padding: 12px 0; border-bottom: 1px solid #eee7db; }
+  .ap-role-shell table.table-stack tbody tr:last-child { border-bottom: 0; }
+  .ap-role-shell table.table-stack td,
+  .ap-role-shell table.table-stack tbody th {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 6px 2px; border: 0; font-size: 13px; text-align: right; overflow-wrap: anywhere;
+  }
+  .ap-role-shell table.table-stack tbody th { font-size: 14px; font-weight: 600; text-align: left; }
+  .ap-role-shell table.table-stack td[data-label]::before {
+    content: attr(data-label); flex: 0 0 auto; color: #7c7166; font-size: 12px; font-weight: 500; text-align: left;
+  }
+  .ap-role-shell table.table-stack td.table-stack-action { justify-content: flex-start; padding-top: 10px; }
+  .ap-role-shell table.table-stack td.table-stack-action::before { content: none; }
+  .ap-role-shell table.table-stack td.table-stack-action .button { width: 100%; min-height: 44px; }
+}
+
+/* §6  Update/notification rows wrap cleanly (REVIEW M5) ---------------------- */
+.ap-notification-list > a { flex-wrap: wrap; column-gap: 12px; row-gap: 4px; }
+.ap-notification-list > a > span { flex: 1 1 220px; min-width: 0; }
+.ap-notification-list > p { padding: 10px 0; border-bottom: 1px solid #eee7db; font-size: 13px; overflow-wrap: anywhere; }
+.ap-notification-list > p:last-child { border-bottom: 0; }
+@media (max-width: 700px) {
+  .ap-notification-list > a { flex-direction: column; align-items: flex-start; }
+  .ap-notification-list > a > span { flex-basis: auto; }
+}
+
+/* §7  Sign out moved below page content (FIXES F8) --------------------------- */
+.ap-signout-row { margin-top: 28px; padding-top: 18px; border-top: 1px solid #e8e2d8; }
+
+/* §8  Cashflow chart: visible scroll cue on phones (REVIEW H3; pairs with F12) */
+@media (max-width: 700px) {
+  .ap-role-shell .chart-scroll {
+    background:
+      linear-gradient(to right, #fffefa 30%, #fffefa00) left center / 28px 100% no-repeat local,
+      linear-gradient(to left, #fffefa 30%, #fffefa00) right center / 28px 100% no-repeat local,
+      radial-gradient(farthest-side at 0 50%, #3b2a1e2e, #3b2a1e00) left center / 12px 100% no-repeat scroll,
+      radial-gradient(farthest-side at 100% 50%, #3b2a1e2e, #3b2a1e00) right center / 12px 100% no-repeat scroll;
+  }
+}
+
+/* §9  Small consistency items --------------------------------------------- */
+/* Consent links on sign-up read as links (REVIEW L3). */
+.ap-auth-panel .small.muted a { text-decoration: underline; text-underline-offset: 3px; }
+/* Shared "back" links without arrows match .page-back-arrow sizing (REVIEW C8). */
+.student-main > .stack > .quiet-link.back-link,
+.student-main > .quiet-link.back-link { min-height: 44px; }

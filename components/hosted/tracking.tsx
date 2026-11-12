@@ -24,7 +24,7 @@ export function HostedTracking({ order }: { order: OrderRow }) {
   return <section className="panel track-progress">
     <div className="line spread"><h2>Order progress</h2><span className="small muted">{terminal ? "Order ended" : statusNames[order.status]}</span></div>
     <ol className="track-timeline">{stages.map((status, index) => {
-      const treatment = terminal ? "upcoming" : index < current ? "done" : index === current ? "current" : "upcoming";
+      const treatment = terminal ? "upcoming" : index < current || order.status === "collected" ? "done" : index === current ? "current" : "upcoming";
       const at = recorded[status];
       return <li key={status} className={treatment} aria-current={index === current ? "step" : undefined}>
         <span className="track-step-mark">{treatment === "done" ? <Check size={16} /> : treatment === "current" ? (status === "collected" ? <CircleCheck size={16} /> : <Clock3 size={16} />) : <span />}</span>

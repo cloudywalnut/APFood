@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { BackendError } from "./errors";
+import { requestOriginAllowed } from "../request-origin";
 
 export async function requestClient(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -21,8 +22,9 @@ export async function requestClient(request: Request) {
   }
 
   if (request.method !== "GET" && request.method !== "HEAD") {
-    const allowed = process.env.AP_FOOD_APP_ORIGIN || new URL(request.url).origin;
-    if (request.headers.get("origin") !== allowed) throw new BackendError(403, "FORBIDDEN", "Request origin is not allowed.");
+    if (!requestOriginAllowed(request.url, request.headers.get("origin"), process.env.AP_FOOD_APP_ORIGIN, process.env.NODE_ENV === "development")) {
+      throw new BackendError(403, "FORBIDDEN", "Request origin is not allowed.");
+    }
   }
   const store = await cookies();
   return createServerClient(url, key, {

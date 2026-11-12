@@ -31,10 +31,10 @@ export function Users() {
       <label className="field compact">Status<select value={status} onChange={event => replaceFilters({ status: event.target.value, page: "1" })}><option value="">All statuses</option><option value="active">Active</option><option value="suspended">Suspended</option></select></label>
     </form>
     {!result.value ? <RemoteStatus error={result.error} reload={result.reload} /> : <section className="panel">
-      <div className="table-wrap"><table><thead><tr><th>Person</th><th>Email</th><th>Access</th><th>Status</th><th>Action</th></tr></thead><tbody>
-        {result.value.users.map(user => <tr key={user.id}><th scope="row">{user.display_name || "Account"}<small>{user.email_confirmed_at ? "Verified" : "Email awaiting confirmation"}</small></th><td>{user.email}</td>
-          <td>{user.memberships.map(entry => entry.role + (entry.vendor_id ? " · " + (vendors.value?.find(stall => stall.id === entry.vendor_id)?.name ?? entry.vendor_id) : "")).join(", ")}</td>
-          <td><span className={"badge " + (user.status === "active" ? "good" : "warning")}>{user.status}</span></td><td><button className="button secondary" onClick={() => setSelected(user)}>Manage access</button></td></tr>)}
+      <div className="table-wrap"><table className="table-stack"><thead><tr><th>Person</th><th>Email</th><th>Access</th><th>Status</th><th>Action</th></tr></thead><tbody>
+        {result.value.users.map(user => <tr key={user.id}><th scope="row">{user.display_name || "Account"}<small>{user.email_confirmed_at ? "Verified" : "Email awaiting confirmation"}</small></th><td data-label="Email">{user.email}</td>
+          <td data-label="Access">{user.memberships.map(entry => entry.role + (entry.vendor_id ? " · " + (vendors.value?.find(stall => stall.id === entry.vendor_id)?.name ?? entry.vendor_id) : "")).join(", ")}</td>
+          <td data-label="Status"><span className={"badge " + (user.status === "active" ? "good" : "warning")}>{user.status}</span></td><td className="table-stack-action"><button className="button secondary" onClick={() => setSelected(user)}>Manage access</button></td></tr>)}
       </tbody></table></div>
       {!result.value.users.length && <p>No accounts match these filters.</p>}
       <div className="line spread wrap"><p className="small muted">{result.value.total} users · Page {page}</p><div className="line">

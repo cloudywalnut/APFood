@@ -54,4 +54,10 @@ The review covers implemented primary screens in hosted mode with fictional demo
 
 Additional captures include meal options and the protected-workspace fallback. Fixed mobile navigation can appear partway down a full-page image; this is a capture artifact, so final overlap checks use viewport captures.
 
-Kiro Claude Opus 5.5 is reviewing screenshots and source context. Its findings and integrated repairs will be recorded here after verification.
+Kiro Claude Opus 5.5 completed the review of all 92 initial PNG captures. The detailed findings are preserved in KIRO_UI_REVIEW.md. Its scoped CSS and markup repairs were integrated: larger text/touch targets, safe-area clearance, mobile action tables, chart scroll cues and latest-day positioning, clearer cart pricing, completed tracking treatment, and readable traffic-map load chips. Checkout now shows an estimated basket before authoritative quoting. Existing concurrent account/order improvements were preserved.
+
+The local sign-in origin mismatch was also fixed: development accepts same-origin requests through either loopback hostname while production retains the configured origin check. Two regression tests cover positive and rejection cases. The noodles account successfully reached its assigned dashboard at localhost:3000.
+
+The account menu now exposes View account, role-specific Settings and Log out in student, vendor and admin headers, and on the account page. Browser verification confirmed that Log out ends the session and returns to sign-in. The latest typecheck, 50 frontend/unit tests and production build pass; the six backend checks passed earlier in this pass. No push was performed.
+
+Review limitations remain as recorded by Kiro: email token flows were captured in safe fallback states; the captured hosted traffic was low load, with other colour thresholds covered by deterministic tests. The gallery contains initial review evidence and selected later checks, rather than a replacement screenshot for every subsequent edit.

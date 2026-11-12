@@ -22,7 +22,10 @@
     "../services/mock.ts",
     "../lib/login-routing.ts",
     "../lib/preferences.ts",
-    "../lib/traffic-load.ts"
+    "../lib/traffic-load.ts",
+    "../lib/request-origin.ts",
+    "../lib/fif-scenarios.ts",
+    "../lib/operational-analytics.ts"
   ],
   "exclude": [
     "../node_modules"

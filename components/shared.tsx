@@ -15,8 +15,8 @@ import { ModalSheet } from "./apspace/ui";
 import { scenarioNames, scenarios, statusNames, type Scenario, type Status } from "../lib/demo";
 import { selectScenario, useDemo } from "../lib/demo-store";
 
-export function Brand() {
-  return <APSpaceBrand />;
+export function Brand({ href }: { href?: string } = {}) {
+  return <APSpaceBrand href={href} />;
 }
 
 export function Footer({ compact = false }: { compact?: boolean }) {
@@ -33,7 +33,8 @@ export function StudentShell({ route, children, cartCount, signedIn = true }: { 
 export function OpsShell({ kind, route, title, children, hosted = false }: { kind: "vendor" | "admin"; route: string; title: string; children: ReactNode; hosted?: boolean }) {
   const searchParams=useSearchParams();
   const filters = kind === "vendor" ? "" : searchParams.toString();
-  return <div className="ops-theme ap-role-shell"><APSpaceHeader role={kind} route={route} hosted={hosted}/><div className="ap-ops-content"><main id="main-content" className="ops-main"><BackNavigation route={route}/>{children}</main></div><Footer/></div>;
+  const stallId = kind === "vendor" ? (searchParams.get("stall") ?? undefined) : undefined;
+  return <div className={"ops-theme ap-role-shell" + (kind === "vendor" ? " vendor-ops-theme" : "")}><APSpaceHeader role={kind} route={route} hosted={hosted}/><div className="ap-ops-content"><main id="main-content" className="ops-main"><BackNavigation route={route}/>{children}</main></div><Footer/>{kind === "vendor" && <FifAssistant mode="vendor" hosted={hosted} vendorId={stallId} />}</div>;
 
 }
 

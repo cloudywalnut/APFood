@@ -8,5 +8,5 @@ export function BackNavigation({route}:{route:string}){
  if(base==='/app'&&(['cart','checkout'].includes(parts[1])||parts[1]==='orders'&&parts.length>2||parts[3]==='item'))return null;
  if(base==='/vendor'&&parts[1]==='orders'&&parts.length>2)return null;
  const map=base==='/app'&&parts[1]==='vendors'&&parts.length>2;
- return <Link className="page-back-arrow" href={map?'/app/vendors':base}><ArrowLeft size={17} aria-hidden="true"/>{map?'Back to cafeteria map':'Back to dashboard'}</Link>
+ return <Link className="page-back-arrow" href={map?'/app/vendors':base}><ArrowLeft size={17} aria-hidden="true"/>{map?'Back to cafeteria map':base==='/app'?'Back to Discover':'Back to dashboard'}</Link>
 }

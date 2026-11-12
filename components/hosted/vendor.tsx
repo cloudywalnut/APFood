@@ -1,15 +1,19 @@
 "use client";
 
-import { HostedFif } from "./fif";
+import { VendorInsights } from "./vendor-insights";
+import { KitchenBoard } from "./kitchen-board";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { Eye, ImagePlus, Package, Plus, Trash2, UtensilsCrossed } from "lucide-react";
 import { money } from "../../lib/demo";
 import { hostedData } from "../../lib/backend/client";
-import type { OrderRow } from "../../lib/backend/contracts";
+import { isValidImageSrc, type OrderRow } from "../../lib/backend/contracts";
 import { subscribeToOrders } from "../../lib/backend/realtime";
 import { pickupWindow } from "../../lib/pickup-time";
+import { mealPhoto } from "../storefront/catalogue";
 import { Empty, ErrorMessage, Modal, OpsShell, StatusBadge, replaceFilters } from "../shared";
 import { HostedAccess, RemoteStatus, messageOf, useHostedData, useRemote, type Session } from "./common";
 import { OrderPayment, VendorPaymentSettings } from "./payments";
@@ -39,65 +43,28 @@ function VendorContent({ session, section, id }: { session: Session; section: st
   if (!stalls.value) return <RemoteStatus error={stalls.error} reload={stalls.reload} />;
   const stall = stalls.value.find(entry => entry.id === selection) ?? stalls.value[0];
   if (!stall) return <Empty title="No assigned stalls" detail="Ask an administrator to check your vendor membership." />;
-  const titles: Record<string, string> = { home: "Shift dashboard", orders: "Kitchen board", menu: "Menu & stock", capacity: "Capacity & hours", payments: "Payment settings" };
+  const titles: Record<string, string> = { home: "Shift dashboard", orders: "Kitchen board", menu: "Menu & stock", insights: "AI Insights", payments: "Payment settings" };
   return <>
     <div className="page-heading"><div><h1>{titles[section]}</h1><p>{stall.name}</p></div><div className="line wrap">
       <label className="field compact">Stall<select value={stall.id} onChange={event => replaceFilters({ stall: event.target.value })}>
         {stalls.value.map(entry => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
       </select></label>
     </div></div>
-    {(section === "home" || section === "orders") && <Kitchen key={stall.id} stall={stall} summary={section === "home"} />}
+    {(section === "home" || section === "orders" || section === "insights") && <Kitchen key={stall.id + section} stall={stall} summary={section !== "orders"} detailed={section === "insights"} />}
     {section === "menu" && <VendorMenu key={stall.id} stall={stall} />}
-    {section === "capacity" && <Settings key={stall.id} stall={stall} reload={stalls.reload} />}
     {section === "payments" && <VendorPaymentSettings key={stall.id} vendorId={stall.id} />}
   </>;
 }
 
-function Kitchen({ stall, summary }: { stall: Stall; summary: boolean }) {
+function Kitchen({ stall, summary, detailed = false }: { stall: Stall; summary: boolean; detailed?: boolean }) {
   const api = useHostedData();
   const load = useCallback(() => api.kitchen(stall.id), [stall.id, api]);
   const orders = useRemote(load);
-  const [busy, setBusy] = useState("");
-  const [error, setError] = useState("");
   useEffect(() => subscribeToOrders({ vendorId: stall.id }, orders.reload), [stall.id, orders.reload]);
   if (!orders.value) return <RemoteStatus error={orders.error} reload={orders.reload} />;
   const active = orders.value.filter(order => stages.some(stage => stage.status === order.status) &&
     (order.payment !== "duitnow_qr" || order.payment_record?.status === "paid"));
-  const awaitingPayment = orders.value.filter(order => order.status === "placed" && order.payment_record?.status === "pending").length;
-  if (summary) return <ShiftSummary stall={stall} active={active} />;
-  return <>{awaitingPayment > 0 && <p className="notice">{awaitingPayment} orders are awaiting payment and will enter the kitchen once paid.</p>}<ErrorMessage message={error} /><div className="kitchen-grid">{stages.map(stage => {
-    const lane = active.filter(order => order.status === stage.status).sort((a, b) => Date.parse(a.pickup_at) - Date.parse(b.pickup_at));
-    const next = stage.next;
-    return <section className="kitchen-lane" key={stage.status}><h2>{stage.label} <span className="badge neutral">{lane.length}</span></h2>
-      {lane.length ? lane.map(order => <article className="kitchen-ticket" key={order.id}>
-        <div className="line spread"><Link href={"/vendor/orders/" + order.id}><strong>{order.id.slice(0, 8)}</strong></Link><small>{pickupWindow(order.pickup_at)}</small></div>
-        <ul>{order.lines.map(line => <li key={line.itemId + line.extra}>{line.quantity} × {line.name}</li>)}</ul>
-        {next === "collected" ? <Link className="button primary" href={"/vendor/orders/" + order.id}>{stage.action}</Link>
-          : <button className="button primary" disabled={Boolean(busy)} onClick={async () => {
-            setBusy(order.id); setError("");
-            try { await api.transition(order.id, next); } catch (problem) { setError(messageOf(problem)); }
-            finally { orders.reload(); setBusy(""); }
-          }}>{busy === order.id ? "Updating…" : stage.action}</button>}
-      </article>) : <p className="muted small">No {stage.label.toLowerCase()} orders.</p>}
-    </section>;
-  })}</div></>;
-}
-
-function ShiftSummary({ stall, active }: { stall: Stall; active: OrderRow[] }) {
-  const api = useHostedData();
-  const load = useCallback(() => api.vendorMenu(stall.id), [api, stall.id]);
-  const menu = useRemote(load);
-  const low = menu.value?.filter(item => item.active && item.stock <= 5).length;
-  const placed = active.filter(order => order.status === "placed");
-  const ready = active.filter(order => order.status === "ready").length;
-  return <div className="stack">
-    <HostedFif role="vendor" vendorId={stall.id} />
-    <div className="metrics">{[
-      ["Active orders", active.length], ["Awaiting acceptance", placed.length], ["Ready for pickup", ready],
-      ["Low-stock items", low ?? "—"],
-    ].map(([label, value]) => <section className="metric" key={label}><div><span>{label}</span><strong>{value}</strong></div></section>)}</div>
-    {menu.error != null && <RemoteStatus error={menu.error} reload={menu.reload} />}
-  </div>;
+  return summary ? <VendorInsights vendorId={stall.id} active={active} orders={orders.value} detailed={detailed} /> : <KitchenBoard orders={orders.value} refresh={orders.reload} />;
 }
 
 function VendorOrder({ id, session }: { id: string; session: Session }) {
@@ -159,71 +126,183 @@ function VendorOrderActions({ order, reload }: { order: OrderRow; reload: () => 
   </>;
 }
 
+function DishThumb({ src, alt, size = 52 }: { src?: string; alt: string; size?: number }) {
+  const [broken, setBroken] = useState(false);
+  useEffect(() => { setBroken(false); }, [src]);
+  if (!src || !isValidImageSrc(src) || broken) return <UtensilsCrossed size={Math.round(size * 0.4)} aria-hidden />;
+  return <Image src={src} alt={alt} width={size} height={size} unoptimized onError={() => setBroken(true)} />;
+}
+
 function VendorMenu({ stall }: { stall: Stall }) {
   const api = useHostedData();
   const load = useCallback(() => api.vendorMenu(stall.id), [stall.id, api]);
   const result = useRemote(load);
   const [edit, setEdit] = useState<MenuItem | null>();
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<"all" | "published" | "hidden" | "low">("all");
   if (!result.value) return <RemoteStatus error={result.error} reload={result.reload} />;
-  return <section className="panel"><div className="line spread"><h2>Menu items</h2><button className="button primary" onClick={() => setEdit(null)}>Add item</button></div>
-    <label className="field">Search menu<input type="search" value={search} onChange={event => setSearch(event.target.value)} /></label>
-    <div className="table-wrap"><table><thead><tr><th>Item</th><th>Regular price</th><th>Stock</th><th>Visibility</th><th>Action</th></tr></thead><tbody>
-      {result.value.filter(item => (item.name + " " + item.description).toLowerCase().includes(search.trim().toLowerCase())).map(item => <tr key={item.id}><th scope="row">{item.name}</th><td>{money(item.price_sen)}</td><td>{item.stock}</td><td>{item.active ? "Published" : "Hidden"}</td><td><button className="button secondary" onClick={() => setEdit(item)}>Edit</button></td></tr>)}
-    </tbody></table></div>
-    {edit !== undefined && <EditItem item={edit} stall={stall} close={() => setEdit(undefined)} saved={() => { setEdit(undefined); result.reload(); }} />}
-  </section>;
+  const items = result.value;
+  const publishedCount = items.filter(item => item.active).length;
+  const lowStockCount = items.filter(item => item.stock <= 5).length;
+  const visible = items.filter(item => {
+    const matchesSearch = (item.name + " " + item.description).toLowerCase().includes(search.trim().toLowerCase());
+    const matchesFilter = filter === "all" || (filter === "published" && item.active) || (filter === "hidden" && !item.active) || (filter === "low" && item.stock <= 5);
+    return matchesSearch && matchesFilter;
+  });
+  return <>
+    <div className="metrics vendor-metrics">
+      <section className="metric"><div><span>Total dishes</span><strong>{items.length}</strong></div><span className="metric-icon"><UtensilsCrossed size={19} aria-hidden /></span></section>
+      <section className="metric"><div><span>Published</span><strong>{publishedCount}</strong></div><span className="metric-icon green"><Eye size={19} aria-hidden /></span></section>
+      <section className="metric"><div><span>Low or out of stock</span><strong>{lowStockCount}</strong></div><span className="metric-icon amber"><Package size={19} aria-hidden /></span></section>
+    </div>
+    <section className="panel">
+      <div className="line spread wrap">
+        <div><h2>Menu items</h2><p className="muted small">Manage dish photos, pricing, stock, and availability for students.</p></div>
+        <button className="button primary" onClick={() => setEdit(null)}><Plus size={17} aria-hidden />Add item</button>
+      </div>
+      <div className="menu-toolbar">
+        <label className="field">Search menu<input type="search" placeholder="Search by dish name or description" value={search} onChange={event => setSearch(event.target.value)} /></label>
+        <div className="segmented" role="group" aria-label="Menu filter">
+          {([["all", "All"], ["published", "Published"], ["hidden", "Hidden"], ["low", "Low stock"]] as const).map(([value, label]) =>
+            <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>
+          )}
+        </div>
+      </div>
+      {visible.length ? <div className="table-wrap"><table className="table-stack">
+        <thead><tr><th>Dish</th><th>Price</th><th>Stock</th><th>Visibility</th><th>Action</th></tr></thead>
+        <tbody>{visible.map(item => {
+          const photo = mealPhoto(item);
+          const finalPrice = item.price_sen - item.discount_sen;
+          return <tr key={item.id}>
+            <th scope="row">
+              <div className="menu-item-cell">
+                <div className="menu-item-thumb"><DishThumb src={photo} alt={item.name} /></div>
+                <div className="menu-item-meta">
+                  <strong>{item.name}</strong>
+                  {item.description ? <small>{item.description}</small> : <small>No description</small>}
+                </div>
+              </div>
+            </th>
+            <td data-label="Price">
+              <strong>{money(finalPrice)}</strong>
+              {item.discount_sen > 0 && <del className="menu-price-del">{money(item.price_sen)}</del>}
+            </td>
+            <td data-label="Stock">
+              <div className="menu-stock-cell">
+                <span>{item.stock}</span>
+                {item.stock === 0 ? <span className="badge warn">Out of stock</span> : item.stock <= 5 ? <span className="badge neutral">Low</span> : null}
+              </div>
+            </td>
+            <td data-label="Visibility"><span className={"badge " + (item.active ? "good" : "neutral")}>{item.active ? "Published" : "Hidden"}</span></td>
+            <td className="table-stack-action"><button className="button secondary" onClick={() => setEdit(item)}>Edit</button></td>
+          </tr>;
+        })}</tbody>
+      </table></div> : <div className="menu-empty-state">
+        <UtensilsCrossed size={24} aria-hidden />
+        <p>{items.length ? "No menu items match your search or filter." : "No dishes added yet. Add your first menu item to start taking orders."}</p>
+        {items.length ? <button className="button secondary" onClick={() => { setSearch(""); setFilter("all"); }}>Reset filters</button>
+          : <button className="button primary" onClick={() => setEdit(null)}><Plus size={17} aria-hidden />Add first item</button>}
+      </div>}
+      {edit !== undefined && <EditItem item={edit} stall={stall} close={() => setEdit(undefined)} saved={() => { setEdit(undefined); result.reload(); }} />}
+    </section>
+  </>;
 }
 
 function EditItem({ item, stall, close, saved }: { item: MenuItem | null; stall: Stall; close: () => void; saved: () => void }) {
   const api = useHostedData();
   const [id] = useState(() => item?.id ?? crypto.randomUUID());
+  const [imageUrl, setImageUrl] = useState(() => item?.image || (item ? mealPhoto(item) ?? "" : ""));
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  return <Modal title={item ? "Edit menu item" : "Add menu item"} close={() => { if (!busy) close(); }}>
+
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      setUploadError("Choose a PNG, JPEG, or WebP image.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setUploadError("Image must be 2 MB or smaller.");
+      return;
+    }
+    setUploading(true); setUploadError("");
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      const result = await api.uploadMenuImage(stall.id, formData);
+      setImageUrl(result.url);
+    } catch (problem) {
+      setUploadError(messageOf(problem));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  return <Modal title={item ? "Edit menu item" : "Add menu item"} close={() => { if (!busy && !uploading) close(); }}>
     <form className="stack" onSubmit={async event => {
       event.preventDefault();
       const data = new FormData(event.currentTarget);
+      const name = String(data.get("name") ?? "").trim();
+      const trimmedImage = imageUrl.trim();
+      if (!name) { setError("Enter a dish name."); return; }
+      if (trimmedImage && !isValidImageSrc(trimmedImage)) {
+        setError("Enter an image URL starting with https://, http://, or /.");
+        return;
+      }
+      const rawUnits = String(data.get("units") ?? "").trim();
+      const workUnits = rawUnits === "" ? undefined : Number(rawUnits);
       setBusy(true); setError("");
       try {
-        await api.saveMenu({ id, vendorId: stall.id, name: String(data.get("name")), description: String(data.get("description")),
-          priceSen: Math.round(Number(data.get("price")) * 100), stock: Number(data.get("stock")), expectedStock: item?.stock ?? null,
-          active: data.get("active") === "on", workUnits: Number(data.get("units")) });
+        await api.saveMenu({
+          id, vendorId: stall.id,
+          name,
+          description: String(data.get("description") ?? "").trim(),
+          priceSen: Math.round(Number(data.get("price")) * 100),
+          stock: Number(data.get("stock")),
+          expectedStock: item?.stock ?? null,
+          active: data.get("active") === "on",
+          workUnits,
+          image: trimmedImage,
+        });
         saved();
       } catch (problem) { setError(messageOf(problem)); } finally { setBusy(false); }
     }}>
-      <label className="field">Name<input name="name" required maxLength={70} defaultValue={item?.name} /></label>
-      <label className="field">Description<textarea name="description" maxLength={140} defaultValue={item?.description} /></label>
-      <label className="field">Regular price (RM)<input name="price" type="number" min=".01" max="1000" step=".01" required defaultValue={item ? item.price_sen / 100 : undefined} /></label>
-      <label className="field">Stock<input name="stock" type="number" min="0" max="1000000" required defaultValue={item?.stock ?? 0} /></label>
-      <label className="field">Prep work units<input name="units" type="number" min="1" max="300" required defaultValue={item?.work_units ?? 1} /></label>
-      <label className="check"><input name="active" type="checkbox" defaultChecked={item?.active ?? true} /> Publish item</label>
-      <ErrorMessage message={error} /><button className="button primary" disabled={busy}>Save item</button>
+      <div className="menu-photo-editor">
+        <div className="menu-photo-preview">
+          <DishThumb src={imageUrl.trim() || undefined} alt="Dish preview" size={92} />
+        </div>
+        <div className="menu-photo-controls">
+          <div className="menu-photo-actions">
+            <label className="button secondary menu-upload-label">
+              <ImagePlus size={16} aria-hidden />
+              {uploading ? "Uploading…" : "Upload photo"}
+              <input type="file" accept="image/png,image/jpeg,image/webp" disabled={uploading || busy} onChange={handleFileChange} />
+            </label>
+            {imageUrl.trim() && <button type="button" className="button secondary" disabled={uploading || busy} onClick={() => { setImageUrl(""); setUploadError(""); }}>
+              <Trash2 size={15} aria-hidden />Remove
+            </button>}
+          </div>
+          <label className="field">Image URL (optional)<input type="text" placeholder="https://... or /food/noodles.webp" maxLength={500} value={imageUrl} onChange={event => { setImageUrl(event.target.value); setUploadError(""); }} /></label>
+          <span className="field-hint">PNG, JPEG, or WebP up to 2 MB, or paste an image URL.</span>
+          <ErrorMessage message={uploadError} />
+        </div>
+      </div>
+      <label className="field">Name<input name="name" required maxLength={70} placeholder="e.g. Chicken Rice Bowl" defaultValue={item?.name} /></label>
+      <label className="field">Description<textarea name="description" maxLength={140} placeholder="Short description shown on the student menu" defaultValue={item?.description} /></label>
+      <div className="menu-form-row">
+        <label className="field">Regular price (RM)<input name="price" type="number" min=".01" max="1000" step=".01" required defaultValue={item ? (item.price_sen / 100).toFixed(2) : undefined} /></label>
+        <label className="field">Stock<input name="stock" type="number" min="0" max="1000000" required defaultValue={item?.stock ?? 0} /></label>
+      </div>
+      <label className="field">Prep work units (optional)
+        <input name="units" type="number" min="1" max="300" placeholder="Defaults to 1" defaultValue={item?.work_units ?? ""} />
+        <span className="field-hint">Capacity units per order; leave blank for standard or cooked-to-order items.</span>
+      </label>
+      <label className="check"><input name="active" type="checkbox" defaultChecked={item?.active ?? true} /> Publish item on student menu</label>
+      <ErrorMessage message={error} /><button className="button primary" disabled={busy || uploading}>{busy ? "Saving…" : "Save item"}</button>
     </form>
   </Modal>;
-}
-
-function Settings({ stall, reload }: { stall: Stall; reload: () => void }) {
-  const api = useHostedData();
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState("");
-  const [error, setError] = useState("");
-  return <section className="panel"><h2>Pickup settings</h2><form className="stack" onSubmit={async event => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    setBusy(true); setError(""); setNotice("");
-    try {
-      await api.settings(stall.id, { capacity: Number(data.get("capacity")), leadMinutes: Number(data.get("lead")),
-        opensAt: String(data.get("opens")), closesAt: String(data.get("closes")), paused: data.get("paused") === "on" });
-      reload(); setNotice("Pickup settings saved.");
-    } catch (problem) { setError(messageOf(problem)); } finally { setBusy(false); }
-  }}>
-    <label className="field">Opens (MYT)<input name="opens" required pattern="[0-9]{2}:[0-9]{2}" defaultValue={stall.opens_at.slice(0, 5)} /></label>
-    <label className="field">Closes (MYT)<input name="closes" required pattern="[0-9]{2}:[0-9]{2}" defaultValue={stall.closes_at.slice(0, 5)} /></label>
-    <label className="field">Work units per 15 minutes<input name="capacity" type="number" min="1" max="300" required defaultValue={stall.capacity} /></label>
-    <label className="field">Prep lead time (minutes)<input name="lead" type="number" min="1" max="120" required defaultValue={stall.lead_minutes} /></label>
-    <label className="check"><input name="paused" type="checkbox" defaultChecked={stall.paused} /> Pause intake</label>
-    <ErrorMessage message={error} />{notice && <p className="success" role="status">{notice}</p>}
-    <button className="button primary" disabled={busy}>Save pickup settings</button>
-  </form></section>;
 }

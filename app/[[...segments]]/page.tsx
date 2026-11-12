@@ -35,8 +35,9 @@ export default async function Page({ params }: { params: Promise<{ segments?: st
   if (portal === "app" && ["home", "vendors", "cart", "checkout", "orders", "history", "traffic"].includes(section) && (!id || section === "vendors" || section === "orders")) {
     return hosted ? <HostedStudent route={route} section={section} id={id} /> : <StudentPage route={route} section={section} id={id} />;
   }
-  if (portal === "vendor" && ["home", "orders", "menu", "capacity", "payments"].includes(section) && (!id || section === "orders")) {
-    if (!hosted && section === "payments") return <PublicPage page="login" />;
+  if (portal === "vendor" && section === "capacity") redirect("/vendor/insights");
+  if (portal === "vendor" && ["home", "orders", "menu", "insights", "payments"].includes(section) && (!id || section === "orders")) {
+    if (!hosted && (section === "payments" || section === "insights")) return <PublicPage page="login" />;
     return hosted ? <HostedVendor route={route} section={section} id={id} /> : <VendorPage route={route} section={section} id={id} />;
   }
   if (portal === "admin" && !id && ["home", "cashflow", "products", "vendors", "traffic", "audit", "users"].includes(section)) {

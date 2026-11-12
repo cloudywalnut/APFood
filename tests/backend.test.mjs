@@ -82,6 +82,24 @@ test("backend migrations, role isolation, allocations, pickup and ledger", async
   await call(vendor, "public.save_menu_item($1,$2,$3,$4,$5,$6,$7,$8,$9)", [noodleBar, "chicken-noodles", "Chicken Noodle Bowl", "", 1200, 12, true, 1, 12]);
   await assert.rejects(() => order(student, editQuote), /PRICE_CHANGED/);
 
+  // Optional work_units (null -> defaults to 1) and dish image persistence/preservation/clearing
+  await call(vendor, "public.save_menu_item($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)", [
+    noodleBar, "dry-wantan-mee", "Dry Wantan Mee", "Tossed noodles with char siew", 850, 15, true, null, null, "https://example.com/wantan.webp",
+  ]);
+  const [created] = await queryAs(vendor, "select name, work_units, image from menu_items where id = 'dry-wantan-mee'");
+  assert.deepEqual(created, { name: "Dry Wantan Mee", work_units: 1, image: "https://example.com/wantan.webp" });
+  await call(vendor, "public.save_menu_item($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)", [
+    noodleBar, "dry-wantan-mee", "Dry Wantan Mee Special", "Tossed noodles with char siew", 950, 15, true, null, 15, null,
+  ]);
+  const [preserved] = await queryAs(vendor, "select name, work_units, image from menu_items where id = 'dry-wantan-mee'");
+  assert.deepEqual(preserved, { name: "Dry Wantan Mee Special", work_units: 1, image: "https://example.com/wantan.webp" });
+  await call(vendor, "public.save_menu_item($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)", [
+    noodleBar, "dry-wantan-mee", "Dry Wantan Mee Special", "Tossed noodles with char siew", 950, 15, true, 2, 15, "",
+  ]);
+  const [cleared] = await queryAs(vendor, "select work_units, image from menu_items where id = 'dry-wantan-mee'");
+  assert.deepEqual(cleared, { work_units: 2, image: "" });
+  await assert.rejects(() => call(otherVendor, "public.save_menu_item($1,$2,$3,$4,$5,$6,$7)", [noodleBar, "hijack", "Hijack", "", 500, 5, true]), /FORBIDDEN/);
+
   const expenseKey = randomUUID();
   const expense = await call(admin, "public.record_expense($1,$2,$3,$4)", [null, 200, "Supplies", expenseKey]);
   assert.equal(await call(admin, "public.record_expense($1,$2,$3,$4)", [null, 200, "Supplies", expenseKey]), expense);

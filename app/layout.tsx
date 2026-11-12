@@ -1,5 +1,6 @@
 import { PreviewGate } from "../components/apspace/login";
 import { PreferenceCookies } from "../components/legal/cookie-preferences";
+import { HostedSessionProvider } from "../components/hosted/session-provider";
 import { ToastOutlet } from "../components/apspace/toasts";
 import type { Metadata } from "next";
 import "./globals.css";
@@ -12,6 +13,13 @@ import "./marketplace.css";
 import "./cart.css";
 import "./traffic.css";
 import "./cookies.css";
+import "./ui-review-fixes.css";
+import "./account-menu.css";
+import "./vendor-operations.css";
+import "./vendor-scenarios.css";
+import "./vendor-sales.css";
+import "./vendor-density.css";
+import "./vendor-analytics.css";
 
 export const metadata: Metadata = {
   title: "APFoods · Campus pickup",
@@ -20,5 +28,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><head><link rel="preload" href="/fonts/roboto-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous"/></head><body><a className="skip" href="#main-content">Skip to content</a>{process.env.AP_FOOD_DATA_MODE === 'supabase' ? children : <PreviewGate>{children}</PreviewGate>}<ToastOutlet/><PreferenceCookies/></body></html>;
+  return <html lang="en"><head><link rel="preload" href="/fonts/roboto-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous"/></head><body><a className="skip" href="#main-content">Skip to content</a>{process.env.AP_FOOD_DATA_MODE === 'supabase' ? <HostedSessionProvider>{children}</HostedSessionProvider> : <PreviewGate>{children}</PreviewGate>}<ToastOutlet/><PreferenceCookies/></body></html>;
 }

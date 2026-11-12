@@ -1,17 +1,21 @@
 import { z } from "zod";
 import { BackendError, unwrap } from "./errors";
-import { basketCheckoutInput, cartInput, checkoutInput, id, orderId, quoteInput } from "./contracts";
+import { basketCheckoutInput, cartInput, checkoutInput, copilotExecuteInput, copilotInput, id, isValidImageSrc, orderId, quoteInput } from "./contracts";
 import { requestClient, type RequestClient } from "./supabase";
 import { adminReport } from "./reports";
 import { authAction, authLimit } from "./auth";
-import { inviteAccount, manageAccount, qrUrl, uploadVendorQr } from "./account-actions";
+import { inviteAccount, manageAccount, qrUrl, uploadMenuImage, uploadVendorQr } from "./account-actions";
 import { clearRecovery } from "./recovery";
 import { recommendations } from "./fif";
+import { executeVendorCopilotAction, vendorCopilot } from "./vendor-copilot";
 import { dayKey } from "../demo";
+import { canUseWorkspace } from "../login-routing";
+import { scenarioInput } from "../fif-scenarios";
+import { vendorScenarios } from "./vendor-scenarios";
 
 const orderFields = "id,vendor_id,zone_id,pickup_at,status,payment,lines,total_sen,version,created_at,updated_at,ready_at,collected_at,payment_record:order_payments(status)";
 const vendorFields = "id,zone_id,name,description,category,image,status,paused,capacity,lead_minutes,opens_at,closes_at";
-const menuFields = "id,vendor_id,name,description,price_sen,discount_sen,stock,active,work_units";
+const menuFields = "id,vendor_id,name,description,price_sen,discount_sen,stock,active,work_units,image";
 const transitionInput = z.object({ status: z.enum(["accepted","preparing","ready","rejected"]), reason: z.string().max(250).optional() }).strict();
 const cancellation = z.object({ reason: z.string().max(250).optional() }).strict();
 const collection = z.object({ code: z.string().trim().regex(/^[a-fA-F0-9]{32}$/), counterConfirmed: z.boolean().default(false) }).strict();
@@ -19,8 +23,13 @@ const login = z.object({ email: z.email(), password: z.string().min(1).max(128) 
 const hour = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$|^24:00$/);
 const settings = z.object({ capacity: z.number().int().min(1).max(300).optional(), leadMinutes: z.number().int().min(1).max(120).optional(),
   opensAt: hour.optional(), closesAt: hour.optional(), paused: z.boolean().optional() }).strict().refine(input => Object.keys(input).length > 0);
+const menuImage = z.string().trim().max(500).refine(
+  value => value === "" || isValidImageSrc(value),
+  "Enter an image URL starting with https://, http://, or /."
+);
 const menu = z.object({ id, vendorId: id, name: z.string().trim().min(1).max(70), description: z.string().max(140), priceSen: z.number().int().min(1).max(100_000),
-  stock: z.number().int().min(0).max(1_000_000), expectedStock: z.number().int().min(0).nullable(), active: z.boolean(), workUnits: z.number().int().min(1).max(300) }).strict();
+  stock: z.number().int().min(0).max(1_000_000), expectedStock: z.number().int().min(0).nullable(), active: z.boolean(),
+  workUnits: z.number().int().min(1).max(300).nullish(), image: menuImage.optional() }).strict();
 const management = z.object({ status: z.enum(["approved","suspended"]).optional(), zoneId: id.optional(), reason: z.string().trim().min(1).max(250) }).strict()
   .refine(input => Boolean(input.status || input.zoneId));
 const expense = z.object({ vendorId: id.nullable(), amountSen: z.number().int().min(1).max(10_000_000), label: z.string().trim().min(1).max(150), idempotencyKey: z.uuid() }).strict();
@@ -43,7 +52,7 @@ async function session(client: RequestClient) {
 function requireMembership(actor: Awaited<ReturnType<typeof session>>, role: "student" | "vendor" | "admin", vendor?: string) {
   if (!actor.emailVerified) throw new BackendError(403, "EMAIL_UNCONFIRMED", "Confirm your email before continuing.");
   if (actor.profile?.status !== "active") throw new BackendError(403, "ACCOUNT_SUSPENDED", "Your account is suspended. Contact cafeteria support.");
-  if (!actor.memberships?.some(entry => entry.role === role && (vendor === undefined || entry.vendor_id === vendor))) {
+  if (!canUseWorkspace(actor, role) || !actor.memberships?.some(entry => entry.role === role && (vendor === undefined || entry.vendor_id === vendor))) {
     throw new BackendError(403, "FORBIDDEN", "This action is unavailable for your account.");
   }
   return actor;
@@ -66,6 +75,21 @@ export async function handleRequest(request: Request, path: string[]) {
       throw new BackendError(401, "SESSION_CHANGED", "Your account changed. Sign in as the original account to continue.");
     }
     const query = new URL(request.url).searchParams;
+    if (method === "POST" && key === "fif/vendor-scenarios") {
+      const input = await body(request, scenarioInput);
+      const actor = requireMembership(await getSession(), "vendor", input.vendorId);
+      return result(await vendorScenarios(client, actor.userId, input));
+    }
+    if (method === "POST" && key === "fif/copilot") {
+      const input = await body(request, copilotInput);
+      const actor = requireMembership(await getSession(), "vendor", input.vendorId);
+      return result(await vendorCopilot(client, actor.userId, input));
+    }
+    if (method === "POST" && key === "fif/copilot/execute") {
+      const input = await body(request, copilotExecuteInput);
+      requireMembership(await getSession(), "vendor", input.vendorId);
+      return result(await executeVendorCopilotAction(client, input));
+    }
     if (method === "POST" && key === "fif/recommendations") {
       const input = await body(request, z.object({ role: z.enum(["student", "vendor", "admin"]), vendorId: id.optional(), zoneId: id.optional() }).strict());
       const actor = requireMembership(await getSession(), input.role, input.role === "vendor" ? input.vendorId : undefined);
@@ -170,6 +194,11 @@ export async function handleRequest(request: Request, path: string[]) {
       requireMembership(await getSession(), "vendor", vendor);
       return result(await uploadVendorQr(request, client, vendor));
     }
+    if (path[0] === "vendor" && path[1] === "menu-images" && path.length === 3 && method === "POST") {
+      const vendor = id.parse(path[2]);
+      requireMembership(await getSession(), "vendor", vendor);
+      return result(await uploadMenuImage(request, client, vendor));
+    }
     if (method === "GET" && key === "orders") {
       const actor = requireMembership(await getSession(), "student");
       return result(unwrap(await client.from("orders").select(orderFields).eq("student_id", actor.userId).order("created_at", { ascending: false }).limit(100)));
@@ -239,7 +268,7 @@ export async function handleRequest(request: Request, path: string[]) {
       const input = await body(request, menu);
       unwrap(await client.rpc("save_menu_item", { p_vendor: input.vendorId, p_id: input.id, p_name: input.name,
         p_description: input.description, p_price: input.priceSen, p_stock: input.stock, p_active: input.active,
-        p_units: input.workUnits, p_expected_stock: input.expectedStock }));
+        p_units: input.workUnits ?? 1, p_expected_stock: input.expectedStock, p_image: input.image ?? null }));
       return result({ ok: true });
     }
     if (method === "PATCH" && path.length === 3 && path[0] === "admin" && path[1] === "vendors") {

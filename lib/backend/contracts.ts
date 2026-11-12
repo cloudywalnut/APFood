@@ -1,6 +1,15 @@
 import { z } from "zod";
 
 export const id = z.string().regex(/^[a-z0-9][a-z0-9-]{0,95}$/);
+export function isValidImageSrc(value: string) {
+  if (value.startsWith("/") && !value.startsWith("//")) return true;
+  try {
+    const url = new URL(value);
+    return (url.protocol === "http:" || url.protocol === "https:") && Boolean(url.hostname);
+  } catch {
+    return false;
+  }
+}
 export const fifOutput = z.object({
   recommendation: z.object({ id: z.string(), title: z.string(), evidence: z.string(), href: z.string(), action: z.string() }),
   source: z.enum(["rules", "gemini"]), generatedAt: z.string(), dataSource: z.literal("standard_demo"),
@@ -31,6 +40,7 @@ export const vendorRow = z.object({
 export const menuRow = z.object({
   id, vendor_id: id, name: z.string(), description: z.string(), price_sen: z.number().int(),
   discount_sen: z.number().int(), stock: z.number().int(), active: z.boolean(), work_units: z.number().int(),
+  image: z.string().optional().default(""),
 });
 export const catalogueOutput = z.object({ vendors: z.array(vendorRow), items: z.array(menuRow), zones: z.array(z.object({ id, name: z.string() })) });
 export const membership = z.object({ role: z.enum(["student","vendor","admin"]), vendor_id: id.nullable() });
@@ -61,6 +71,7 @@ export const ledgerRow = z.object({
 });
 export const adminReportOutput = z.object({
   asOf: z.string(), since: z.string(), source: z.literal("standard_demo"),
+  analytics: z.object({ daily: z.array(z.object({ day: z.string(), count: z.number().int().nonnegative() })), statuses: z.array(z.object({ status: z.string(), count: z.number().int().nonnegative() })), hours: z.array(z.object({ hour: z.number().int().min(0).max(23), count: z.number().int().nonnegative() })) }).optional(),
   finance: financeTotals.extend({ orderedValueSen: z.number().int(), outstandingCounterSen: z.number().int(), sharedOverheadSen: z.number().int() }),
   ledger: z.array(ledgerRow),
   products: z.array(menuRow.pick({ id: true, vendor_id: true, name: true, stock: true, active: true })
@@ -74,3 +85,76 @@ export const auditRow = z.object({
 export type QuoteInput = z.infer<typeof quoteInput>;
 export type CheckoutInput = z.infer<typeof checkoutInput>;
 export type OrderRow = z.infer<typeof orderRow>;
+
+export const copilotHistoryTurn = z.object({
+  role: z.enum(["user", "assistant"]),
+  text: z.string().trim().min(1).max(600),
+}).strict();
+
+export const copilotInput = z.object({
+  vendorId: id,
+  message: z.string().trim().min(1).max(400),
+  history: z.array(copilotHistoryTurn).max(10).optional(),
+}).strict();
+
+export const copilotMenuChanges = z.object({
+  stock: z.number().int().min(0).max(5000).optional(),
+  priceSen: z.number().int().min(50).max(50000).optional(),
+  discountSen: z.number().int().min(0).max(49950).optional(),
+  active: z.boolean().optional(),
+}).strict().refine(v => Object.keys(v).length > 0);
+
+export const copilotStallChanges = z.object({
+  paused: z.boolean().optional(),
+  capacity: z.number().int().min(1).max(300).optional(),
+  leadMinutes: z.number().int().min(1).max(120).optional(),
+}).strict().refine(v => Object.keys(v).length > 0);
+
+export const copilotProposedAction = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("update_menu_item"),
+    summary: z.string().trim().min(1).max(200),
+    itemId: id,
+    itemName: z.string().trim().min(1).max(80),
+    expectedStock: z.number().int().min(0).max(1_000_000),
+    before: z.object({
+      stock: z.number().int(),
+      priceSen: z.number().int(),
+      discountSen: z.number().int(),
+      active: z.boolean(),
+    }).strict(),
+    changes: copilotMenuChanges,
+  }).strict(),
+  z.object({
+    type: z.literal("update_stall_settings"),
+    summary: z.string().trim().min(1).max(200),
+    before: z.object({
+      paused: z.boolean(),
+      capacity: z.number().int(),
+      leadMinutes: z.number().int(),
+    }).strict(),
+    changes: copilotStallChanges,
+  }).strict(),
+]);
+
+export const copilotOutput = z.object({
+  reply: z.string(),
+  source: z.enum(["gemini", "rules"]),
+  proposedAction: copilotProposedAction.nullable(),
+  generatedAt: z.string(),
+});
+
+export const copilotExecuteInput = z.object({
+  vendorId: id,
+  action: copilotProposedAction,
+}).strict();
+
+export const copilotExecuteOutput = z.object({
+  ok: z.literal(true),
+  appliedSummary: z.string(),
+});
+
+export type CopilotHistoryTurn = z.infer<typeof copilotHistoryTurn>;
+export type CopilotProposedAction = z.infer<typeof copilotProposedAction>;
+export type CopilotOutput = z.infer<typeof copilotOutput>;
+export type CopilotExecuteInput = z.infer<typeof copilotExecuteInput>;

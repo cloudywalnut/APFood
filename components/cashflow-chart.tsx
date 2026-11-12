@@ -2,9 +2,12 @@
 
 import { dayLabel, money } from "../lib/demo";
 import { financeSeries, type FinanceEntry } from "../lib/analytics";
+import { useEffect, useRef } from "react";
 
 export function CashflowChart({ entries, days, asOf }: { entries: FinanceEntry[]; days: number; asOf?: number }) {
   const values = financeSeries(entries, days, asOf);
+  const scroller = useRef<HTMLDivElement>(null);
+  useEffect(() => { const element = scroller.current; if (element) element.scrollLeft = element.scrollWidth; }, [values.length]);
   const min = Math.min(0, ...values.map(value => value.net));
   const max = Math.max(1000, ...values.flatMap(value => [value.inflow, value.expense, value.net]));
   const low = Math.floor(min / 1000) * 1000;
@@ -17,7 +20,7 @@ export function CashflowChart({ entries, days, asOf }: { entries: FinanceEntry[]
   const barWidth = Math.min(24, step / 5);
   return <section className="panel chart-panel">
     <div className="line spread wrap"><div><h2>Cashflow over time</h2><p className="muted small">Demo receipts, expenses and net flow · RM</p></div><div className="chart-legend"><span className="legend-in">Receipts</span><span className="legend-out">Expenses</span><span className="legend-net">Net flow</span></div></div>
-    <div className="chart-scroll" tabIndex={0} role="region" aria-label="Cashflow chart">
+    <div ref={scroller} className="chart-scroll" tabIndex={0} role="region" aria-label="Cashflow chart">
       <svg viewBox="0 0 890 254" role="img" aria-label="Daily cashflow. Expand the data table below for the exact amounts.">
         {marks.map(mark => <g key={mark}><line x1={plot.left} y1={y(mark)} x2={plot.left + plot.width} y2={y(mark)} className="chart-grid" /><text x={plot.left - 10} y={y(mark) + 4} textAnchor="end">{Math.round(mark / 100)}</text></g>)}
         {values.map((value, index) => <g key={value.day}>

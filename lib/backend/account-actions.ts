@@ -41,10 +41,7 @@ export function qrUrl(client: RequestClient, path: string | null) {
   return path ? client.storage.from("vendor-qr").getPublicUrl(path).data.publicUrl : null;
 }
 
-export async function uploadVendorQr(request: Request, client: RequestClient, vendorId: string) {
-  const data = await request.formData();
-  const file = data.get("qr");
-  const name = z.string().trim().min(1).max(100).parse(data.get("merchantName"));
+async function readImageFile(file: FormDataEntryValue | null) {
   if (!(file instanceof File) || file.size < 12 || file.size > 2 * 1024 * 1024) {
     throw new BackendError(400, "INVALID_IMAGE", "Choose a PNG, JPEG, or WebP image up to 2 MB.");
   }
@@ -53,6 +50,13 @@ export async function uploadVendorQr(request: Request, client: RequestClient, ve
     : buffer[0] === 255 && buffer[1] === 216 && buffer[2] === 255 ? { ext: "jpg", type: "image/jpeg" }
       : buffer.toString("ascii", 0, 4) === "RIFF" && buffer.toString("ascii", 8, 12) === "WEBP" ? { ext: "webp", type: "image/webp" } : null;
   if (!format || format.type !== file.type) throw new BackendError(400, "INVALID_IMAGE", "The file must be a PNG, JPEG, or WebP image.");
+  return { buffer, format };
+}
+
+export async function uploadVendorQr(request: Request, client: RequestClient, vendorId: string) {
+  const data = await request.formData();
+  const name = z.string().trim().min(1).max(100).parse(data.get("merchantName"));
+  const { buffer, format } = await readImageFile(data.get("qr"));
   const path = vendorId + "/" + crypto.randomUUID() + "." + format.ext;
   const uploaded = await client.storage.from("vendor-qr").upload(path, buffer, { contentType: format.type, upsert: false });
   if (uploaded.error) throw new BackendError(400, "UPLOAD_FAILED", "The QR image could not be uploaded.");
@@ -63,4 +67,13 @@ export async function uploadVendorQr(request: Request, client: RequestClient, ve
     throw error;
   }
   return { ok: true };
+}
+
+export async function uploadMenuImage(request: Request, client: RequestClient, vendorId: string) {
+  const data = await request.formData();
+  const { buffer, format } = await readImageFile(data.get("image"));
+  const path = vendorId + "/" + crypto.randomUUID() + "." + format.ext;
+  const uploaded = await client.storage.from("menu-images").upload(path, buffer, { contentType: format.type, upsert: false });
+  if (uploaded.error) throw new BackendError(400, "UPLOAD_FAILED", "The dish image could not be uploaded.");
+  return { url: client.storage.from("menu-images").getPublicUrl(path).data.publicUrl };
 }

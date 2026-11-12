@@ -43,7 +43,7 @@ function ActivePickup({ userId, vendors }: { userId: string; vendors: Stall[] })
     : "Campus order";
   return <Link href={"/app/orders/" + order.id} className={"market-active-order" + (order.status === "ready" ? " is-ready" : "")} aria-label={"Track active order from " + (vendor?.name ?? order.vendor_id)}>
     <div className="market-active-photo">
-      <Image src={dishSrc} alt={firstLine?.name ?? vendor?.name ?? "Order dish"} fill sizes="80px" />
+      <Image src={dishSrc} alt={firstLine?.name ?? vendor?.name ?? "Order dish"} fill sizes="80px" unoptimized={/^https?:\/\//i.test(dishSrc)} />
     </div>
     <div className="market-active-body">
       <div className="market-active-meta">

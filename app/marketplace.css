@@ -357,9 +357,27 @@
 .fif-window-messages { display: grid; gap: 10px; padding: 15px; min-height: 0; max-height: 260px; overflow-y: auto; align-content: start; }
 .fif-msg { display: flex; }
 .fif-msg-user { justify-content: flex-end; }
-.fif-msg p { margin: 0; padding: 9px 12px; border-radius: 11px; font-size: 12.5px; line-height: 1.5; max-width: 85%; }
-.fif-msg-assistant p { background: #f5efe2; color: #3b2a1e; border-bottom-left-radius: 4px; }
-.fif-msg-user p { background: #3b2a1e; color: #fffefa; border-bottom-right-radius: 4px; }
+.fif-msg-body { display: grid; gap: 6px; max-width: 88%; }
+.fif-msg p { margin: 0; padding: 9px 12px; border-radius: 11px; font-size: 12.5px; line-height: 1.5; }
+.fif-msg-assistant .fif-msg-body > p { background: #f5efe2; color: #3b2a1e; border-bottom-left-radius: 4px; }
+.fif-msg-user .fif-msg-body > p { background: #3b2a1e; color: #fffefa; border-bottom-right-radius: 4px; }
+.fif-typing { font-style: italic; opacity: .8; }
+.fif-action-card { padding: 10px 11px; border-radius: 10px; border: 1px solid #dfd0b4; background: #fffbf2; color: #3b2a1e; display: grid; gap: 6px; font-size: 12px; }
+.fif-action-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fif-action-head strong { font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: #7a5c2e; }
+.fif-action-tag { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
+.fif-action-tag.is-applied { background: #e3f3e6; color: #1f6b36; }
+.fif-action-tag.is-cancelled { background: #efe8da; color: #6e5940; }
+.fif-action-card .fif-action-summary { margin: 0; padding: 0; background: transparent; font-weight: 650; font-size: 12px; color: #352a22; }
+.fif-action-diff { margin: 0; padding-left: 16px; display: grid; gap: 2px; font-size: 11.5px; color: #5f4a33; }
+.fif-action-card .fif-action-error { margin: 0; padding: 6px 8px; border-radius: 6px; background: #fdecec; color: #9c2b2b; font-size: 11.5px; }
+.fif-action-buttons { display: flex; gap: 6px; margin-top: 2px; }
+.fif-action-confirm, .fif-action-cancel { border-radius: 7px; font-size: 11.5px; font-weight: 700; padding: 6px 10px; cursor: pointer; }
+.fif-action-confirm { border: 0; background: #e6ae22; color: #3b2a1e; }
+.fif-action-confirm:hover:not(:disabled) { background: #d69e18; }
+.fif-action-cancel { border: 1px solid #dccbb0; background: #fffefa; color: #5f4a33; }
+.fif-action-cancel:hover:not(:disabled) { background: #f5efe2; }
+.fif-action-confirm:disabled, .fif-action-cancel:disabled { opacity: .55; cursor: not-allowed; }
 .fif-prompts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 .fif-prompts button { border: 1px solid #e2d5bc; border-radius: 999px; background: #fffefa; color: #6b5028; font-size: 11px; font-weight: 600; padding: 6px 11px; }
 .fif-prompts button:hover { background: #fbf1da; border-color: #d2b475; }

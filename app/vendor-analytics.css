@@ -1,0 +1,39 @@
+.vendor-analytics-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; min-width:0; }
+.vendor-mini-chart { background:#fff; border:1px solid #e0e4e9; border-radius:8px; min-width:0; overflow:hidden; }
+.vendor-mini-chart > header { display:flex; justify-content:space-between; align-items:center; gap:15px; padding:17px 20px 9px; }
+.vendor-mini-chart h2 { font-family:var(--sans); font-size:14px; margin:0; line-height:1.5; }
+.vendor-mini-chart .vendor-section-label { font-size:9px; margin-bottom:5px; }
+.vendor-mini-chart > header > strong { color:#7e6327; font-size:23px; }
+.vendor-mini-chart > header > strong small { display:block; color:#8893a1; font-weight:400; font-size:10px; text-align:right; }
+.vendor-mini-chart > footer { padding:12px 20px; color:#7c8897; font-size:10px; line-height:1.7; border-top:1px solid #f0f2f5; }
+.vendor-order-line { height:125px; margin:3px 18px 0; }
+.vendor-order-line svg { width:100%; height:100%; display:block; }
+.vendor-line-range { display:flex; justify-content:space-between; padding:0 21px 12px; font-size:10px; color:#8a95a3; }
+.vendor-order-mix { display:flex; align-items:center; justify-content:center; gap:30px; min-height:155px; padding:8px 20px 17px; }
+.vendor-donut { position:relative; width:125px; height:125px; border-radius:50%; display:grid; place-items:center; flex-shrink:0; }
+.vendor-donut > span { width:92px; height:92px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; flex-direction:column; }
+.vendor-donut strong { font-size:24px; color:#4c422d; }
+.vendor-donut small { font-size:10px; color:#909aa6; margin-top:4px; }
+.vendor-order-mix dl { margin:0; display:grid; gap:15px; min-width:150px; }
+.vendor-order-mix dl > div { display:flex; justify-content:space-between; gap:20px; }
+.vendor-order-mix dt { display:flex; align-items:center; gap:7px; font-size:11px; color:#748194; }
+.vendor-order-mix dd { font-size:12px; font-weight:650; color:#5b5039; margin:0; }
+.vendor-order-mix i { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+.mix-collected { background:#d3a62b; }.mix-active { background:#836846; }.mix-cancelled { background:#dce1e7; }
+.vendor-product-bars { display:grid; gap:14px; min-height:155px; padding:17px 20px; align-content:center; }
+.vendor-product-bars > div { display:grid; grid-template-columns:minmax(90px,1fr) minmax(70px,1fr) 25px; align-items:center; gap:14px; }
+.vendor-product-bars span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; color:#768395; }
+.vendor-product-bars > div > div { height:10px; background:#f3f1e9; border-radius:3px; }
+.vendor-product-bars i { display:block; height:100%; background:#d3ad50; border-radius:3px; }
+.vendor-product-bars strong { color:#79632d; font-size:12px; text-align:right; }
+.vendor-hour-bars { display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:8px; padding:15px 20px 13px; align-items:end; min-height:155px; }
+.vendor-hour-bars > div { text-align:center; }
+.vendor-hour-bars span { display:block; height:19px; font-size:10px; color:#7e6b40; }
+.vendor-hour-bars > div > div { display:flex; align-items:end; justify-content:center; height:95px; border-bottom:1px solid #e6e9ee; }
+.vendor-hour-bars i { display:block; width:70%; max-width:18px; background:#d5b35d; border-radius:3px 3px 0 0; }
+.vendor-hour-bars small { display:block; color:#8b95a3; font-size:10px; margin-top:9px; }
+.vendor-chart-placeholder { padding:30px 20px; min-height:155px; margin:0; color:#85909e; font-size:12px; line-height:1.8; }
+.vendor-analytics-values { grid-column:1/-1; padding:12px 18px; border:1px solid #e2e6eb; border-radius:6px; color:#7b8797; font-size:11px; background:#fff; }
+.vendor-analytics-values summary { cursor:pointer; min-height:25px; }
+@media(min-width:1300px) { .vendor-analytics-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } .vendor-mini-chart:first-child,.vendor-mini-chart:nth-child(4) { grid-column:span 2; } }
+@media(max-width:760px) { .vendor-analytics-grid { grid-template-columns:minmax(0,1fr); } .vendor-order-mix { gap:20px; } }

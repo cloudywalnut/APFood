@@ -8,7 +8,9 @@ import { ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, Se
 import { createHostedData, hostedData } from "../../lib/backend/client";
 import { Brand, ErrorMessage, Footer } from "../shared";
 import { HostedFrame, messageOf, portalFor, RemoteStatus, useRemote, type Role } from "./common";
-import { loginDestination } from "../../lib/login-routing";
+import { useHostedSession } from "./session-provider";
+import { canUseWorkspace, loginDestination } from "../../lib/login-routing";
+import { AccountMenu } from "../account-menu";
 
 const workspaceLabels: Record<Role, string> = {
   student: "Order campus food",
@@ -97,7 +99,7 @@ export function AuthScreen({ screen }: { screen: string }) {
 
 export function AccountScreen() {
   const router = useRouter();
-  const result = useRemote(hostedData.session);
+  const result = useHostedSession();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -118,13 +120,15 @@ export function AccountScreen() {
           <p role={!guest ? "status" : undefined}>{guest ? "Redirecting you to sign in so you can manage your profile, email, and password." : "Checking your session…"}</p>
         </div>
         <div className="stack">
-          <Link className="button primary" href="/auth/login?next=%2Faccount">Log in</Link>
+          {guest && <Link className="button primary" href="/auth/login?next=%2Faccount">Log in</Link>}
           <Link className="button secondary" href="/app">Browse campus food</Link>
         </div>
       </>}
     </HostedFrame>;
   }
   const api = createHostedData(session.userId);
+  const workspace = loginDestination(session);
+  const settingsHref = workspace.startsWith("/vendor") ? "/vendor/settings" : workspace.startsWith("/admin") ? "/admin/settings" : "/app/settings";
   const initials = session.profile.display_name.trim().slice(0, 1).toUpperCase() || "A";
   const foodTiles = [
     { src: "/food/lunch.webp", alt: "Chilli chicken and rice" },
@@ -135,10 +139,11 @@ export function AccountScreen() {
   return <div className="student-theme account-shell">
     <header className="account-topbar">
       <div>
-        <Brand />
+        <Brand href={workspace} />
         <div className="account-topbar-links">
-          <Link className="quiet-link" href="/app"><ArrowLeft size={16} aria-hidden />Campus food</Link>
-          <Link className="button secondary" href="/app/settings"><Settings size={15} aria-hidden />Settings</Link>
+          <AccountMenu hosted settingsHref={settingsHref} />
+          <Link className="quiet-link" href={workspace}><ArrowLeft size={16} aria-hidden />Your dashboard</Link>
+          <Link className="button secondary" href={settingsHref}><Settings size={15} aria-hidden />Settings</Link>
         </div>
       </div>
     </header>
@@ -162,7 +167,7 @@ export function AccountScreen() {
             </span>
           </div>
           <div className="account-workspaces">
-            {session.memberships.map(entry => <Link className="button secondary" key={entry.role + entry.vendor_id} href={portalFor[entry.role]}>
+            {session.memberships.filter(entry => canUseWorkspace(session, entry.role)).map(entry => <Link className="button secondary" key={entry.role + entry.vendor_id} href={portalFor[entry.role]}>
               {workspaceLabels[entry.role]}<ArrowRight size={15} aria-hidden />
             </Link>)}
           </div>

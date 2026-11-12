@@ -13,7 +13,7 @@ export async function rankActions(candidates: Candidate[], options: {
   const output = z.object({ actionId: z.string(), evidenceId: z.string() }).strict();
   try {
     const response = await (options.fetcher ?? fetch)(
-      "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(options.model ?? "gemini-2.5-flash") + ":generateContent", {
+      "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(options.model ?? "gemini-3.1-flash-lite") + ":generateContent", {
         method: "POST", signal: AbortSignal.timeout(5000),
         headers: { "Content-Type": "application/json", "x-goog-api-key": options.key },
         body: JSON.stringify({
@@ -21,7 +21,7 @@ export async function rankActions(candidates: Candidate[], options: {
           contents: [{ role: "user", parts: [{ text: JSON.stringify(eligible.map(item => ({ actionId: item.id, evidenceId: item.id, ...item.signals }))) }] }],
           generationConfig: { responseMimeType: "application/json", responseSchema: {
             type: "OBJECT", properties: { actionId: { type: "STRING", enum: eligible.map(item => item.id) }, evidenceId: { type: "STRING", enum: eligible.map(item => item.id) } }, required: ["actionId", "evidenceId"],
-          }, maxOutputTokens: 512, ...(!options.model || options.model === "gemini-2.5-flash" ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
+          }, maxOutputTokens: 512, ...(!options.model || options.model.startsWith("gemini-3") ? { thinkingConfig: { thinkingLevel: "low" } } : options.model === "gemini-2.5-flash" ? { thinkingConfig: { thinkingBudget: 0 } } : {}) },
         }),
       });
     if (!response.ok) return fallback;
