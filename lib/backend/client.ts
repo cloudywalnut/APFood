@@ -3,6 +3,13 @@
 import { z } from "zod";
 import { scenarioInput, scenarioOutput } from "../fif-scenarios";
 import {
+  adminOverviewOutput,
+  adminDetailOutput,
+  adminInsightsOutput,
+  adminChatOutput,
+  type AdminScope,
+} from "../admin-dashboard";
+import {
   activityRow,
   adminReportOutput,
   auditRow,
@@ -14,6 +21,7 @@ import {
   errorBody,
   fifOutput,
   menuRow,
+  ledgerRow,
   orderResult,
   orderRow,
   paymentOutput,
@@ -48,7 +56,11 @@ async function request<T>(path: string, output: z.ZodType<T>, method = "GET", in
     method,
     cache: "no-store",
     signal: AbortSignal.timeout(
-      ["fif/vendor-scenarios", "fif/copilot", "fif/student/chat"].includes(path) ? 25_000 : 15_000,
+      path.startsWith("admin/") || path.startsWith("fif/admin-") || path.startsWith("vendor/report?")
+        ? 30_000
+        : ["fif/vendor-scenarios", "fif/copilot", "fif/student/chat"].includes(path)
+          ? 25_000
+          : 15_000,
     ),
     headers: {
       ...(input === undefined || form ? {} : { "Content-Type": "application/json" }),
@@ -102,6 +114,11 @@ export function createApiClient(userId?: string) {
     session: () => request("auth/session", sessionOutput),
     signOut: async () => {
       const response = await call("auth/session", ok, "DELETE");
+      try {
+        Object.keys(sessionStorage)
+          .filter((key) => key.startsWith("apfoods-admin-fif:"))
+          .forEach((key) => sessionStorage.removeItem(key));
+      } catch {}
       window.dispatchEvent(new CustomEvent(sessionInvalidated, { detail: { session: null } }));
       return response;
     },
@@ -184,6 +201,29 @@ export function createApiClient(userId?: string) {
         }),
       ),
     report: (params: URLSearchParams) => call("admin/report?" + params.toString(), adminReportOutput),
+    adminLedger: (params: URLSearchParams) =>
+      call(
+        "admin/ledger?" + params,
+        z.object({ total: z.number().int(), entries: z.array(ledgerRow.extend({ isReversed: z.boolean() })) }),
+      ),
+    adminOverview: (scope: AdminScope) =>
+      call(
+        "admin/overview?" +
+          new URLSearchParams(
+            Object.entries(scope).filter((entry): entry is [string, string] => entry[1] !== undefined),
+          ),
+        adminOverviewOutput,
+      ),
+    adminVendorDetail: (id: string, days: string) =>
+      call("admin/vendors/" + encodeURIComponent(id) + "/overview?days=" + days, adminDetailOutput),
+    adminInsights: (scope: AdminScope) => call("fif/admin-insights", adminInsightsOutput, "POST", scope),
+    adminChat: (input: {
+      scope: AdminScope;
+      message: string;
+      history: { role: "user" | "assistant"; text: string }[];
+    }) => call("fif/admin-chat", adminChatOutput, "POST", input),
+    auditPage: (params: URLSearchParams) =>
+      call("admin/audit-page?" + params, z.object({ total: z.number().int(), events: z.array(auditRow) })),
     audit: () => call("admin/audit", z.array(auditRow)),
     manageStall: (id: string, input: { status: "approved" | "suspended"; zoneId: string; reason: string }) =>
       call("admin/vendors/" + encodeURIComponent(id), ok, "PATCH", input),

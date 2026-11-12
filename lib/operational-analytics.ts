@@ -1,5 +1,11 @@
 type AnalyticsOrder = { created_at: string; pickup_at: string; status: string };
-const day = (value: string | number) => new Date(value).toLocaleDateString("en-CA", { timeZone: "Asia/Kuala_Lumpur" });
+const dayFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kuala_Lumpur" });
+const hourFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Kuala_Lumpur",
+  hour: "2-digit",
+  hour12: false,
+});
+const day = (value: string | number) => dayFormatter.format(new Date(value));
 
 export function operationalAnalytics(orders: AnalyticsOrder[], since: string, days: number) {
   const daily = Array.from({ length: days }, (_, index) => ({
@@ -15,13 +21,7 @@ export function operationalAnalytics(orders: AnalyticsOrder[], since: string, da
     bucket.count++;
     statuses.set(order.status, (statuses.get(order.status) ?? 0) + 1);
     if (!["cancelled", "rejected"].includes(order.status)) {
-      const hour = Number(
-        new Date(order.pickup_at).toLocaleTimeString("en-GB", {
-          timeZone: "Asia/Kuala_Lumpur",
-          hour: "2-digit",
-          hour12: false,
-        }),
-      );
+      const hour = Number(hourFormatter.format(new Date(order.pickup_at)));
       if (Number.isInteger(hour) && hours[hour]) hours[hour].count++;
     }
   }

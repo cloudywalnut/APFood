@@ -13,6 +13,7 @@ import {
 } from "./contracts";
 import { requestClient, type RequestClient } from "./supabase";
 import { adminReport } from "./reports";
+import { readReportPages } from "./read-report-pages";
 import { authAction, authLimit } from "./auth";
 import { inviteAccount, manageAccount, qrUrl, uploadMenuImage, uploadVendorQr } from "./account-actions";
 import { clearRecovery } from "./recovery";
@@ -23,6 +24,9 @@ import { dayKey } from "../orders";
 import { canUseWorkspace } from "../login-routing";
 import { scenarioInput } from "../fif-scenarios";
 import { vendorScenarios } from "./vendor-scenarios";
+import { adminScope, adminChatInput } from "../admin-dashboard";
+import { adminOverview, adminVendorDetail, parseAdminScope } from "./admin-overview";
+import { adminInsights, adminChat } from "./admin-fif";
 
 const orderFields =
   "id,vendor_id,zone_id,pickup_at,status,payment,lines,total_sen,version,created_at,updated_at,ready_at,collected_at,payment_record:order_payments(status)";
@@ -157,6 +161,121 @@ export async function handleRequest(request: Request, path: string[]) {
       );
     }
     const query = new URL(request.url).searchParams;
+    if (method === "GET" && key === "admin/overview") {
+      requireMembership(await getSession(), "admin");
+      return result(await adminOverview(client, parseAdminScope(query)));
+    }
+    if (method === "GET" && key === "admin/ledger") {
+      requireMembership(await getSession(), "admin");
+      const scope = parseAdminScope(query);
+      const page = z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(10000)
+        .parse(query.get("page") ?? 1);
+      const kind = z
+        .enum(["", "demo", "counter", "duitnow_qr", "expense", "reversal", "refund"])
+        .parse(query.get("kind") ?? "");
+      const until = z.iso.datetime({ offset: true }).parse(query.get("until") ?? new Date().toISOString());
+      const since = z.iso
+        .datetime({ offset: true })
+        .parse(query.get("since") ?? new Date(dayKey(1 - Number(scope.days)) + "T00:00:00+08:00").toISOString());
+      if (
+        Date.parse(until) > Date.now() + 60000 ||
+        Date.parse(since) >= Date.parse(until) ||
+        Date.parse(until) - Date.parse(since) > 91 * 86400000
+      )
+        throw new BackendError(400, "INVALID_INPUT", "Choose a valid reporting range.");
+      let rows = client
+        .from("cash_entries")
+        .select("id,vendor_id,zone_id,order_id,kind,amount_sen,label,reverses_id,created_at", { count: "exact" })
+        .gte("created_at", since)
+        .lt("created_at", until)
+        .order("created_at", { ascending: false })
+        .order("id");
+      if (scope.vendorId) rows = rows.eq("vendor_id", scope.vendorId);
+      if (scope.zoneId) rows = rows.eq("zone_id", scope.zoneId);
+      if (kind) rows = rows.eq("kind", kind);
+      const response = await rows.range((page - 1) * 50, page * 50 - 1);
+      const entries = unwrap(response) ?? [];
+      const reversals = entries.length
+        ? unwrap(
+            await client
+              .from("cash_entries")
+              .select("reverses_id")
+              .in(
+                "reverses_id",
+                entries.map((e) => e.id),
+              ),
+          )
+        : [];
+      const reversed = new Set((reversals ?? []).map((e) => e.reverses_id));
+      return result({
+        total: response.count ?? 0,
+        entries: entries.map((e) => ({ ...e, isReversed: reversed.has(e.id) })),
+      });
+    }
+    if (
+      method === "GET" &&
+      path.length === 4 &&
+      path[0] === "admin" &&
+      path[1] === "vendors" &&
+      path[3] === "overview"
+    ) {
+      requireMembership(await getSession(), "admin");
+      const scope = parseAdminScope(query);
+      return result(await adminVendorDetail(client, id.parse(path[2]), scope.days));
+    }
+    if (method === "POST" && key === "fif/admin-insights") {
+      const actor = requireMembership(await getSession(), "admin");
+      return result(await adminInsights(client, actor.userId, await body(request, adminScope)));
+    }
+    if (method === "POST" && key === "fif/admin-chat") {
+      const actor = requireMembership(await getSession(), "admin");
+      return result(await adminChat(client, actor.userId, await body(request, adminChatInput)));
+    }
+    if (method === "GET" && key === "admin/audit-page") {
+      requireMembership(await getSession(), "admin");
+      return result(
+        unwrap(
+          await client.rpc("admin_audit_page", {
+            p_page: z.coerce
+              .number()
+              .int()
+              .min(1)
+              .max(10000)
+              .parse(query.get("page") ?? 1),
+            p_search: z
+              .string()
+              .max(100)
+              .parse(query.get("search") ?? ""),
+            p_actor: z
+              .enum(["student", "vendor", "admin"])
+              .nullable()
+              .parse(query.get("actor") || null),
+            p_target: z
+              .string()
+              .max(100)
+              .nullable()
+              .parse(query.get("vendorId") || null),
+            p_since: z.iso
+              .datetime({ offset: true })
+              .nullable()
+              .parse(
+                query.get("since") ||
+                  (query.has("days")
+                    ? new Date(dayKey(1 - Number(parseAdminScope(query).days)) + "T00:00:00+08:00").toISOString()
+                    : null),
+              ),
+            p_until: z.iso
+              .datetime({ offset: true })
+              .nullable()
+              .parse(query.get("until") || null),
+          }),
+        ),
+      );
+    }
     if (method === "POST" && key === "fif/vendor-scenarios") {
       const input = await body(request, scenarioInput);
       const actor = requireMembership(await getSession(), "vendor", input.vendorId);
@@ -340,6 +459,25 @@ export async function handleRequest(request: Request, path: string[]) {
     }
     if (key === "admin/users" && method === "GET") {
       requireMembership(await getSession(), "admin");
+      if (query.get("vendorId"))
+        return result(
+          unwrap(
+            await client.rpc("admin_vendor_accounts", {
+              p_vendor: id.parse(query.get("vendorId")),
+              p_page: z.coerce
+                .number()
+                .int()
+                .min(1)
+                .max(10000)
+                .parse(query.get("page") ?? 1),
+              p_search: z
+                .string()
+                .max(100)
+                .parse(query.get("search") ?? ""),
+              p_status: z.enum(["", "active", "suspended"]).parse(query.get("status") ?? ""),
+            }),
+          ),
+        );
       return result(
         unwrap(
           await client.rpc("list_accounts", {
@@ -385,7 +523,10 @@ export async function handleRequest(request: Request, path: string[]) {
     }
     if (method === "GET" && key === "orders") {
       const actor = requireMembership(await getSession(), "student");
-      const view = z.enum(["active", "history"]).optional().parse(query.get("view") ?? undefined);
+      const view = z
+        .enum(["active", "history"])
+        .optional()
+        .parse(query.get("view") ?? undefined);
       let selection = client.from("orders").select(orderFields).eq("student_id", actor.userId);
       if (view === "active") selection = selection.in("status", ["placed", "accepted", "preparing", "ready"]);
       if (view === "history") selection = selection.in("status", ["collected", "cancelled", "rejected"]);
@@ -588,18 +729,21 @@ export async function handleRequest(request: Request, path: string[]) {
         .min(1)
         .max(14)
         .parse(query.get("days") ?? 7);
-      let rows = client
-        .from("orders")
-        .select(orderFields, { count: "exact" })
-        .gte("created_at", new Date(dayKey(1 - days) + "T00:00:00+08:00").toISOString())
-        .order("created_at", { ascending: false });
-      if (query.get("vendorId")) rows = rows.eq("vendor_id", id.parse(query.get("vendorId")));
-      if (query.get("zoneId")) rows = rows.eq("zone_id", id.parse(query.get("zoneId")));
-      const response = await rows;
-      const orders = unwrap(response) ?? [];
-      if ((response.count ?? 0) > orders.length)
-        throw new BackendError(400, "REPORT_RANGE_TOO_LARGE", "Filter by stall or choose a shorter period.");
-      return result(orders);
+      const since = new Date(dayKey(1 - days) + "T00:00:00+08:00").toISOString();
+      const asOf = new Date().toISOString();
+      const response = await readReportPages((from, to) => {
+        let rows = client
+          .from("orders")
+          .select(orderFields, { count: from === 0 ? "exact" : undefined })
+          .gte("created_at", since)
+          .lte("created_at", asOf)
+          .order("created_at", { ascending: false })
+          .order("id");
+        if (query.get("vendorId")) rows = rows.eq("vendor_id", id.parse(query.get("vendorId")));
+        if (query.get("zoneId")) rows = rows.eq("zone_id", id.parse(query.get("zoneId")));
+        return rows.range(from, to);
+      });
+      return result(unwrap(response));
     }
     if (method === "GET" && key === "admin/audit") {
       requireMembership(await getSession(), "admin");

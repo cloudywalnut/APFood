@@ -3,6 +3,7 @@ import { dayKey } from "../orders";
 import { id, ledgerRow, orderLine, payment, status } from "./contracts";
 import { BackendError, unwrap } from "./errors";
 import type { RequestClient } from "./supabase";
+import { readReportPages } from "./read-report-pages";
 import { operationalAnalytics } from "../operational-analytics";
 
 const filters = z.object({
@@ -47,26 +48,34 @@ export async function adminReport(client: RequestClient, params: URLSearchParams
     (v) => (!filter.zoneId || v.zone_id === filter.zoneId) && (!filter.vendorId || v.id === filter.vendorId),
   );
   const vendorIds = scopedVendors.map((v) => v.id);
-  let ledgerQuery = client
-    .from("cash_entries")
-    .select("id,vendor_id,zone_id,order_id,kind,amount_sen,label,reverses_id,created_at", { count: "exact" })
-    .gte("created_at", since)
-    .lte("created_at", asOf)
-    .order("created_at", { ascending: false });
-  if (filter.vendorId) ledgerQuery = ledgerQuery.eq("vendor_id", filter.vendorId);
-  if (filter.zoneId) ledgerQuery = ledgerQuery.eq("zone_id", filter.zoneId);
-  let orderQuery = client
-    .from("orders")
-    .select("vendor_id,zone_id,payment,status,total_sen,lines,pickup_at,created_at,ready_at,collected_at", {
-      count: "exact",
-    })
-    .or("created_at.gte." + since + ",collected_at.gte." + since)
-    .lte("created_at", asOf);
-  if (filter.vendorId) orderQuery = orderQuery.eq("vendor_id", filter.vendorId);
-  if (filter.zoneId) orderQuery = orderQuery.eq("zone_id", filter.zoneId);
+  const ledgerPage = (from: number, to: number) => {
+    let ledgerQuery = client
+      .from("cash_entries")
+      .select("id,vendor_id,zone_id,order_id,kind,amount_sen,label,reverses_id,created_at", {
+        count: from === 0 ? "exact" : undefined,
+      })
+      .gte("created_at", since)
+      .lte("created_at", asOf)
+      .order("created_at", { ascending: false });
+    if (filter.vendorId) ledgerQuery = ledgerQuery.eq("vendor_id", filter.vendorId);
+    if (filter.zoneId) ledgerQuery = ledgerQuery.eq("zone_id", filter.zoneId);
+    return ledgerQuery.order("id").range(from, to);
+  };
+  const orderPage = (from: number, to: number) => {
+    let orderQuery = client
+      .from("orders")
+      .select("vendor_id,zone_id,payment,status,total_sen,lines,pickup_at,created_at,ready_at,collected_at", {
+        count: from === 0 ? "exact" : undefined,
+      })
+      .or("created_at.gte." + since + ",collected_at.gte." + since)
+      .lte("created_at", asOf);
+    if (filter.vendorId) orderQuery = orderQuery.eq("vendor_id", filter.vendorId);
+    if (filter.zoneId) orderQuery = orderQuery.eq("zone_id", filter.zoneId);
+    return orderQuery.order("created_at").order("id").range(from, to);
+  };
   const [entriesResult, ordersResult, menuResult] = await Promise.all([
-    ledgerQuery,
-    orderQuery,
+    readReportPages(ledgerPage),
+    readReportPages(orderPage),
     vendorIds.length
       ? client.from("menu_items").select("id,vendor_id,name,stock,active").in("vendor_id", vendorIds)
       : Promise.resolve({ data: [], error: null }),

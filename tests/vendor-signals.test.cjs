@@ -85,6 +85,12 @@ test("automatic analysis fetches multiple sources and labels explicit weather ov
           limit() {
             return query;
           },
+          range() {
+            return query;
+          },
+          order() {
+            return query;
+          },
           in() {
             return query;
           },
@@ -133,7 +139,9 @@ test("automatic analysis fetches multiple sources and labels explicit weather ov
     assert.equal(result.context.temperatureC, undefined);
     assert.match(result.context.weatherLabel, /scenario/);
     assert.match(result.notes[0], /scenario/);
-    assert.ok(result.actions.some((action) => /replenishment/.test(action.title)));
+    assert.deepEqual(result.actions, []);
+    assert.equal(result.source, "rules");
+    assert.ok(result.notes.some((note) => /Gemini is not configured/.test(note)));
   } finally {
     if (key === undefined) delete process.env.GEMINI_API_KEY;
     else process.env.GEMINI_API_KEY = key;

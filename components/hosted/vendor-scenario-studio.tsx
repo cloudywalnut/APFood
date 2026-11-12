@@ -19,6 +19,22 @@ import { money } from "../../lib/orders";
 import { projectScenario, type ScenarioProduct, type ScenarioResult } from "../../lib/fif-scenarios";
 import { useAnimatedNumber } from "./use-animated-number";
 
+function benchmarkPeriod(asOf: string, days: string) {
+  const end = new Date(asOf);
+  const key = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kuala_Lumpur" }).format(end);
+  const start = new Date(`${key}T00:00:00+08:00`);
+  start.setUTCDate(start.getUTCDate() - Number(days) + 1);
+  const date = (value: Date) =>
+    value.toLocaleDateString("en-MY", {
+      timeZone: "Asia/Kuala_Lumpur",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  const time = end.toLocaleTimeString("en-MY", { timeZone: "Asia/Kuala_Lumpur", hour: "numeric", minute: "2-digit" });
+  return `${days === "1" ? "Today" : `Last ${days} days`} · ${date(start)}–${date(end)} · as of ${time} MYT`;
+}
+
 function ComparisonChart({
   title,
   before,
@@ -68,7 +84,7 @@ function ComparisonChart({
           title +
           ": recorded " +
           format(before) +
-          (generated ? ", AI scenario " + format(after) : ". Run AI Insights to project.")
+          (generated ? ", FIF Optimized " + format(after) : ". Run AI Insights to project.")
         }
       >
         <div>
@@ -79,7 +95,7 @@ function ComparisonChart({
           <strong>{format(before)}</strong>
         </div>
         <div className={generated ? "is-projected" : "is-pending"}>
-          <span>AI Scenario</span>
+          <span>FIF Optimized</span>
           <div className="scenario-bar-track">
             <i style={{ width: generated ? (animatedAfter / max) * 100 + "%" : "0%" }} />
           </div>
@@ -145,7 +161,13 @@ export function VendorScenarioStudio({
   const formatWork = (value: number) => value.toLocaleString("en-MY", { maximumFractionDigits: 1 }) + " units";
   const animatedRevDelta = useAnimatedNumber(analysis ? revenueDelta : 0, Boolean(analysis), 1200, undefined, revision);
   const animatedRevPct = useAnimatedNumber(analysis ? revenuePct : 0, Boolean(analysis), 1200, undefined, revision);
-  const animatedEffortDelta = useAnimatedNumber(analysis ? Math.abs(effortDelta) : 0, Boolean(analysis), 1200, undefined, revision);
+  const animatedEffortDelta = useAnimatedNumber(
+    analysis ? Math.abs(effortDelta) : 0,
+    Boolean(analysis),
+    1200,
+    undefined,
+    revision,
+  );
   const animatedEffortPct = useAnimatedNumber(analysis ? effortPct : 0, Boolean(analysis), 1200, undefined, revision);
 
   const [sentActionId, setSentActionId] = useState<string | null>(null);
@@ -210,7 +232,7 @@ export function VendorScenarioStudio({
           </span>
           <span>
             <BarChart3 size={13} aria-hidden />
-            {analysis.source === "gemini" ? "Gemini-ranked" : "Rules-ranked"}
+            {analysis.source === "gemini" ? "Gemini-generated · evidence checked" : "AI recommendations unavailable"}
             {analysis.cached ? " · cached" : ""} ·{" "}
             {new Date(analysis.generatedAt).toLocaleTimeString("en-MY", {
               timeZone: "Asia/Kuala_Lumpur",
@@ -232,7 +254,7 @@ export function VendorScenarioStudio({
           before={observed.revenueSen}
           after={projected.revenueSen}
           format={money}
-          generated={Boolean(analysis) && hasHistory}
+          generated={analysis?.source === "gemini" && analysis.actions.length > 0 && hasHistory}
           deltaPct={revenuePct}
           revision={revision}
         />
@@ -241,7 +263,7 @@ export function VendorScenarioStudio({
           before={observed.workUnits}
           after={projected.workUnits}
           format={formatWork}
-          generated={Boolean(analysis) && hasHistory}
+          generated={analysis?.source === "gemini" && analysis.actions.length > 0 && hasHistory}
           deltaPct={effortPct}
           revision={revision}
         />
@@ -267,7 +289,8 @@ export function VendorScenarioStudio({
                   {animatedRevDelta >= 0 ? "+" : "−"}
                   {money(Math.round(Math.abs(animatedRevDelta)))}{" "}
                   <small>
-                    ({animatedRevPct >= 0 ? "+" : ""}{animatedRevPct.toFixed(1)}%)
+                    ({animatedRevPct >= 0 ? "+" : ""}
+                    {animatedRevPct.toFixed(1)}%)
                   </small>
                 </strong>
               </span>
@@ -276,7 +299,8 @@ export function VendorScenarioStudio({
                 <strong>
                   {formatWork(animatedEffortDelta)}{" "}
                   <small>
-                    ({animatedEffortPct > 0 ? "+" : ""}{animatedEffortPct.toFixed(1)}%)
+                    ({animatedEffortPct > 0 ? "+" : ""}
+                    {animatedEffortPct.toFixed(1)}%)
                   </small>
                 </strong>
               </span>
@@ -306,6 +330,7 @@ export function VendorScenarioStudio({
                     #{analysis.benchmark.vendorRank} of {analysis.benchmark.totalVendors} active stalls ·{" "}
                     {analysis.benchmark.ratingLabel}
                   </h3>
+                  <p className="vendor-benchmark-period">{benchmarkPeriod(analysis.dataAsOf, analysis.days)}</p>
                   <p>{analysis.benchmark.summary}</p>
                 </div>
                 <div className="vendor-benchmark-score">
@@ -489,7 +514,9 @@ export function VendorScenarioStudio({
           </div>
           {!analysis.actions.length && (
             <p className="scenario-limit">
-              There is not enough suitable menu or sales data for an AI recommendation yet.
+              {analysis.source === "gemini"
+                ? "AI found no sufficiently supported recommendations for this period. Try a longer reporting period."
+                : "AI recommendations are unavailable. See the source notes below and try generating insights again."}
             </p>
           )}
           <details className="scenario-method">
@@ -535,7 +562,7 @@ export function VendorScenarioStudio({
         </>
       )}
       <footer>
-        AI scenario estimates — no menu price or kitchen setting changes automatically without your confirmation.
+        FIF Optimized estimates — no menu price or kitchen setting changes automatically without your confirmation.
       </footer>
     </section>
   );

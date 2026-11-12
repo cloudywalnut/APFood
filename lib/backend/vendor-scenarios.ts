@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { RequestClient } from "./supabase";
+import { readReportPages } from "./read-report-pages";
 import { adminReport } from "./reports";
 import { privilegedClient } from "./auth";
 import { unwrap } from "./errors";
 import { fetchCampusWeather } from "./campus-weather";
 import { operatingRecommendations } from "./vendor-operating-signals";
+import { generateVendorRecommendations } from "./vendor-recommendation-writer";
 import { dayKey, money } from "../orders";
 import {
   analyzeSalesPatterns,
@@ -54,12 +56,16 @@ async function fetchPeerBenchmark(
     const admin = privilegedClient();
     const [vendorsRes, ordersRes] = await Promise.all([
       admin.from("vendors").select("id").eq("status", "approved"),
-      admin
-        .from("orders")
-        .select("vendor_id,status,total_sen", { count: "exact" })
-        .gte("created_at", since)
-        .lte("created_at", asOf)
-        .limit(5000),
+      readReportPages((from, to) =>
+        admin
+          .from("orders")
+          .select("vendor_id,status,total_sen", { count: from === 0 ? "exact" : undefined })
+          .gte("created_at", since)
+          .lte("created_at", asOf)
+          .order("created_at")
+          .order("id")
+          .range(from, to),
+      ),
     ]);
     if (vendorsRes.error || ordersRes.error || ordersRes.count === null || ordersRes.count !== ordersRes.data?.length)
       return undefined;
@@ -107,12 +113,17 @@ export async function vendorScenarios(
       .eq("vendors.status", "approved")
       .neq("vendor_id", input.vendorId)
       .limit(250),
-    client
-      .from("orders")
-      .select("status,total_sen,lines,pickup_at,created_at", { count: "exact" })
-      .eq("vendor_id", input.vendorId)
-      .gte("created_at", since)
-      .lte("created_at", asOf),
+    readReportPages((from, to) =>
+      client
+        .from("orders")
+        .select("status,total_sen,lines,pickup_at,created_at", { count: from === 0 ? "exact" : undefined })
+        .eq("vendor_id", input.vendorId)
+        .gte("created_at", since)
+        .lte("created_at", asOf)
+        .order("created_at")
+        .order("id")
+        .range(from, to),
+    ),
     fetchPeerBenchmark(input.vendorId, since, asOf),
     client
       .from("orders")
@@ -154,6 +165,7 @@ export async function vendorScenarios(
   const fingerprint = createHash("sha256")
     .update(
       JSON.stringify([
+        "ai-authored-four-v1",
         userId,
         input.vendorId,
         input.days,
@@ -214,7 +226,7 @@ export async function vendorScenarios(
         productName(seasonal.name) + " is published with " + seasonal.stock + " portions available.",
         `${campus.location} context: ${weatherLabel}.`,
       ],
-      assumptions: ["Assume 8% more units for this item; this response is an AI scenario estimate."],
+      assumptions: ["Assume 8% more units for this item; this response is an FIF Optimized estimate."],
       volumeChangePct: 8,
       workSavingPct: 0,
     });
@@ -330,10 +342,7 @@ export async function vendorScenarios(
       volumeChangePct: 0,
       workSavingPct: 8,
     });
-  let chosen = (["timing", "preparation", "price", "merchandising", "weather"] as const).flatMap((kind) => {
-    const candidate = candidates.find((action) => action.kind === kind);
-    return candidate ? [candidate] : [];
-  });
+  let chosen: ScenarioAction[] = [];
   let source: "rules" | "gemini" = "rules";
   const notes = [
     `Context: ${campus.location}; ${weatherLabel}; ${audienceLabel}.`,
@@ -362,92 +371,38 @@ export async function vendorScenarios(
     });
     if (!limit.error && limit.data === true) {
       try {
-        const compactCandidates = candidates.map((c) => ({
-          id: c.id,
-          kind: c.kind,
-          title: c.title,
-          detail: c.detail,
-          volumeChangePct: c.volumeChangePct,
-          workSavingPct: c.workSavingPct,
-        }));
-        const response = await fetch(
-          "https://generativelanguage.googleapis.com/v1beta/models/" +
-            encodeURIComponent(process.env.GEMINI_MODEL || "gemini-3.1-flash-lite") +
-            ":generateContent",
+        chosen = await generateVendorRecommendations(
+          candidates,
           {
-            method: "POST",
-            signal: AbortSignal.timeout(7000),
-            headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-            body: JSON.stringify({
-              systemInstruction: {
-                parts: [
-                  {
-                    text: "Select up to five distinct, useful cafeteria experiment IDs from the supplied candidates for an APU Campus (Bukit Jalil, Malaysia) food stall. Prefer evidence-supported variety across weather, pricing, merchandising (slow movers), timing (peak hours/days), and preparation. Do not invent IDs or facts. Return JSON actionIds only.",
-                  },
-                ],
-              },
-              contents: [
-                {
-                  role: "user",
-                  parts: [
-                    {
-                      text: JSON.stringify({
-                        location: campus.location,
-                        weather: effectiveWeather,
-                        weatherLabel,
-                        audience: effectiveAudience,
-                        audienceLabel,
-                        peakWindow: patterns.peakHours[0]?.label,
-                        tier: benchmark?.ratingLabel,
-                        candidates: compactCandidates,
-                      }),
-                    },
-                  ],
-                },
-              ],
-              generationConfig: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                  type: "OBJECT",
-                  properties: {
-                    actionIds: {
-                      type: "ARRAY",
-                      items: { type: "STRING", enum: candidates.map((candidate) => candidate.id) },
-                      minItems: 1,
-                      maxItems: 5,
-                    },
-                  },
-                  required: ["actionIds"],
-                },
-                maxOutputTokens: 256,
-                thinkingConfig: { thinkingLevel: "low" },
-              },
-            }),
+            location: campus.location,
+            weather: effectiveWeather,
+            weatherLabel,
+            audience: effectiveAudience,
+            audienceLabel,
+            peakWindow: patterns.peakHours[0]?.label,
+            tier: benchmark?.ratingLabel,
+            dataAsOf: report.asOf,
+            days: input.days,
+            dataNotice:
+              "Sales and payment activity in this project are demonstration fixtures. Weather may be live; check its source label.",
+          },
+          {
+            key,
+            model: process.env.GEMINI_MODEL || "gemini-3.1-flash-lite",
           },
         );
-        if (!response.ok) throw new Error("Provider unavailable");
-        const payload = await response.json();
-        const text = payload.candidates?.[0]?.content?.parts
-          ?.filter((part: { text?: string; thought?: boolean }) => part.text && !part.thought)
-          .map((part: { text: string }) => part.text)
-          .join("");
-        const selected = z
-          .object({ actionIds: z.array(z.string()).min(1).max(5) })
-          .strict()
-          .parse(JSON.parse(text));
-        const ids = [...new Set(selected.actionIds)];
-        if (
-          ids.length !== selected.actionIds.length ||
-          ids.some((id) => !candidates.some((candidate) => candidate.id === id))
-        )
-          throw new Error("Unknown proposal");
-        chosen = ids.map((id) => candidates.find((candidate) => candidate.id === id)!);
         source = "gemini";
       } catch {
-        notes.push("Gemini was unavailable or returned an invalid selection; deterministic recommendations are shown.");
+        notes.push(
+          "AI recommendations could not be generated or verified. No rule-written suggestions are substituted. Please retry.",
+        );
       }
-    } else notes.push("AI generation limit reached; deterministic recommendations are shown.");
+    } else
+      notes.push(
+        "AI generation limit reached or could not be checked. No recommendations were generated; please retry later.",
+      );
   }
+  if (!key) notes.push("Gemini is not configured; AI recommendations are unavailable.");
   if (!sold.length)
     notes.push(
       "No collected sales in this period. Collect orders or choose a longer period before interpreting projections.",

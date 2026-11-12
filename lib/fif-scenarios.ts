@@ -100,7 +100,7 @@ export const scenarioOutput = z.object({
   cached: z.boolean(),
   context: scenarioContext.optional(),
   products: z.array(scenarioProduct),
-  actions: z.array(scenarioAction).max(6),
+  actions: z.array(scenarioAction).max(4),
   notes: z.array(z.string()),
   patterns: scenarioPatterns.optional(),
   benchmark: scenarioBenchmark.optional(),

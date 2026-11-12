@@ -2,7 +2,11 @@
 
 Imported directly into the dedicated hosted Supabase project `vymnnyyuiujmxxycqiod` on 13 November 2026. All added activity is fictional; payment records and receipts are not evidence of real bank transactions.
 
-## Current-month reset
+## Latest state (13 November 2026)
+
+The 2024 and 2025 demonstration orders and ledger entries have now been removed. November has been repopulated with 15,586 additional campus-scale orders through 12 November. See [CAMPUS_MONTH_DATA.md](CAMPUS_MONTH_DATA.md) for current verified coverage and backups. Counts below describe earlier imports and resets, not the present database totals.
+
+## Earlier current-month reset
 
 After the initial import, November 2026's generated history was removed at the user's request: **253 orders, 265 ledger entries and 170 payment records**. Generated history now ends on **31 October 2026**, with **76,513 orders**, **72,257 ledger entries** and **46,116 payment records** remaining. The import counts below describe the original import before this reset.
 
@@ -14,13 +18,13 @@ The November audit marker now reads `Demo history reset`; its ID is retained so 
 
 The history runs from **1 January 2023 to 12 November 2026**, using Malaysia time, across all **10 approved stalls** and **37 existing menu products**.
 
-| Year | Added orders |
-| --- | ---: |
-| 2023 | 15,460 |
-| 2024 | 18,601 |
-| 2025 | 21,637 |
-| 2026, through 12 November | 21,068 |
-| Total | **76,766** |
+| Year                      | Added orders |
+| ------------------------- | -----------: |
+| 2023                      |       15,460 |
+| 2024                      |       18,601 |
+| 2025                      |       21,637 |
+| 2026, through 12 November |       21,068 |
+| Total                     |   **76,766** |
 
 - 71,042 collected orders, 3,413 cancelled orders and 2,311 rejected orders.
 - 72,522 ledger entries: collection receipts, monthly ingredient/packaging/staffing expenses, and linked expense reversals.

@@ -1,12 +1,21 @@
 "use client";
 
+import { memo } from "react";
+import { VendorRevenueOutlook } from "./vendor-revenue-outlook";
+import { VendorProductDrivers } from "./vendor-product-drivers";
 import { VendorPickupSchedule } from "./vendor-pickup-schedule";
 import type { hostedData } from "../../lib/backend/client";
-import { cleanMenuName, formatShortMytDate, niceAxisCeiling } from "../../lib/chart-scale";
+import { formatShortMytDate, niceAxisCeiling } from "../../lib/chart-scale";
 
 type Report = Awaited<ReturnType<typeof hostedData.vendorReport>>;
 
-export function VendorAnalyticsGrid({ report }: { report?: Report }) {
+export const VendorAnalyticsGrid = memo(function VendorAnalyticsGrid({
+  report,
+  revenueChangePct,
+}: {
+  report?: Report;
+  revenueChangePct?: number;
+}) {
   const data = report?.analytics;
   const daily = data?.daily ?? [];
   const total = daily.reduce((sum, row) => sum + row.count, 0);
@@ -30,14 +39,6 @@ export function VendorAnalyticsGrid({ report }: { report?: Report }) {
   }));
   const midPoint = points.length >= 3 ? points[Math.floor((points.length - 1) / 2)] : undefined;
 
-  const top =
-    report?.products
-      .filter((product) => product.units > 0)
-      .slice()
-      .sort((a, b) => b.units - a.units)
-      .slice(0, 5) ?? [];
-  const maxUnits = Math.max(1, ...top.map((product) => product.units));
-
   if (!data)
     return (
       <section className="vendor-mini-chart">
@@ -47,6 +48,7 @@ export function VendorAnalyticsGrid({ report }: { report?: Report }) {
 
   return (
     <div className="vendor-analytics-grid">
+      {report && <VendorRevenueOutlook report={report} revenueChangePct={revenueChangePct} />}
       <section className="vendor-mini-chart">
         <header>
           <div>
@@ -208,34 +210,7 @@ export function VendorAnalyticsGrid({ report }: { report?: Report }) {
         <footer>Current status of orders created in the period</footer>
       </section>
 
-      <section className="vendor-mini-chart">
-        <header>
-          <div>
-            <span className="vendor-section-label">BEST SELLERS</span>
-            <h2>Products by units collected</h2>
-          </div>
-        </header>
-        {top.length ? (
-          <div className="vendor-product-bars">
-            {top.map((product) => {
-              const displayName = cleanMenuName(product.name);
-              const pct = Math.max(4, (product.units / maxUnits) * 100);
-              return (
-                <div key={product.id} title={`${product.name}: ${product.units} units`}>
-                  <span>{displayName}</span>
-                  <div>
-                    <i style={{ width: pct + "%" }} />
-                  </div>
-                  <strong>{product.units}</strong>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="vendor-chart-placeholder">Collected orders will reveal your best-selling products.</p>
-        )}
-        <footer>Collected sales only · selected reporting period</footer>
-      </section>
+      <VendorProductDrivers products={report?.products ?? []} />
 
       <VendorPickupSchedule hours={data.hours} />
 
@@ -262,4 +237,4 @@ export function VendorAnalyticsGrid({ report }: { report?: Report }) {
       </details>
     </div>
   );
-}
+});

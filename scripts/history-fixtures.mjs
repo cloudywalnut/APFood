@@ -8,78 +8,161 @@ export function stableHistoryId(project, key) {
 }
 function randomFor(key) {
   let value = createHash("sha256").update(key).digest().readUInt32LE(0) || 1;
-  return () => { value ^= value << 13; value ^= value >>> 17; value ^= value << 5; return (value >>> 0) / 4294967296; };
+  return () => {
+    value ^= value << 13;
+    value ^= value >>> 17;
+    value ^= value << 5;
+    return (value >>> 0) / 4294967296;
+  };
 }
 export function monthKeys(start, end) {
   const months = [];
-  for (let date = new Date(`${start.slice(0, 7)}-01T00:00:00Z`); date.toISOString().slice(0, 7) <= end.slice(0, 7); date.setUTCMonth(date.getUTCMonth() + 1)) months.push(date.toISOString().slice(0, 7));
+  for (
+    let date = new Date(`${start.slice(0, 7)}-01T00:00:00Z`);
+    date.toISOString().slice(0, 7) <= end.slice(0, 7);
+    date.setUTCMonth(date.getUTCMonth() + 1)
+  )
+    months.push(date.toISOString().slice(0, 7));
   return months;
 }
-const at = (day, hour, minute = 0) => new Date(`${day}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+08:00`).toISOString();
+const at = (day, hour, minute = 0) =>
+  new Date(`${day}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+08:00`).toISOString();
 const offset = (date, minutes) => new Date(Date.parse(date) + minutes * 60_000).toISOString();
 
 export function historyMonth(config, month) {
   const { project, start, end, recentStart, vendors, menu, students, adminId, recentPerDay = 3 } = config;
-  const orders = [], cash = [], payments = [], slots = new Map();
-  const id = key => stableHistoryId(project, key);
-  for (let date = new Date(`${month}-01T00:00:00Z`); date.toISOString().startsWith(month); date.setUTCDate(date.getUTCDate() + 1)) {
+  const orders = [],
+    cash = [],
+    payments = [],
+    slots = new Map();
+  const id = (key) => stableHistoryId(project, config.namespace ? `${config.namespace}:${key}` : key);
+  for (
+    let date = new Date(`${month}-01T00:00:00Z`);
+    date.toISOString().startsWith(month);
+    date.setUTCDate(date.getUTCDate() + 1)
+  ) {
     const day = date.toISOString().slice(0, 10);
     if (day < start || day > end) continue;
     const weekday = date.getUTCDay();
     const monthNumber = date.getUTCMonth() + 1;
     for (const [vendorIndex, vendor] of vendors.entries()) {
-      const items = menu.filter(item => item.vendor_id === vendor.id);
+      const items = menu.filter((item) => item.vendor_id === vendor.id);
       if (!items.length) continue;
       const rand = randomFor(`${project}:${vendor.id}:${day}`);
-      const growth = .72 + (date.getUTCFullYear() - 2023) * .14;
-      const semester = [1, 6, 7, 12].includes(monthNumber) ? .62 : 1;
-      const count = day >= recentStart ? (recentPerDay > 0 ? Math.max(1, Math.floor(rand() * recentPerDay) + 1) : 0) :
-        Math.max(1, Math.round(8 * growth * semester * (weekday === 0 || weekday === 6 ? .34 : 1) * (.75 + rand() * .6) * (.8 + vendorIndex % 4 * .15)));
+      const growth = 0.72 + (date.getUTCFullYear() - 2023) * 0.14;
+      const semester = [1, 6, 7, 12].includes(monthNumber) ? 0.62 : 1;
+      const count = config.dailyOrders
+        ? Math.max(
+            1,
+            Math.round(
+              (config.dailyOrders / vendors.length) *
+                [0.32, 1.08, 1.02, 1.1, 1, 0.9, 0.38][weekday] *
+                (0.8 + (vendorIndex % 4) * 0.15) *
+                (0.8 + rand() * 0.4),
+            ),
+          )
+        : day >= recentStart
+          ? recentPerDay > 0
+            ? Math.max(1, Math.floor(rand() * recentPerDay) + 1)
+            : 0
+          : Math.max(
+              1,
+              Math.round(
+                8 *
+                  growth *
+                  semester *
+                  (weekday === 0 || weekday === 6 ? 0.34 : 1) *
+                  (0.75 + rand() * 0.6) *
+                  (0.8 + (vendorIndex % 4) * 0.15),
+              ),
+            );
       const morning = /coffee|drink|kopitiam|brew/i.test(`${vendor.id} ${vendor.category}`);
       const opening = Number(vendor.opens_at.slice(0, 2));
       const closing = Number(vendor.closes_at.slice(0, 2));
-      const hours = (morning ? [8, 9, 10, 12, 14, 15, 16] : [10, 11, 12, 12, 13, 13, 14, 17, 18])
-        .filter(hour => hour >= opening + 1 && hour < closing - 1);
+      const hours = (morning ? [8, 9, 10, 12, 14, 15, 16] : [10, 11, 12, 12, 13, 13, 14, 17, 18]).filter(
+        (hour) => hour >= opening + 1 && hour < closing - 1,
+      );
       if (!hours.length) throw Error(`No historical business window for ${vendor.id}`);
       for (let index = 0; index < count; index++) {
         const pickup = at(day, hours[Math.floor(rand() * hours.length)], [0, 15, 30, 45][Math.floor(rand() * 4)]);
         const created = offset(pickup, -(vendor.lead_minutes + 15 + Math.floor(rand() * 20)));
         const orderId = id(`order:${vendor.id}:${day}:${index}`);
         const chance = rand();
-        const status = chance < .045 ? "cancelled" : chance < .075 ? "rejected" : "collected";
+        const status = chance < 0.045 ? "cancelled" : chance < 0.075 ? "rejected" : "collected";
         const channel = rand();
-        const payment = status !== "collected" ? "counter" : channel < .4 ? "counter" : channel < .65 ? "duitnow_qr" : "demo";
+        const payment =
+          status !== "collected" ? "counter" : channel < 0.4 ? "counter" : channel < 0.65 ? "duitnow_qr" : "demo";
         const first = items[(date.getUTCDate() + index + Math.floor(rand() * items.length)) % items.length];
         const selected = [first];
-        if (items.length > 1 && rand() < .24) selected.push(items[(items.indexOf(first) + 1 + Math.floor(rand() * (items.length - 1))) % items.length]);
-        const lines = selected.map(item => {
-          const extra = rand() < .1;
-          const historicalPrice = Math.max(100, Math.round((item.price_sen - item.discount_sen) * (.88 + (date.getUTCFullYear() - 2023) * .04) / 10) * 10);
-          return { itemId: item.id, name: item.name, quantity: rand() < .17 ? 2 : 1, extra,
-            unit: historicalPrice + (extra ? 200 : 0), work: item.work_units + (extra ? 1 : 0) };
+        if (items.length > 1 && rand() < 0.24)
+          selected.push(items[(items.indexOf(first) + 1 + Math.floor(rand() * (items.length - 1))) % items.length]);
+        const lines = selected.map((item) => {
+          const extra = rand() < 0.1;
+          const historicalPrice = Math.max(
+            100,
+            Math.round(((item.price_sen - item.discount_sen) * (0.88 + (date.getUTCFullYear() - 2023) * 0.04)) / 10) *
+              10,
+          );
+          return {
+            itemId: item.id,
+            name: item.name,
+            quantity: rand() < 0.17 ? 2 : 1,
+            extra,
+            unit: historicalPrice + (extra ? 200 : 0),
+            work: item.work_units + (extra ? 1 : 0),
+          };
         });
         const total = lines.reduce((sum, line) => sum + line.unit * line.quantity, 0);
         const units = lines.reduce((sum, line) => sum + line.work * line.quantity, 0);
-        const collected = offset(pickup, rand() < .12 ? 15 + Math.floor(rand() * 20) : 1 + Math.floor(rand() * 8));
-        orders.push({ id: orderId, student_id: students[Math.floor(rand() * students.length)].id, vendor_id: vendor.id,
-          zone_id: vendor.zone_id, pickup_at: pickup, status, payment, lines, total_sen: total, units,
-          version: status === "collected" ? 5 : 2, created_at: created,
+        const collected = offset(pickup, rand() < 0.12 ? 15 + Math.floor(rand() * 20) : 1 + Math.floor(rand() * 8));
+        orders.push({
+          id: orderId,
+          student_id: students[Math.floor(rand() * students.length)].id,
+          vendor_id: vendor.id,
+          zone_id: vendor.zone_id,
+          pickup_at: pickup,
+          status,
+          payment,
+          lines,
+          total_sen: total,
+          units,
+          version: status === "collected" ? 5 : 2,
+          created_at: created,
           updated_at: status === "collected" ? collected : offset(created, 3),
           ready_at: status === "collected" ? offset(pickup, -2 - Math.floor(rand() * 6)) : null,
-          collected_at: status === "collected" ? collected : null });
+          collected_at: status === "collected" ? collected : null,
+        });
         const key = `${vendor.id}:${pickup}`;
-        const slot = slots.get(key) ?? { vendor_id: vendor.id, starts_at: pickup, total_units: vendor.capacity, reserved_units: 0 };
+        const slot = slots.get(key) ?? {
+          vendor_id: vendor.id,
+          starts_at: pickup,
+          total_units: vendor.capacity,
+          reserved_units: 0,
+        };
         if (status === "collected") slot.reserved_units += units;
         slot.total_units = Math.max(slot.total_units, slot.reserved_units);
         slots.set(key, slot);
         if (status === "collected") {
-          cash.push({ id: id(`receipt:${orderId}`), vendor_id: vendor.id, zone_id: vendor.zone_id, order_id: orderId,
-            kind: payment, amount_sen: total, label: "[DEMO HISTORY v1] Collected order receipt", created_at: collected });
-          if (payment !== "demo") payments.push({ order_id: orderId, status: "paid",
-            source: payment === "counter" ? "counter" : "customer_claimed_demo",
-            merchant_name: `[DEMO HISTORY] ${vendor.name}`, qr_path: null,
-            expires_at: payment === "duitnow_qr" ? offset(created, 5) : null,
-            paid_at: payment === "counter" ? collected : offset(created, 2) });
+          cash.push({
+            id: id(`receipt:${orderId}`),
+            vendor_id: vendor.id,
+            zone_id: vendor.zone_id,
+            order_id: orderId,
+            kind: payment,
+            amount_sen: total,
+            label: "[DEMO HISTORY v1] Collected order receipt",
+            created_at: collected,
+          });
+          if (payment !== "demo")
+            payments.push({
+              order_id: orderId,
+              status: "paid",
+              source: payment === "counter" ? "counter" : "customer_claimed_demo",
+              merchant_name: `[DEMO HISTORY] ${vendor.name}`,
+              qr_path: null,
+              expires_at: payment === "duitnow_qr" ? offset(created, 5) : null,
+              paid_at: payment === "counter" ? collected : offset(created, 2),
+            });
         }
       }
     }
@@ -87,23 +170,63 @@ export function historyMonth(config, month) {
   const monthLastDay = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5)), 0)).getUTCDate();
   const lastDay = Math.min(Number(end.slice(0, 7) === month ? end.slice(8) : 31), monthLastDay);
   for (const vendor of vendors) {
-    const receipts = cash.filter(entry => entry.vendor_id === vendor.id && entry.order_id).reduce((sum, entry) => sum + entry.amount_sen, 0);
+    const receipts = cash
+      .filter((entry) => entry.vendor_id === vendor.id && entry.order_id)
+      .reduce((sum, entry) => sum + entry.amount_sen, 0);
     if (!receipts) continue;
-    for (const [index, [label, fraction]] of [["Ingredients", .28], ["Packaging", .035], ["Shift staffing", .1]].entries()) {
+    for (const [index, [label, fraction]] of [
+      ["Ingredients", 0.28],
+      ["Packaging", 0.035],
+      ["Shift staffing", 0.1],
+    ].entries()) {
       const expenseId = id(`expense:${vendor.id}:${month}:${index}`);
-      const amount = Math.max(100, Math.round(receipts * fraction / 10) * 10);
+      const amount = Math.max(100, Math.round((receipts * fraction) / 10) * 10);
       const day = `${month}-${String(Math.min(lastDay, 8 + index * 9)).padStart(2, "0")}`;
-      cash.push({ id: expenseId, vendor_id: vendor.id, zone_id: vendor.zone_id, kind: "expense", amount_sen: amount,
-        label: `[DEMO HISTORY v1] ${label}`, expense_request_key: id(`expense-key:${expenseId}`), created_at: at(day, 19, 30) });
-      if (index === 1 && randomFor(expenseId)() < .16) cash.push({ id: id(`reverse:${expenseId}`), vendor_id: vendor.id,
-        zone_id: vendor.zone_id, kind: "reversal", reverses_id: expenseId, amount_sen: amount,
-        label: "[DEMO HISTORY v1] Duplicate packaging charge reversed", created_at: at(day, 19, 45) });
+      cash.push({
+        id: expenseId,
+        vendor_id: vendor.id,
+        zone_id: vendor.zone_id,
+        kind: "expense",
+        amount_sen: amount,
+        label: `[DEMO HISTORY v1] ${label}`,
+        expense_request_key: id(`expense-key:${expenseId}`),
+        created_at: at(day, 19, 30),
+      });
+      if (index === 1 && randomFor(expenseId)() < 0.16)
+        cash.push({
+          id: id(`reverse:${expenseId}`),
+          vendor_id: vendor.id,
+          zone_id: vendor.zone_id,
+          kind: "reversal",
+          reverses_id: expenseId,
+          amount_sen: amount,
+          label: "[DEMO HISTORY v1] Duplicate packaging charge reversed",
+          created_at: at(day, 19, 45),
+        });
     }
   }
-  const target = `${historyVersion}:${month}`;
-  return { month, slots: [...slots.values()], orders, cash, payments,
-    audit: { id: id(`audit:${month}`), actor_id: adminId, actor_role: "admin", action: "Demo history seeded", target,
-      reason: JSON.stringify({ version: historyVersion, start, end, orders: orders.length, receipts: cash.filter(entry => entry.order_id).length }) } };
+  const target = `${config.namespace ?? historyVersion}:${month}`;
+  return {
+    month,
+    slots: [...slots.values()],
+    orders,
+    cash,
+    payments,
+    audit: {
+      id: id(`audit:${month}`),
+      actor_id: adminId,
+      actor_role: "admin",
+      action: "Demo history seeded",
+      target,
+      reason: JSON.stringify({
+        version: historyVersion,
+        start,
+        end,
+        orders: orders.length,
+        receipts: cash.filter((entry) => entry.order_id).length,
+      }),
+    },
+  };
 }
 
 export function historySql(plan) {

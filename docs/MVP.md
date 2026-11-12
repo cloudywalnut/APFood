@@ -12,3 +12,9 @@ The demo succeeds when a student orders from a campus stall, the vendor prepares
 ## Out of scope
 
 Delivery, real money movement and bank verification, measured physical crowd data, advanced forecasting, timetable sync and campus system integration. Student FIF can prepare cart additions and save them after explicit student confirmation. It cannot place, pay for, change or cancel orders, or autonomously remove items from the cart.
+
+## Admin management milestone
+
+The admin command centre supervises all vendors through scoped aggregate reporting, vendor review drawers, cashflow and product analysis, traffic, staff management and audit. Dedicated FIF insights and a read-only assistant use existing Gemini configuration. AI recommends reviews; existing forms retain authority over changes. See [ADMIN_COMMAND_CENTRE.md](ADMIN_COMMAND_CENTRE.md).
+
+Admin FIF now leads the overview and evaluates vendor expansion, menu breadth and underperformance. Evidence-backed, selectable scenarios connect to the KPI cards and all relevant analytical views. Expansion and cuisine demand remain unestablished where unmet-demand/preferences data is missing; no automatic recruitment or revenue claims are made.

@@ -65,6 +65,9 @@ function fakeClient(calls) {
         limit() {
           return this;
         },
+        range() {
+          return this;
+        },
         gte() {
           return this;
         },

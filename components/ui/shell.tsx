@@ -51,12 +51,6 @@ export const modules: Record<Role, ModuleLink[]> = {
       Icon: Utensils,
       detail: "Manage meals, pricing and available stock",
     },
-    {
-      href: "/vendor/insights",
-      label: "AI Insights",
-      Icon: Sparkles,
-      detail: "APU weather scenarios, peak windows and peer rank",
-    },
   ],
   admin: [
     { href: "/admin", label: "Dashboard", Icon: Grid2X2, detail: "Cafeteria overview and FIF priorities" },
@@ -70,9 +64,9 @@ export const modules: Record<Role, ModuleLink[]> = {
     { href: "/admin/vendors", label: "Vendors", Icon: Store, detail: "Approvals and food court assignments" },
     {
       href: "/admin/traffic",
-      label: "Traffic & capacity",
+      label: "Traffic & pickups",
       Icon: ChartNoAxesCombined,
-      detail: "Kitchen load and pickup capacity",
+      detail: "Scheduled pickup demand and kitchen activity",
     },
     { href: "/admin/audit", label: "Audit trail", Icon: ClipboardList, detail: "Search all recorded changes" },
   ],

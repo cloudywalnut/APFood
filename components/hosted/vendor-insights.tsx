@@ -62,6 +62,7 @@ export function VendorInsights({
       const value = await api.vendorScenarios({ vendorId, days });
       if (version !== aiGen.current) return;
       setAnalysis(value);
+      setProjectionsOpen(true);
       setSelected(value.actions.map((action) => action.id));
       setDemandScale(1);
       setEffortScale(1);
@@ -75,29 +76,30 @@ export function VendorInsights({
     }
   }, [api, vendorId, days, result.reload]);
 
-  const [projectionsOpen, setProjectionsOpen] = useState(false);
+  const [projectionsOpen, setProjectionsOpen] = useState(true);
   const [showInsightHint, setShowInsightHint] = useState(false);
   const scrollToInsights = useCallback(() => {
     setProjectionsOpen(true);
     requestAnimationFrame(() => {
       // The disclosure itself has layout bounds even before React opens it.
       // Scrolling its hidden child could otherwise do nothing on the first run.
-      document.getElementById("vendor-ai-insights")?.closest("details")?.scrollIntoView({
-        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-        block: "start",
-      });
+      document
+        .getElementById("vendor-ai-insights")
+        ?.closest("details")
+        ?.scrollIntoView({
+          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+          block: "start",
+        });
     });
   }, []);
 
   useEffect(() => {
     if (!analysisRevision) return;
-    const scrollTimer = window.setTimeout(scrollToInsights, 120);
     const hintTimer = window.setTimeout(() => setShowInsightHint(false), 9000);
     return () => {
-      window.clearTimeout(scrollTimer);
       window.clearTimeout(hintTimer);
     };
-  }, [analysisRevision, scrollToInsights]);
+  }, [analysisRevision]);
 
   useEffect(() => {
     const onActionApplied = () => {
@@ -183,7 +185,6 @@ export function VendorInsights({
       ? Math.round(((projected.workUnits - observed.workUnits) / observed.workUnits) * 1000) / 10
       : 0;
 
-
   return (
     <div className={"vendor-intelligence" + (analysis && !aiBusy ? " has-fresh-insights" : "")}>
       <div className="vendor-insight-intro">
@@ -193,7 +194,6 @@ export function VendorInsights({
             : "Your sales, kitchen and stock in one place."}
         </p>
         <div className="vendor-report-actions">
-
           <label className="field compact">
             <span>Period</span>
             <select value={days} onChange={(event) => setDays(event.target.value as typeof days)}>
@@ -223,7 +223,8 @@ export function VendorInsights({
             </>
           ) : checkedAt && analysis ? (
             <span>
-              Insights refreshed at {checkedAt.toLocaleTimeString("en-MY", {
+              Insights refreshed at{" "}
+              {checkedAt.toLocaleTimeString("en-MY", {
                 timeZone: "Asia/Kuala_Lumpur",
                 hour: "numeric",
                 minute: "2-digit",
@@ -246,7 +247,11 @@ export function VendorInsights({
         {[
           {
             label: "Net cashflow",
-            value: report ? <InsightNumber value={report.finance.netSen} moneyValue revision={analysisRevision} /> : "—",
+            value: report ? (
+              <InsightNumber value={report.finance.netSen} moneyValue revision={analysisRevision} />
+            ) : (
+              "—"
+            ),
             note: "Net cashflow · after refunds and expenses",
             href: "/vendor/reports",
           },
@@ -254,14 +259,18 @@ export function VendorInsights({
             label: "Orders collected",
             value: report ? (
               <InsightNumber
-                value={new Set(
-                  report.ledger
-                    .filter((entry) => ["counter", "duitnow_qr", "demo"].includes(entry.kind) && entry.order_id)
-                    .map((entry) => entry.order_id),
-                ).size}
+                value={
+                  new Set(
+                    report.ledger
+                      .filter((entry) => ["counter", "duitnow_qr", "demo"].includes(entry.kind) && entry.order_id)
+                      .map((entry) => entry.order_id),
+                  ).size
+                }
                 revision={analysisRevision}
               />
-            ) : "—",
+            ) : (
+              "—"
+            ),
             note: "Collection receipts in this period",
             href: "/vendor/reports",
           },
@@ -289,11 +298,11 @@ export function VendorInsights({
         <section className="ai-campus-bar" aria-label="Live AI campus context">
           <div className="ai-campus-pills">
             <span className="ai-pill is-brand">
-              <i className={"ai-status-dot " + (analysis ? "is-live" : aiBusy ? "is-busy" : "is-ready")} aria-hidden />
+              <i className={"ai-status-dot " + (analysis.source === "gemini" ? "is-live" : "is-ready")} aria-hidden />
               {analysis
                 ? analysis.source === "gemini"
                   ? "Gemini AI active"
-                  : "FIF Smart Rules"
+                  : "AI recommendations unavailable"
                 : aiBusy
                   ? "Analysing stall…"
                   : "Baseline stats · AI ready"}
@@ -310,17 +319,13 @@ export function VendorInsights({
               </span>
             )}
           </div>
-          <button
-            type="button"
-            className="vendor-insights-jump"
-            onClick={scrollToInsights}
-          >
+          <button type="button" className="vendor-insights-jump" onClick={scrollToInsights}>
             <img src="/brand/ap-monogram-v2.png" alt="" width={24} height={24} />
             AI Insights · {analysis.actions.length} recommendations <ArrowDown size={14} aria-hidden />
           </button>
         </section>
       )}
-      {analysis && observed.units > 0 && (
+      {analysis?.source === "gemini" && analysis.actions.length > 0 && observed.units > 0 && (
         <VendorInsightImpact
           observed={observed}
           projected={projected}
@@ -356,8 +361,15 @@ export function VendorInsights({
         days={Number(days)}
         vendorId={vendorId}
         ai={
-          analysis
-            ? { actions: activeActions, revenuePct, volumePct, revenueDeltaSen: revenueDelta, effortPct, revision: analysisRevision }
+          analysis?.source === "gemini" && analysis.actions.length > 0
+            ? {
+                actions: activeActions,
+                revenuePct,
+                volumePct,
+                revenueDeltaSen: revenueDelta,
+                effortPct,
+                revision: analysisRevision,
+              }
             : undefined
         }
       >
@@ -367,14 +379,16 @@ export function VendorInsights({
           onToggle={(event) => setProjectionsOpen(event.currentTarget.open)}
         >
           <summary>
-            <span><img src="/brand/ap-monogram-v2.png" alt="" width={24} height={24} /> AI Insights</span>
+            <span>
+              <img src="/brand/ap-monogram-v2.png" alt="" width={24} height={24} /> AI Insights
+            </span>
             <small>
               {analysis
                 ? `${analysis.actions.length} recommendations ready`
                 : "Generate insights to explore possible changes"}
             </small>
           </summary>
-    <VendorScenarioStudio
+          <VendorScenarioStudio
             vendorId={vendorId}
             days={days}
             baseline={baseline}

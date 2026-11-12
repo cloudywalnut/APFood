@@ -25,6 +25,13 @@ function clientFor(rows, reportedCount) {
   return {
     from(table) {
       const query = {
+        from: 0,
+        to: Infinity,
+        range(from, to) {
+          this.from = from;
+          this.to = to;
+          return this;
+        },
         select() {
           return this;
         },
@@ -47,7 +54,11 @@ function clientFor(rows, reportedCount) {
           return this;
         },
         then(resolve) {
-          resolve({ data: rows[table] ?? [], error: null, count: reportedCount?.[table] ?? rows[table]?.length ?? 0 });
+          resolve({
+            data: (rows[table] ?? []).slice(this.from, this.to + 1),
+            error: null,
+            count: reportedCount?.[table] ?? rows[table]?.length ?? 0,
+          });
         },
       };
       return query;

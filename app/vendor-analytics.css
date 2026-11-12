@@ -277,15 +277,6 @@
   cursor: pointer;
   min-height: 25px;
 }
-@media (min-width: 1300px) {
-  .vendor-analytics-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .vendor-mini-chart:first-child,
-  .vendor-mini-chart:nth-child(4) {
-    grid-column: span 2;
-  }
-}
 @media (max-width: 760px) {
   .vendor-analytics-grid {
     grid-template-columns: minmax(0, 1fr);

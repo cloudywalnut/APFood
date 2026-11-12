@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, Utensils } from "lucide-react";
@@ -25,7 +25,8 @@ type AiOverlay = {
 };
 const channels = ["counter", "duitnow_qr", "demo"] as const;
 const labels = { counter: "Counter", duitnow_qr: "DuitNow QR", demo: "Demo payments" };
-const mytDay = (date: string | number) => new Date(date).toLocaleDateString("en-CA", { timeZone: "Asia/Kuala_Lumpur" });
+const mytFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kuala_Lumpur" });
+const mytDay = (date: string | number) => mytFormatter.format(new Date(date));
 
 export function VendorSalesOverview({
   report,
@@ -60,38 +61,52 @@ export function VendorSalesOverview({
         (report?.products.find((product) => product.id === a.id)?.units ?? 0),
     )
     .slice(0, 4);
-  const rows = report
-    ? Array.from({ length: days }, (_, index) => {
-        const day = Date.parse(report.since) + index * 86400_000;
-        const entries = report.ledger.filter((entry) => mytDay(entry.created_at) === mytDay(day));
-        const values = channels.map((channel) =>
-          metric === "revenue"
-            ? entries.filter((entry) => entry.kind === channel).reduce((sum, entry) => sum + entry.amount_sen, 0)
-            : new Set(
-                entries.filter((entry) => entry.kind === channel && entry.order_id).map((entry) => entry.order_id),
-              ).size,
-        );
-        const total = values.reduce((sum, value) => sum + value, 0);
-        const activePct = ai ? (metric === "revenue" ? ai.revenuePct : ai.volumePct) : 0;
-        const factor = ai ? Math.max(0, 1 + activePct / 100) : 1;
-        const projectedTotal = ai
-          ? metric === "revenue"
-            ? Math.round(total * factor)
-            : Math.round(total * factor * 10) / 10
-          : total;
-        return {
-          key: mytDay(day),
-          label: new Date(day).toLocaleDateString("en-MY", {
-            timeZone: "Asia/Kuala_Lumpur",
-            day: "numeric",
-            month: "short",
-          }),
-          values,
-          total,
-          projectedTotal,
-        };
-      })
-    : [];
+  const calendarEntries = useMemo(() => {
+    const calendar = new Map<string, Report["ledger"]>();
+    for (const entry of report?.ledger ?? []) {
+      const key = mytDay(entry.created_at);
+      const entries = calendar.get(key) ?? [];
+      entries.push(entry);
+      calendar.set(key, entries);
+    }
+    return calendar;
+  }, [report]);
+  const rows = useMemo(
+    () =>
+      report
+        ? Array.from({ length: days }, (_, index) => {
+            const day = Date.parse(report.since) + index * 86400_000;
+            const entries = calendarEntries.get(mytDay(day)) ?? [];
+            const values = channels.map((channel) =>
+              metric === "revenue"
+                ? entries.filter((entry) => entry.kind === channel).reduce((sum, entry) => sum + entry.amount_sen, 0)
+                : new Set(
+                    entries.filter((entry) => entry.kind === channel && entry.order_id).map((entry) => entry.order_id),
+                  ).size,
+            );
+            const total = values.reduce((sum, value) => sum + value, 0);
+            const activePct = ai ? (metric === "revenue" ? ai.revenuePct : ai.volumePct) : 0;
+            const factor = ai ? Math.max(0, 1 + activePct / 100) : 1;
+            const projectedTotal = ai
+              ? metric === "revenue"
+                ? Math.round(total * factor)
+                : Math.round(total * factor * 10) / 10
+              : total;
+            return {
+              key: mytDay(day),
+              label: new Date(day).toLocaleDateString("en-MY", {
+                timeZone: "Asia/Kuala_Lumpur",
+                day: "numeric",
+                month: "short",
+              }),
+              values,
+              total,
+              projectedTotal,
+            };
+          })
+        : [],
+    [report, calendarEntries, days, metric, ai?.revenuePct, ai?.volumePct],
+  );
   const totalRecorded = rows.reduce((sum, row) => sum + row.total, 0);
   const totalProjected = ai ? rows.reduce((sum, row) => sum + row.projectedTotal, 0) : totalRecorded;
   const activeDeltaPct = ai ? (metric === "revenue" ? ai.revenuePct : ai.volumePct) : 0;
@@ -271,6 +286,11 @@ export function VendorSalesOverview({
             )}
           </div>
           {!report && <p className="vendor-insight-empty">Loading recorded sales…</p>}
+          {ai && (
+            <p className="vendor-sales-scenario-note">
+              AI bars apply the overall scenario estimate to the same recorded days; they are not a day-by-day forecast.
+            </p>
+          )}
           {report && !rows.some((row) => row.total > 0) && (
             <p className="vendor-sales-empty">
               No receipts in this period. Completed pickups will populate this chart.
@@ -326,7 +346,7 @@ export function VendorSalesOverview({
           </Link>
         </section>
       </div>
-      <VendorAnalyticsGrid report={report} />
+      <VendorAnalyticsGrid report={report} revenueChangePct={ai?.revenuePct} />
       {children}
       <section className="vendor-menu-spotlight" aria-label="Best-selling menu items">
         <header>

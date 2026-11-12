@@ -20,6 +20,7 @@ import "./vendor-sales.css";
 import "./vendor-density.css";
 import "./vendor-analytics.css";
 import "./vendor-dashboard.css";
+import "./admin-dashboard.css";
 
 export const metadata: Metadata = {
   title: "APFoods · Campus pickup",

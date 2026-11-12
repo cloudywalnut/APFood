@@ -49,3 +49,23 @@ Removed the extra Refresh AI / Run AI Insights button from the inline scenario h
 The vendor pickup chart now uses a compact horizontal schedule with full two-hour am/pm labels, exact counts, a busiest-window summary and the existing mustard palette. Initially it shows windows with pickups; Show all hours reveals all twelve windows, including zero counts. Both views preserve the same total. The aggregation uses hour keys, handles sparse input and labels noon/midnight correctly. The component is memoized to avoid unrelated animation redraws.
 
 Verified counts and toggles, absence of the duplicate button, preserved top-level generation, and no overflow at 390/768/1440px. Typecheck, build, 60 unit/API tests and 28 backend tests passed. No database writes or push.
+
+## Decision-focused vendor graphs · 13 November 2026
+
+Added a recorded cashflow waterfall: collection receipts minus expenses and refunds, plus reversals, reconcile to the report's net cashflow. Zero steps are marked without inventing activity; negative cashflow is supported. The summary compares recorded expenses to receipts, and the footer explicitly distinguishes cash movement from profit and AI estimates. A ledger link supports investigation.
+
+Replaced the portions-only bestseller view with a Revenue/Portions ranking. Each dish shows its full name, absolute contribution, share across all listed-menu collected sales, and current stock/hidden state. This distinguishes high-revenue dishes from high-volume dishes and exposes stock that might need attention. The existing volume ranking remains accessible.
+
+Pickup windows now include their share of total pickups to show how concentrated demand is. The main sales chart retains its original payment-channel/collections views; an AI-only note explains that the overlay applies the overall scenario change to the same recorded days rather than forecasting individual days. Order demand/outcomes and exact-value views remain intact.
+
+Verified both product-ranking controls and reporting-period switching against the hosted app, plus 390/768/1440px layouts. Cashflow calculations cover refunds, reversals, zero and negative totals; ranking tests verify full-catalogue denominators and immutability. Typecheck, build, 63 unit/API tests and 28 backend tests passed. No database changes or push.
+
+## November data and revenue outlook
+
+The dashboard now defaults to a 30-day revenue projection with recorded receipts, a weekday-based baseline and an optional generated AI scenario. Impact cards use labelled percentage-change scales. Generating insights leaves the current scroll position intact; the AP-branded hint and recommendations button scroll only when clicked. The separate AI Insights top navigation entry is removed. Projection layouts were checked at 390, 768 and 1440 px with no horizontal overflow. Reports paginate complete datasets; the admin ledger uses 50-row pages. Current data and removal details are in [CAMPUS_MONTH_DATA.md](CAMPUS_MONTH_DATA.md).
+
+## FIF Optimized recommendations
+
+Vendor comparison labels use FIF Optimized. The vendor insights generator now asks Gemini to write up to four distinct recommendations, citing supplied candidate evidence. Fewer or none are allowed; results are never padded. The server validates candidate IDs, evidence references and numerical claims, preserves authorised menu targets and proposed prices, and keeps quantitative impact assumptions under server control. Missing credentials, rate limits, provider errors or invalid output return no recommendations with a clear unavailable note, rather than rule-written replacement advice. The internal legacy source value rules represents this unavailable state for compatibility. Rule-based operational alerts elsewhere in the product retain their own source labels.
+
+A live local walkthrough returned four Gemini-authored recommendations with evidence. Unit tests cover the cap, unknown or duplicate IDs, fabricated numeric claims, immutable impact assumptions and provider failures. Sales activity remains demonstration data; projected uplift is an estimate, not a measured improvement.

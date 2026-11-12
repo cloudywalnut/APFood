@@ -32,32 +32,67 @@ function ImpactCard({
   revision: number;
   lowerIsBetter?: boolean;
 }) {
-  const current = useAnimatedNumber(after, true, 1200, undefined, revision);
   const delta = useAnimatedNumber(after - before, true, 1200, undefined, revision);
-  const format = (value: number) => moneyValue
-    ? money(Math.round(value))
-    : value.toLocaleString("en-MY", { maximumFractionDigits: 1 });
-  const ceiling = Math.max(1, before, after);
+  const current = before + delta;
+  const format = (value: number) =>
+    moneyValue ? money(Math.round(value)) : value.toLocaleString("en-MY", { maximumFractionDigits: 1 });
+  const finalPct = before > 0 ? ((after - before) / before) * 100 : 0;
+  const pct = before > 0 ? (delta / before) * 100 : 0;
+  const changeScale = Math.max(5, Math.ceil(Math.abs(finalPct) / 5) * 5);
   const improves = lowerIsBetter ? after < before : after > before;
   return (
     <article className="vendor-impact-card" data-improves={improves}>
       <header>
         <h3>{title}</h3>
         <span>
-          {delta > 0 ? "+" : delta < 0 ? "−" : ""}{format(Math.abs(delta))}
-          {before > 0 && <small> ({delta > 0 ? "+" : ""}{(delta / before * 100).toFixed(1)}%)</small>}
+          {delta > 0 ? "+" : delta < 0 ? "−" : ""}
+          {format(Math.abs(delta))}
+          {before > 0 && (
+            <small>
+              {" "}
+              ({delta > 0 ? "+" : ""}
+              {((delta / before) * 100).toFixed(1)}%)
+            </small>
+          )}
         </span>
       </header>
       <div className="vendor-impact-values">
-        <div><small>Recorded</small><span>{format(before)}</span></div>
+        <div>
+          <small>Recorded</small>
+          <span>{format(before)}</span>
+        </div>
         <ArrowRight size={16} aria-hidden />
-        <div><small>AI scenario</small><strong>{format(current)}</strong></div>
+        <div>
+          <small>FIF Optimized</small>
+          <strong>{format(current)}</strong>
+        </div>
       </div>
-      <div className="vendor-impact-bars" aria-hidden="true">
-        <i style={{ width: `${before / ceiling * 100}%` }} />
-        <i style={{ width: `${Math.max(0, current) / ceiling * 100}%` }} />
+      <div className="vendor-impact-change">
+        <div>
+          <span>Change vs recorded</span>
+          <strong>
+            {pct > 0 ? "+" : ""}
+            {pct.toFixed(1)}%
+          </strong>
+        </div>
+        <div className="vendor-impact-change-track" aria-hidden="true">
+          <i
+            style={{
+              left: `${Math.min(50, 50 + (pct / changeScale) * 50)}%`,
+              width: `${(Math.abs(pct) / changeScale) * 50}%`,
+            }}
+          />
+          <b />
+        </div>
+        <small>
+          <span>−{changeScale}%</span>
+          <span>0</span>
+          <span>+{changeScale}%</span>
+        </small>
       </div>
-      <span className="sr-only">Recorded {format(before)}. Estimated {format(after)}.</span>
+      <span className="sr-only">
+        Recorded {format(before)}. Estimated {format(after)}.
+      </span>
     </article>
   );
 }
@@ -80,11 +115,23 @@ export function VendorInsightImpact({
         <span>{actions} selected · same reporting period</span>
       </header>
       <div className="vendor-impact-grid">
-        <ImpactCard title="Gross revenue · RM" before={observed.revenueSen} after={projected.revenueSen} moneyValue revision={revision} />
+        <ImpactCard
+          title="Gross revenue · RM"
+          before={observed.revenueSen}
+          after={projected.revenueSen}
+          moneyValue
+          revision={revision}
+        />
         <ImpactCard title="Portions sold" before={observed.units} after={projected.units} revision={revision} />
-        <ImpactCard title="Prep workload · work units" before={observed.workUnits} after={projected.workUnits} lowerIsBetter revision={revision} />
+        <ImpactCard
+          title="Prep workload · work units"
+          before={observed.workUnits}
+          after={projected.workUnits}
+          lowerIsBetter
+          revision={revision}
+        />
       </div>
-      <p>AI scenario estimates. Recorded cashflow stays unchanged until orders and expenses are recorded.</p>
+      <p>FIF Optimized estimates. Recorded cashflow stays unchanged until orders and expenses are recorded.</p>
     </section>
   );
 }

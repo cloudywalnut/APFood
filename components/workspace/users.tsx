@@ -15,11 +15,13 @@ export function Users() {
   const search = params.get("search") ?? "";
   const role = params.get("role") ?? "";
   const status = params.get("status") ?? "";
+  const vendorId = params.get("vendorId") ?? "";
   const page = Math.max(1, Number(params.get("page")) || 1);
   const [input, setInput] = useState(search);
   const load = useCallback(
-    () => api.users(new URLSearchParams({ search, role, status, page: String(page) })),
-    [api, search, role, status, page],
+    () =>
+      api.users(new URLSearchParams({ search, role, status, page: String(page), ...(vendorId ? { vendorId } : {}) })),
+    [api, search, role, status, page, vendorId],
   );
   const result = useRemote(load);
   const vendors = useRemote(apiClient.vendors);
@@ -40,6 +42,22 @@ export function Users() {
           replaceFilters({ search: input, page: "1" });
         }}
       >
+        <label className="field compact">
+          Vendor assignment
+          <select
+            value={vendorId}
+            onChange={(event) =>
+              replaceFilters({ vendorId: event.target.value, role: event.target.value ? "vendor" : "", page: "1" })
+            }
+          >
+            <option value="">All assignments</option>
+            {vendors.value?.map((stall) => (
+              <option key={stall.id} value={stall.id}>
+                {stall.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <label className="field grow">
           Find a user
           <input
@@ -53,7 +71,11 @@ export function Users() {
         <button className="button secondary">Search</button>
         <label className="field compact">
           Role
-          <select value={role} onChange={(event) => replaceFilters({ role: event.target.value, page: "1" })}>
+          <select
+            value={vendorId ? "vendor" : role}
+            disabled={Boolean(vendorId)}
+            onChange={(event) => replaceFilters({ role: event.target.value, page: "1" })}
+          >
             <option value="">All roles</option>
             {["student", "vendor", "admin"].map((value) => (
               <option key={value} value={value}>

@@ -63,7 +63,7 @@ export function OpsShell({
   const searchParams = useSearchParams();
   const stallId = kind === "vendor" ? (searchParams.get("stall") ?? undefined) : undefined;
   return (
-    <div className={"ops-theme ap-role-shell" + (kind === "vendor" ? " vendor-ops-theme" : "")}>
+    <div className={"ops-theme ap-role-shell" + (kind === "vendor" ? " vendor-ops-theme" : " admin-ops-theme")}>
       <WorkspaceHeader role={kind} route={route} />
       <div className="ap-ops-content">
         <main id="main-content" className="ops-main">
