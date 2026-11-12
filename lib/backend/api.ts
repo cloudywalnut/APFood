@@ -7,6 +7,7 @@ import { authAction, authLimit } from "./auth";
 import { inviteAccount, manageAccount, qrUrl, uploadVendorQr } from "./account-actions";
 import { clearRecovery } from "./recovery";
 import { recommendations } from "./fif";
+import { studentChatInput, studentFifChat } from "./student-fif-chat";
 import { dayKey } from "../orders";
 
 const orderFields =
@@ -132,6 +133,11 @@ export async function handleRequest(request: Request, path: string[]) {
       );
     }
     const query = new URL(request.url).searchParams;
+    if (method === "POST" && key === "fif/student/chat") {
+      const input = await body(request, studentChatInput);
+      const actor = requireMembership(await getSession(), "student");
+      return result(await studentFifChat(client, actor.userId, input));
+    }
     if (method === "POST" && key === "fif/recommendations") {
       const input = await body(
         request,

@@ -1,28 +1,84 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
-import { GripHorizontal, SendHorizontal, X } from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
+import Link from "next/link";
+import { ArrowRight, GripHorizontal, SendHorizontal, X } from "lucide-react";
+import { createApiClient } from "../../lib/backend/client";
+import { useSessionUser } from "../workspace/common";
+import { RichText } from "../ui/rich-text";
+import {
+  chatStorageKey,
+  clearStudentFifChats,
+  maxStoredMessages,
+  readStoredChat,
+  type StudentFifMessage as Message,
+} from "../../lib/student-fif-chat-storage";
 
-type Message = { id: string; role: "assistant" | "user"; text: string };
 type Position = { left: number; top: number };
 
-const starterPrompts = ["Fastest pickup now", "Meal deals today", "Quiet stalls"];
-const storageKey = "ap-food-fif-position";
+const starterPrompts = ["Where is my order?", "Fastest pickup now", "Meal deals today", "What did I order last week?"];
+const storageKey = "ap-food-student-fif-position";
+// Earlier back-and-forth sent with each question, so answers stay on topic without long prompts.
+const historyExchanges = 5;
+const welcome: Message = {
+  id: "welcome",
+  role: "assistant",
+  text: "Hi! I’m FIF AI. Ask about your orders, pickups, order history, menus, deals or pickup times.",
+};
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-export function FifAssistant() {
+export function StudentFifAssistant() {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [pos, setPos] = useState<Position>();
   const [dragging, setDragging] = useState(false);
   const [viewport, setViewport] = useState({ width: 1200, height: 800 });
   const [launcherSize, setLauncherSize] = useState({ width: 112, height: 44 });
-  const [messages, setMessages] = useState<Message[]>([
-    { id: "welcome", role: "assistant", text: "Hi! I’m FIF AI. Ask about stalls, meal deals, or pickup times." },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([welcome]);
+  const [pending, setPending] = useState(false);
+  const user = useSessionUser();
+  const api = useMemo(() => (user ? createApiClient(user) : undefined), [user]);
+  // Becomes the user ID once that student's saved chat has been loaded, so the empty
+  // starting state never overwrites what is stored.
+  const [restoredFor, setRestoredFor] = useState<string | null>(null);
+
+  useEffect(() => {
+    clearStudentFifChats(user ?? undefined);
+    if (!user) {
+      setMessages([welcome]);
+      setRestoredFor(null);
+      return;
+    }
+    const stored = readStoredChat(user);
+    // A question asked just before the page changed never got its answer.
+    if (stored?.[stored.length - 1]?.role === "user")
+      stored.push({
+        id: crypto.randomUUID(),
+        role: "assistant",
+        text: "That answer was interrupted when the page changed. Please ask again.",
+      });
+    setMessages(stored ?? [welcome]);
+    setRestoredFor(user);
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || restoredFor !== user) return;
+    try {
+      sessionStorage.setItem(chatStorageKey(user), JSON.stringify(messages.slice(-maxStoredMessages)));
+    } catch {
+      /* Storage can be full or blocked; the chat still works for this page. */
+    }
+  }, [messages, user, restoredFor]);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
@@ -92,11 +148,11 @@ export function FifAssistant() {
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
-  }, [messages, open]);
+  }, [messages, open, pending]);
 
   function startDrag(event: ReactPointerEvent<HTMLElement>) {
     if (event.button !== 0 && event.pointerType === "mouse") return;
-    if ((event.target as HTMLElement).closest(".fif-window-close")) return;
+    if ((event.target as HTMLElement).closest(".student-fif-window-close")) return;
     const launcher = launcherRef.current;
     if (!launcher) return;
     const rect = launcher.getBoundingClientRect();
@@ -134,28 +190,39 @@ export function FifAssistant() {
     window.addEventListener("pointercancel", stop);
   }
 
-  function send(text: string) {
+  async function send(text: string) {
     const clean = text.trim();
-    if (!clean) return;
-    setMessages((previous) => [
-      ...previous,
-      { id: crypto.randomUUID(), role: "user", text: clean },
-      {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        text:
-          'FIF AI backend is coming soon. Once connected, I’ll answer "' +
-          clean +
-          '" using live stall menus and capacity.',
-      },
-    ]);
+    if (!clean || pending) return;
+    const question: Message = { id: crypto.randomUUID(), role: "user", text: clean };
+    const reply = (answer: string, links?: Message["links"]) =>
+      setMessages((previous) => [...previous, { id: crypto.randomUUID(), role: "assistant", text: answer, links }]);
+    setMessages((previous) => [...previous, question]);
     setDraft("");
+    if (!api) {
+      reply("Please log in so I can look up your orders, pickups and history.");
+      return;
+    }
+    setPending(true);
+    try {
+      const earlier = messages.filter((message) => message.id !== "welcome").slice(-historyExchanges * 2);
+      // Never start the history with an answer whose question was cut off.
+      if (earlier[0]?.role === "assistant") earlier.shift();
+      const history = [...earlier, question].map(({ role, text }) => ({ role, text }));
+      const result = await api.studentFifChat(history);
+      reply(result.reply, result.links);
+    } catch (error) {
+      reply(error instanceof Error ? error.message : "Sorry, something went wrong. Please try again.");
+    } finally {
+      setPending(false);
+    }
   }
 
-  const windowWidth = Math.min(360, viewport.width - 24);
+  // The open window keeps one comfortable size; it only shrinks when the screen is too small.
+  const windowWidth = Math.min(420, viewport.width - 24);
+  const windowHeight = Math.max(320, Math.min(620, viewport.height - 96));
   const spaceAbove = pos ? pos.top - 22 : 0;
   const spaceBelow = pos ? viewport.height - (pos.top + launcherSize.height + 22) : 0;
-  const openAbove = pos ? spaceAbove >= 260 || spaceAbove >= spaceBelow : true;
+  const openAbove = pos ? spaceAbove >= windowHeight || spaceAbove >= spaceBelow : true;
 
   const launcherStyle: CSSProperties | undefined = pos
     ? { left: pos.left, top: pos.top, right: "auto", bottom: "auto" }
@@ -170,15 +237,15 @@ export function FifAssistant() {
           12,
           viewport.width - windowWidth - 12,
         ),
-        ...(openAbove
-          ? { top: "auto", bottom: viewport.height - pos.top + 10, maxHeight: Math.min(440, Math.max(200, spaceAbove)) }
-          : {
-              top: pos.top + launcherSize.height + 10,
-              bottom: "auto",
-              maxHeight: Math.min(440, Math.max(200, spaceBelow)),
-            }),
+        top: clamp(
+          openAbove ? pos.top - 10 - windowHeight : pos.top + launcherSize.height + 10,
+          12,
+          Math.max(12, viewport.height - windowHeight - 12),
+        ),
+        bottom: "auto",
         right: "auto",
         width: windowWidth,
+        height: windowHeight,
         transformOrigin: `${pos.left + launcherSize.width / 2 > viewport.width / 2 ? "right" : "left"} ${openAbove ? "bottom" : "top"}`,
       }
     : undefined;
@@ -187,14 +254,14 @@ export function FifAssistant() {
     <>
       {open && (
         <section
-          className={"fif-window" + (dragging ? " is-dragging" : "")}
+          className={"student-fif-window" + (dragging ? " is-dragging" : "")}
           style={windowStyle}
           role="dialog"
           aria-label="FIF AI assistant"
         >
-          <header className="fif-window-head" onPointerDown={startDrag}>
-            <div className="fif-window-brand">
-              <span className="fif-window-badge">
+          <header className="student-fif-window-head" onPointerDown={startDrag}>
+            <div className="student-fif-window-brand">
+              <span className="student-fif-window-badge">
                 <img src="/brand/ap-monogram-v2.png" alt="" width="20" height="20" />
               </span>
               <div>
@@ -202,11 +269,11 @@ export function FifAssistant() {
                 <small>Campus pickup assistant</small>
               </div>
             </div>
-            <div className="fif-window-controls">
-              <GripHorizontal size={16} className="fif-drag-hint" aria-hidden />
+            <div className="student-fif-window-controls">
+              <GripHorizontal size={16} className="student-fif-drag-hint" aria-hidden />
               <button
                 type="button"
-                className="fif-window-close"
+                className="student-fif-window-close"
                 aria-label="Close FIF AI"
                 onClick={() => setOpen(false)}
               >
@@ -214,16 +281,35 @@ export function FifAssistant() {
               </button>
             </div>
           </header>
-          <div className="fif-window-messages" ref={listRef}>
+          <div className="student-fif-window-messages" ref={listRef} aria-live="polite">
             {messages.map((message) => (
-              <div key={message.id} className={"fif-msg fif-msg-" + message.role}>
-                <p>{message.text}</p>
+              <div key={message.id} className={"student-fif-msg student-fif-msg-" + message.role}>
+                <div className="student-fif-msg-bubble">
+                  {message.role === "assistant" ? <RichText text={message.text} /> : message.text}
+                </div>
+                {message.links?.length ? (
+                  <div className="student-fif-msg-links">
+                    {message.links.map((link) => (
+                      <Link key={link.href} href={link.href} className="student-fif-msg-link">
+                        {link.label}
+                        <ArrowRight size={13} aria-hidden />
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ))}
+            {pending && (
+              <div className="student-fif-msg student-fif-msg-assistant" role="status">
+                <div className="student-fif-msg-bubble">
+                  <p>Checking…</p>
+                </div>
+              </div>
+            )}
             {messages.length === 1 && (
-              <div className="fif-prompts">
+              <div className="student-fif-prompts">
                 {starterPrompts.map((prompt) => (
-                  <button type="button" key={prompt} onClick={() => send(prompt)}>
+                  <button type="button" key={prompt} onClick={() => void send(prompt)}>
                     {prompt}
                   </button>
                 ))}
@@ -231,10 +317,10 @@ export function FifAssistant() {
             )}
           </div>
           <form
-            className="fif-window-form"
+            className="student-fif-window-form"
             onSubmit={(event) => {
               event.preventDefault();
-              send(draft);
+              void send(draft);
             }}
           >
             <input
@@ -246,7 +332,7 @@ export function FifAssistant() {
               onChange={(event) => setDraft(event.target.value)}
               maxLength={240}
             />
-            <button type="submit" aria-label="Send message" disabled={!draft.trim()}>
+            <button type="submit" aria-label="Send message" disabled={!draft.trim() || pending}>
               <SendHorizontal size={17} aria-hidden />
             </button>
           </form>
@@ -255,7 +341,7 @@ export function FifAssistant() {
       <button
         ref={launcherRef}
         type="button"
-        className={"fif-launcher" + (dragging ? " is-dragging" : "")}
+        className={"student-fif-launcher" + (dragging ? " is-dragging" : "")}
         style={launcherStyle}
         aria-expanded={open}
         aria-label={open ? "Close FIF AI" : "Open FIF AI"}
@@ -268,7 +354,7 @@ export function FifAssistant() {
           setOpen((value) => !value);
         }}
       >
-        <span className="fif-launcher-logo">
+        <span className="student-fif-launcher-logo">
           <img src="/brand/ap-monogram-v2.png" alt="" width="18" height="18" />
         </span>
         <span>FIF AI</span>

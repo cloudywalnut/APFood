@@ -17,6 +17,7 @@ import {
   pickupOutput,
   quoteOutput,
   sessionOutput,
+  studentFifChatOutput,
   usersOutput,
   vendorPayment,
   vendorRow,
@@ -72,6 +73,8 @@ export function createApiClient(userId?: string) {
   return {
     recommendations: (input: { role: "student" | "vendor" | "admin"; vendorId?: string; zoneId?: string }) =>
       call("fif/recommendations", fifOutput, "POST", input),
+    studentFifChat: (messages: { role: "user" | "assistant"; text: string }[]) =>
+      call("fif/student/chat", studentFifChatOutput, "POST", { messages }),
     signIn: (email: string, password: string) => request("auth/session", sessionOutput, "POST", { email, password }),
     register: (input: { email: string; password: string; displayName: string }) =>
       request("auth/register", ok, "POST", input),

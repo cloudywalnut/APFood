@@ -1840,14 +1840,14 @@
   .market-cuisine-row img,
   .market-active-order,
   .market-active-segments > span,
-  .fif-launcher,
-  .fif-window {
+  .student-fif-launcher,
+  .student-fif-window {
     transition: none;
     animation: none;
   }
 }
 
-.fif-launcher {
+.student-fif-launcher {
   position: fixed;
   right: 20px;
   bottom: 20px;
@@ -1871,16 +1871,16 @@
   touch-action: none;
   user-select: none;
 }
-.fif-launcher:hover {
+.student-fif-launcher:hover {
   background: #4e3829;
   transform: translateY(-1px);
 }
-.fif-launcher.is-dragging {
+.student-fif-launcher.is-dragging {
   cursor: grabbing;
   transform: scale(1.03);
   transition: none;
 }
-.fif-launcher-logo {
+.student-fif-launcher-logo {
   display: grid;
   place-items: center;
   width: 26px;
@@ -1890,34 +1890,35 @@
   overflow: hidden;
   flex-shrink: 0;
 }
-.fif-launcher-logo img,
-.fif-window-badge img {
+.student-fif-launcher-logo img,
+.student-fif-window-badge img {
   width: 18px;
   height: 18px;
   object-fit: contain;
   mix-blend-mode: multiply;
   display: block;
 }
-.fif-window {
+.student-fif-window {
   position: fixed;
   right: 20px;
   bottom: 74px;
   z-index: 42;
-  width: min(360px, calc(100vw - 28px));
+  width: min(420px, calc(100vw - 28px));
+  height: clamp(320px, calc(100vh - 96px), 620px);
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   background: #fffefa;
   border: 1px solid #dfd3bd;
   border-radius: 14px;
   box-shadow: 0 16px 40px #3b2a1e26;
   overflow: hidden;
-  animation: fif-pop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: student-fif-pop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   transform-origin: bottom right;
 }
-.fif-window.is-dragging {
+.student-fif-window.is-dragging {
   animation: none;
 }
-@keyframes fif-pop {
+@keyframes student-fif-pop {
   from {
     opacity: 0;
     transform: translateY(8px) scale(0.96);
@@ -1927,7 +1928,7 @@
     transform: translateY(0) scale(1);
   }
 }
-.fif-window-head {
+.student-fif-window-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1939,24 +1940,24 @@
   touch-action: none;
   user-select: none;
 }
-.fif-window.is-dragging .fif-window-head {
+.student-fif-window.is-dragging .student-fif-window-head {
   cursor: grabbing;
 }
-.fif-window-controls {
+.student-fif-window-controls {
   display: flex;
   align-items: center;
   gap: 6px;
   color: #9a8567;
 }
-.fif-drag-hint {
+.student-fif-drag-hint {
   opacity: 0.75;
 }
-.fif-window-brand {
+.student-fif-window-brand {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.fif-window-badge {
+.student-fif-window-badge {
   display: grid;
   place-items: center;
   width: 30px;
@@ -1965,23 +1966,23 @@
   background: #fff8e6;
   border: 1px solid #e6d7b7;
 }
-.fif-window-badge img {
+.student-fif-window-badge img {
   width: 20px;
   height: 20px;
 }
-.fif-window-brand strong {
+.student-fif-window-brand strong {
   display: block;
   font-size: 14px;
   font-weight: 750;
   color: #352a22;
   line-height: 1.2;
 }
-.fif-window-brand small {
+.student-fif-window-brand small {
   display: block;
   font-size: 11px;
   color: #826e54;
 }
-.fif-window-close {
+.student-fif-window-close {
   display: grid;
   place-items: center;
   width: 32px;
@@ -1991,49 +1992,117 @@
   background: transparent;
   color: #6e5940;
 }
-.fif-window-close:hover {
+.student-fif-window-close:hover {
   background: #eee4d0;
 }
-.fif-window-messages {
-  display: grid;
+.student-fif-window-messages {
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   padding: 15px;
   min-height: 0;
-  max-height: 260px;
   overflow-y: auto;
-  align-content: start;
+  overscroll-behavior: contain;
 }
-.fif-msg {
+/* Messages sit at the bottom and grow upwards, like a messaging app. An auto margin is used instead of
+   justify-content: flex-end so older messages stay reachable by scrolling once the chat overflows. */
+.student-fif-window-messages > :first-child {
+  margin-top: auto;
+}
+.student-fif-msg {
   display: flex;
 }
-.fif-msg-user {
+.student-fif-msg-user {
   justify-content: flex-end;
 }
-.fif-msg p {
+.student-fif-msg-bubble {
   margin: 0;
   padding: 9px 12px;
   border-radius: 11px;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.5;
+  max-width: 88%;
+  overflow-wrap: anywhere;
+}
+.student-fif-msg-bubble p {
+  margin: 0;
+}
+.student-fif-msg-bubble p + p,
+.student-fif-msg-bubble p + ul,
+.student-fif-msg-bubble p + ol,
+.student-fif-msg-bubble ul + p,
+.student-fif-msg-bubble ol + p {
+  margin-top: 7px;
+}
+.student-fif-msg-bubble ul,
+.student-fif-msg-bubble ol {
+  margin: 0;
+  padding-left: 18px;
+}
+.student-fif-msg-bubble li + li {
+  margin-top: 3px;
+}
+.student-fif-msg-bubble strong {
+  font-weight: 700;
+}
+.student-fif-msg-bubble code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: #3b2a1e14;
+}
+.student-fif-msg-user .student-fif-msg-bubble {
+  white-space: pre-line;
+}
+.student-fif-msg-assistant {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.student-fif-msg-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   max-width: 85%;
 }
-.fif-msg-assistant p {
+.student-fif-msg-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #d2b475;
+  border-radius: 999px;
+  background: #fffefa;
+  color: #6b5028;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 11px;
+  text-decoration: none;
+}
+.student-fif-msg-link:hover {
+  background: #fbf1da;
+}
+.student-fif-msg-link:focus-visible {
+  outline: 2px solid #c59536;
+  outline-offset: 2px;
+}
+.student-fif-msg-assistant .student-fif-msg-bubble {
   background: #f5efe2;
   color: #3b2a1e;
   border-bottom-left-radius: 4px;
 }
-.fif-msg-user p {
+.student-fif-msg-user .student-fif-msg-bubble {
   background: #3b2a1e;
   color: #fffefa;
   border-bottom-right-radius: 4px;
 }
-.fif-prompts {
+.student-fif-prompts {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 2px;
 }
-.fif-prompts button {
+.student-fif-prompts button {
   border: 1px solid #e2d5bc;
   border-radius: 999px;
   background: #fffefa;
@@ -2042,11 +2111,11 @@
   font-weight: 600;
   padding: 6px 11px;
 }
-.fif-prompts button:hover {
+.student-fif-prompts button:hover {
   background: #fbf1da;
   border-color: #d2b475;
 }
-.fif-window-form {
+.student-fif-window-form {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2054,7 +2123,7 @@
   border-top: 1px solid #eadfce;
   background: #fffefa;
 }
-.fif-window-form input {
+.student-fif-window-form input {
   flex: 1;
   min-width: 0;
   border: 1px solid #e3d8c4;
@@ -2064,12 +2133,12 @@
   background: #fbf9f3;
   color: #352a22;
 }
-.fif-window-form input:focus {
+.student-fif-window-form input:focus {
   outline: none;
   border-color: #c59536;
   background: #fffefa;
 }
-.fif-window-form button {
+.student-fif-window-form button {
   display: grid;
   place-items: center;
   width: 38px;
@@ -2080,22 +2149,23 @@
   color: #3b2a1e;
   flex-shrink: 0;
 }
-.fif-window-form button:disabled {
+.student-fif-window-form button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 @media (max-width: 700px) {
-  .fif-launcher {
+  .student-fif-launcher {
     right: 14px;
     bottom: calc(78px + env(safe-area-inset-bottom));
     min-height: 40px;
     padding: 0 13px 0 8px;
     font-size: 12px;
   }
-  .fif-window {
+  .student-fif-window {
     right: 14px;
     left: 14px;
     bottom: calc(126px + env(safe-area-inset-bottom));
     width: auto;
+    height: clamp(300px, calc(100dvh - 126px - 72px - env(safe-area-inset-bottom)), 600px);
   }
 }

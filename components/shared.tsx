@@ -4,7 +4,7 @@ import { type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { StorefrontHeader } from "./storefront/header";
-import { FifAssistant } from "./storefront/fif-assistant";
+import { StudentFifAssistant } from "./storefront/student-fif-assistant";
 import { SiteFooter } from "./legal/footer";
 import { WarmIllustration, type WarmArt } from "./ui/illustration";
 import { BrandLogo, WorkspaceHeader, MobileTour } from "./ui/shell";
@@ -41,7 +41,7 @@ export function StudentShell({
         {children}
       </main>
       <Footer />
-      <FifAssistant />
+      <StudentFifAssistant />
       <MobileTour />
     </div>
   );
