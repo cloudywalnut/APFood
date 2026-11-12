@@ -1,12 +1,14 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { StorefrontHeader } from "./storefront/header";
 import { FifAssistant } from "./storefront/fif-assistant";
 import { StudentFifAssistant } from "./storefront/student-fif-assistant";
+import { AdminFifAssistant } from "./workspace/admin-fif-assistant";
+import { OpsLoadingScreen } from "./workspace/ops-loading-screen";
 import { SiteFooter } from "./legal/footer";
 import { WarmIllustration, type WarmArt } from "./ui/illustration";
 import { BrandLogo, WorkspaceHeader, MobileTour } from "./ui/shell";
@@ -62,8 +64,24 @@ export function OpsShell({
 }) {
   const searchParams = useSearchParams();
   const stallId = kind === "vendor" ? (searchParams.get("stall") ?? undefined) : undefined;
+
+  // Loading screen: shown until the first real content render completes.
+  const [loading, setLoading] = useState(true);
+  const notifyRef = useRef<(() => void) | null>(null);
+  const onReady = useCallback((notify: () => void) => {
+    notifyRef.current = notify;
+    // Give children one frame to mount before we start the exit animation.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setLoading(false);
+        notify();
+      });
+    });
+  }, []);
+
   return (
     <div className={"ops-theme ap-role-shell" + (kind === "vendor" ? " vendor-ops-theme" : " admin-ops-theme")}>
+      {loading && <OpsLoadingScreen onReady={onReady} />}
       <WorkspaceHeader role={kind} route={route} />
       <div className="ap-ops-content">
         <main id="main-content" className="ops-main">
@@ -73,6 +91,7 @@ export function OpsShell({
       </div>
       <Footer />
       {kind === "vendor" && <FifAssistant mode="vendor" hosted={true} vendorId={stallId} />}
+      {kind === "admin" && <AdminFifAssistant />}
     </div>
   );
 }
