@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowRight, Award, BarChart3, Clock, CloudSun, Flame, MapPin, RefreshCw, SlidersHorizontal, Sparkles, TrendingDown, Users } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, Award, BarChart3, Clock, CloudSun, Flame, MapPin, MessageSquare, RefreshCw, SlidersHorizontal, Sparkles, TrendingDown, Users } from "lucide-react";
 import Link from "next/link";
 import { money } from "../../lib/demo";
 import { projectScenario, type ScenarioProduct, type ScenarioResult } from "../../lib/fif-scenarios";
@@ -51,10 +52,32 @@ export function VendorScenarioStudio({ vendorId, days, baseline, loading, analys
   const animatedEffortDelta = useAnimatedNumber(analysis ? Math.abs(effortDelta) : 0, Boolean(analysis), 950);
   const animatedEffortPct = useAnimatedNumber(analysis ? effortPct : 0, Boolean(analysis), 950);
 
+  const [sentActionId, setSentActionId] = useState<string | null>(null);
+  const dispatchCopilotPrompt = (action: NonNullable<ScenarioResult["actions"]>[number], matchedProduct?: ScenarioProduct) => {
+    if (typeof window === "undefined") return;
+    const rawPrompt = action.kind === "price" && action.proposedPriceSen !== undefined && matchedProduct
+      ? `Update ${matchedProduct.name} price to ${money(action.proposedPriceSen)} (${action.title})`
+      : `Help me apply "${action.title}"${matchedProduct ? ` for ${matchedProduct.name}` : ""}: ${action.detail}`;
+    const prompt = rawPrompt.length > 220 ? rawPrompt.slice(0, 217) + "..." : rawPrompt;
+    window.dispatchEvent(new CustomEvent("apfood:copilot-prompt", {
+      detail: {
+        vendorId,
+        actionId: action.id,
+        kind: action.kind,
+        itemId: action.itemId,
+        itemName: matchedProduct?.name,
+        proposedPriceSen: action.proposedPriceSen,
+        prompt,
+      },
+    }));
+    setSentActionId(action.id);
+    window.setTimeout(() => setSentActionId(current => current === action.id ? null : current), 2500);
+  };
+
   return <section id="vendor-ai-insights" className="vendor-scenario-studio" aria-label="AI business insights and scenario preview" aria-busy={busy}>
     <header>
       <div>
-        <span className="vendor-section-label"><Sparkles size={12} aria-hidden />FIF · AI GROWTH &amp; OPERATIONS</span>
+        <span className="vendor-section-label">FIF · AI GROWTH &amp; OPERATIONS</span>
         <h2>AI-guided actions for your stall.</h2>
         <p>Tuned using live APU Campus (Bukit Jalil) weather, what is selling vs what should sell, peak hours, day-of-week patterns, and campus vendor benchmarks for the last {days === "1" ? "24 hours" : days + " days"}.</p>
       </div>
@@ -120,19 +143,30 @@ export function VendorScenarioStudio({ vendorId, days, baseline, loading, analys
           {analysis.patterns.dayPatterns.some(d => d.orders > 0) ? <ul>{analysis.patterns.dayPatterns.filter(d => d.orders > 0).map(day => <li key={day.dayName}><strong>{day.dayName}</strong><span>{day.orders} orders · {money(day.revenueSen)}{day.topItemName ? ` · ${day.topItemName}` : ""}</span></li>)}</ul> : <p>No daily breakdown yet.</p>}
         </article>
       </section>}
-      <div className="scenario-proposals">{analysis.actions.map(action => <article key={action.id} className={selected.includes(action.id) ? "is-selected" : undefined}>
-        <div className="scenario-proposal-top">
-          <label className="scenario-proposal-select"><input type="checkbox" checked={selected.includes(action.id)} onChange={event => onToggleAction(action.id, event.target.checked)} /><span>{action.title}</span></label>
-          <div className="scenario-proposal-badges">
-            {action.volumeChangePct !== 0 && <span className={"ai-inline-delta " + (action.volumeChangePct > 0 ? "is-positive" : "is-warn")}>{action.volumeChangePct > 0 ? "+" : ""}{action.volumeChangePct}% vol</span>}
-            {action.workSavingPct > 0 && <span className="ai-inline-delta is-positive">-{action.workSavingPct}% prep</span>}
+      <div className="scenario-proposals">{analysis.actions.map(action => {
+        const matchedProduct = action.itemId ? products.find(product => product.id === action.itemId) : undefined;
+        const dishParam = matchedProduct ? "&dish=" + encodeURIComponent(matchedProduct.name) : "";
+        const isMenuAction = action.kind === "price" || Boolean(action.itemId);
+        return <article key={action.id} className={selected.includes(action.id) ? "is-selected" : undefined}>
+          <div className="scenario-proposal-top">
+            <label className="scenario-proposal-select"><input type="checkbox" checked={selected.includes(action.id)} onChange={event => onToggleAction(action.id, event.target.checked)} /><span>{action.title}</span></label>
+            <div className="scenario-proposal-badges">
+              {action.volumeChangePct !== 0 && <span className={"ai-inline-delta " + (action.volumeChangePct > 0 ? "is-positive" : "is-warn")}>{action.volumeChangePct > 0 ? "+" : ""}{action.volumeChangePct}% vol</span>}
+              {action.workSavingPct > 0 && <span className="ai-inline-delta is-positive">-{action.workSavingPct}% prep</span>}
+            </div>
           </div>
-        </div>
-        <p>{action.detail}</p>
-        <ul>{action.evidence.map(evidence => <li key={evidence}>{evidence}</li>)}</ul>
-        <details><summary>Assumptions &amp; model notes</summary>{action.assumptions.map(assumption => <p key={assumption}>{assumption}</p>)}</details>
-        {action.kind === "price" && <Link href={"/vendor/menu?stall=" + vendorId}>Apply or review in menu<ArrowRight size={14} aria-hidden /></Link>}
-      </article>)}</div>
+          <p>{action.detail}</p>
+          <ul>{action.evidence.map(evidence => <li key={evidence}>{evidence}</li>)}</ul>
+          <details><summary>Assumptions &amp; model notes</summary>{action.assumptions.map(assumption => <p key={assumption}>{assumption}</p>)}</details>
+          <div className="scenario-proposal-actions">
+            <button type="button" className="scenario-copilot-btn" onClick={() => dispatchCopilotPrompt(action, matchedProduct)}>
+              <MessageSquare size={13} aria-hidden />
+              {sentActionId === action.id ? "Sent to FIF AI" : "Ask FIF AI"}
+            </button>
+            {isMenuAction && <Link href={"/vendor/menu?stall=" + vendorId + dishParam}>Review in menu<ArrowRight size={14} aria-hidden /></Link>}
+          </div>
+        </article>;
+      })}</div>
       {!analysis.actions.length && <p className="scenario-limit">There is not enough suitable menu or sales data for an AI recommendation yet.</p>}
       <details className="scenario-method"><summary><SlidersHorizontal size={15} aria-hidden />Tune AI sensitivity &amp; calculation formula</summary><div className="scenario-assumption-controls"><label>Demand-response strength <strong>{Math.round(demandScale * 100)}%</strong><input type="range" min="0" max="1.5" step="0.25" value={demandScale} onChange={event => onDemandScale(Number(event.target.value))} /></label><label>Preparation-saving strength <strong>{Math.round(effortScale * 100)}%</strong><input type="range" min="0" max="1.5" step="0.25" value={effortScale} onChange={event => onEffortScale(Number(event.target.value))} /></label></div><p>Revenue = (historical item revenue + historical units × proposed price difference) × assumed volume response. Preparation effort = historical units × current recipe work units × volume response × assumed efficiency. Combined demand changes are capped at ±20%; effort savings at 15%.</p><ul>{analysis.notes.map(note => <li key={note}>{note}</li>)}</ul></details>
     </>}

@@ -7,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Eye, ImagePlus, Package, Plus, Trash2, UtensilsCrossed } from "lucide-react";
+import { Eye, ImagePlus, Package, Pause, Play, Plus, Trash2, UtensilsCrossed } from "lucide-react";
 import { money } from "../../lib/demo";
 import { hostedData } from "../../lib/backend/client";
 import { isValidImageSrc, type OrderRow } from "../../lib/backend/contracts";
@@ -140,6 +140,8 @@ function VendorMenu({ stall }: { stall: Stall }) {
   const [edit, setEdit] = useState<MenuItem | null>();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "published" | "hidden" | "low">("all");
+  const [quickBusy, setQuickBusy] = useState<{ id: string; action: "stock" | "active" } | null>(null);
+  const [quickError, setQuickError] = useState("");
   if (!result.value) return <RemoteStatus error={result.error} reload={result.reload} />;
   const items = result.value;
   const publishedCount = items.filter(item => item.active).length;
@@ -149,6 +151,32 @@ function VendorMenu({ stall }: { stall: Stall }) {
     const matchesFilter = filter === "all" || (filter === "published" && item.active) || (filter === "hidden" && !item.active) || (filter === "low" && item.stock <= 5);
     return matchesSearch && matchesFilter;
   });
+
+  async function quickUpdate(item: MenuItem, action: "stock" | "active", patch: { stock?: number; active?: boolean }) {
+    if (quickBusy) return;
+    setQuickBusy({ id: item.id, action });
+    setQuickError("");
+    try {
+      await api.saveMenu({
+        id: item.id,
+        vendorId: stall.id,
+        name: item.name,
+        description: item.description,
+        priceSen: item.price_sen,
+        stock: patch.stock ?? item.stock,
+        expectedStock: item.stock,
+        active: patch.active ?? item.active,
+        workUnits: item.work_units,
+        image: item.image || undefined,
+      });
+    } catch (problem) {
+      setQuickError(messageOf(problem));
+    } finally {
+      result.reload();
+      setQuickBusy(null);
+    }
+  }
+
   return <>
     <div className="metrics vendor-metrics">
       <section className="metric"><div><span>Total dishes</span><strong>{items.length}</strong></div><span className="metric-icon"><UtensilsCrossed size={19} aria-hidden /></span></section>
@@ -168,11 +196,16 @@ function VendorMenu({ stall }: { stall: Stall }) {
           )}
         </div>
       </div>
+      <ErrorMessage message={quickError} />
       {visible.length ? <div className="table-wrap"><table className="table-stack">
         <thead><tr><th>Dish</th><th>Price</th><th>Stock</th><th>Visibility</th><th>Action</th></tr></thead>
         <tbody>{visible.map(item => {
           const photo = mealPhoto(item);
           const finalPrice = item.price_sen - item.discount_sen;
+          const stockBusy = quickBusy?.id === item.id && quickBusy.action === "stock";
+          const activeBusy = quickBusy?.id === item.id && quickBusy.action === "active";
+          const anyBusy = Boolean(quickBusy);
+          const nextStock = Math.min(1_000_000, item.stock + 5);
           return <tr key={item.id}>
             <th scope="row">
               <div className="menu-item-cell">
@@ -194,7 +227,30 @@ function VendorMenu({ stall }: { stall: Stall }) {
               </div>
             </td>
             <td data-label="Visibility"><span className={"badge " + (item.active ? "good" : "neutral")}>{item.active ? "Published" : "Hidden"}</span></td>
-            <td className="table-stack-action"><button className="button secondary" onClick={() => setEdit(item)}>Edit</button></td>
+            <td className="table-stack-action">
+              <div className="menu-row-actions">
+                <button
+                  type="button"
+                  className="button secondary menu-quick-btn"
+                  disabled={anyBusy || item.stock >= 1_000_000}
+                  aria-label={`Add 5 stock to ${item.name}`}
+                  onClick={() => void quickUpdate(item, "stock", { stock: nextStock })}
+                >
+                  <Plus size={14} aria-hidden />{stockBusy ? "Saving…" : "5 stock"}
+                </button>
+                <button
+                  type="button"
+                  className={"button secondary menu-quick-btn" + (item.active ? "" : " is-resume")}
+                  disabled={anyBusy}
+                  aria-label={`${item.active ? "Pause" : "Resume"} ${item.name}`}
+                  onClick={() => void quickUpdate(item, "active", { active: !item.active })}
+                >
+                  {item.active ? <Pause size={14} aria-hidden /> : <Play size={14} aria-hidden />}
+                  {activeBusy ? (item.active ? "Pausing…" : "Resuming…") : (item.active ? "Pause" : "Resume")}
+                </button>
+                <button type="button" className="button secondary menu-quick-btn" disabled={anyBusy} onClick={() => setEdit(item)}>Edit</button>
+              </div>
+            </td>
           </tr>;
         })}</tbody>
       </table></div> : <div className="menu-empty-state">

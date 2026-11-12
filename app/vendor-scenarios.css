@@ -35,7 +35,10 @@
 .scenario-proposals ul { padding-left:17px; margin:0; display:grid; gap:8px; }
 .scenario-proposals details { border-top:1px solid #e7ecf1; margin-top:17px; padding-top:15px; }
 .scenario-proposals summary { cursor:pointer; font-size:11px; font-weight:650; color:#4b627c; line-height:1.8; }
-.scenario-proposals article > a { display:flex; align-items:center; gap:7px; min-height:44px; font-size:12px; font-weight:650; color:#354f6d; margin-top:12px; }
+.scenario-proposal-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-top:12px; padding-top:10px; border-top:1px solid #edf0f3; }
+.scenario-copilot-btn { display:inline-flex; align-items:center; gap:6px; min-height:34px; padding:6px 12px; border-radius:6px; border:1px solid #d5ab3c; background:#fff9e8; color:#4a3714; font-size:12px; font-weight:650; cursor:pointer; transition:background-color .15s ease,border-color .15s ease; }
+.scenario-copilot-btn:hover { background:#fdf1cc; border-color:#c39524; }
+.scenario-proposal-actions a { display:inline-flex; align-items:center; gap:6px; min-height:34px; font-size:12px; font-weight:650; color:#354f6d; }
 .scenario-method { margin:0 26px 24px; padding:17px 20px; border:1px solid #e1e7ee; background:#fafbfd; border-radius:6px; }
 .scenario-method summary { display:flex; gap:9px; align-items:center; cursor:pointer; font-size:12px; font-weight:650; color:#445c76; }
 .scenario-method p,.scenario-method li { color:#728195; font-size:12px; line-height:1.85; }

@@ -62,11 +62,24 @@ const sampleContext = {
     peakDays: [{ day: "2026-11-11", weekday: "Wed", count: 14 }],
     statuses: [{ status: "collected", count: 50 }, { status: "ready", count: 3 }],
   },
+  kitchenQueue: {
+    totalActive: 4,
+    placed: 1,
+    accepted: 1,
+    preparing: 1,
+    ready: 1,
+    overduePickups: 1,
+    next60MinPickups: 2,
+    topQueuedItems: [{ itemId: "nasi-lemak", name: "Nasi Lemak", quantity: 5 }],
+  },
   campusContext: {
     nowMalaysia: "12 Nov 2026, 4:00 pm",
     currentMonth: "November",
     timezone: "Asia/Kuala_Lumpur",
     currency: "MYR",
+    weather: "hot",
+    weatherLabel: "Warm & humid · 32.1°C",
+    temperatureC: 32.1,
     notes: "APU campus cafeteria",
   },
 };
@@ -219,4 +232,41 @@ test("buildFallbackCopilotReply handles discount, price-only RM, and reopen phra
   const reopen = buildFallbackCopilotReply("Reopen my stall", pausedContext);
   assert.equal(reopen.proposedAction?.type, "update_stall_settings");
   assert.deepEqual(reopen.proposedAction?.changes, { paused: false });
+});
+
+test("buildFallbackCopilotReply handles next-rush prep, relative lowest-stock restock, and pause out-of-stock", () => {
+  const prep = buildFallbackCopilotReply("What should I prep for the next rush?", sampleContext);
+  assert.equal(prep.proposedAction, null);
+  assert.ok(prep.reply.includes("4 active"));
+  assert.ok(prep.reply.includes("1 overdue"));
+  assert.ok(prep.reply.includes("2 due in the next 60 min"));
+  assert.ok(prep.reply.includes("Nasi Lemak ×5"));
+  assert.ok(prep.reply.includes("Warm & humid · 32.1°C"));
+
+  const restockLowest = buildFallbackCopilotReply("Restock my lowest-stock item by +15", sampleContext);
+  assert.equal(restockLowest.proposedAction?.type, "update_menu_item");
+  assert.equal(restockLowest.proposedAction?.itemId, "nasi-lemak");
+  assert.deepEqual(restockLowest.proposedAction?.changes, { stock: 19 });
+
+  const reduceStock = buildFallbackCopilotReply("Reduce stock of Nasi Lemak by 3", sampleContext);
+  assert.equal(reduceStock.proposedAction?.type, "update_menu_item");
+  assert.equal(reduceStock.proposedAction?.itemId, "nasi-lemak");
+  assert.deepEqual(reduceStock.proposedAction?.changes, { stock: 1 });
+
+  const noOutOfStock = buildFallbackCopilotReply("Pause any out-of-stock items", sampleContext);
+  assert.equal(noOutOfStock.proposedAction, null);
+  assert.ok(noOutOfStock.reply.includes("stock above 0"));
+
+  const withZeroStock = {
+    ...sampleContext,
+    menu: sampleContext.menu.map(item => (item.id === "nasi-lemak" ? { ...item, stock: 0 } : item)),
+  };
+  const pauseZero = buildFallbackCopilotReply("Pause any out-of-stock items", withZeroStock);
+  assert.equal(pauseZero.proposedAction?.type, "update_menu_item");
+  assert.equal(pauseZero.proposedAction?.itemId, "nasi-lemak");
+  assert.deepEqual(pauseZero.proposedAction?.changes, { active: false });
+
+  const emptyMenu = { ...sampleContext, menu: [] };
+  const emptyRestock = buildFallbackCopilotReply("Restock my lowest-stock item by +15", emptyMenu);
+  assert.equal(emptyRestock.proposedAction, null);
 });

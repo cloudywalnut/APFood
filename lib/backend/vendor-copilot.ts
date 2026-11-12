@@ -11,6 +11,42 @@ import {
   type VendorCopilotContext,
 } from "./vendor-copilot-core";
 
+const weatherCache = {
+  expires: 0,
+  weather: "hot" as "rainy" | "hot",
+  label: "Tropical warm · Bukit Jalil",
+  tempC: undefined as number | undefined,
+};
+
+async function fetchCampusWeather() {
+  if (Date.now() < weatherCache.expires) {
+    return { weather: weatherCache.weather, weatherLabel: weatherCache.label, temperatureC: weatherCache.tempC };
+  }
+  try {
+    const res = await fetch(
+      "https://api.open-meteo.com/v1/forecast?latitude=3.0554&longitude=101.7006&current=temperature_2m,precipitation,weather_code&timezone=Asia%2FKuala_Lumpur",
+      { signal: AbortSignal.timeout(2500) },
+    );
+    if (!res.ok) throw new Error("Weather unavailable");
+    const json = await res.json() as { current?: { temperature_2m?: number; precipitation?: number; weather_code?: number } };
+    const temp = typeof json.current?.temperature_2m === "number" ? Math.round(json.current.temperature_2m * 10) / 10 : undefined;
+    const precip = typeof json.current?.precipitation === "number" ? json.current.precipitation : 0;
+    const code = typeof json.current?.weather_code === "number" ? json.current.weather_code : 0;
+    const rainy = precip > 0 || code >= 51;
+    const weather = (rainy ? "rainy" : "hot") as "rainy" | "hot";
+    const label = rainy
+      ? (code >= 95 ? "Thunderstorm" : "Rainy") + (temp !== undefined ? ` · ${temp}°C` : "")
+      : (temp !== undefined && temp >= 30 ? "Warm & humid" : "Clear") + (temp !== undefined ? ` · ${temp}°C` : "");
+    weatherCache.expires = Date.now() + 10 * 60_000;
+    weatherCache.weather = weather;
+    weatherCache.label = label;
+    weatherCache.tempC = temp;
+  } catch {
+    weatherCache.expires = Date.now() + 2 * 60_000;
+  }
+  return { weather: weatherCache.weather, weatherLabel: weatherCache.label, temperatureC: weatherCache.tempC };
+}
+
 function weekdayOf(dayIso: string) {
   const date = new Date(dayIso + "T12:00:00+08:00");
   return Number.isNaN(date.getTime())
@@ -28,7 +64,7 @@ export async function gatherVendorCopilotContext(client: RequestClient, vendorId
   );
   if (!stall) throw new BackendError(404, "STALL_UNAVAILABLE", "Stall unavailable.");
 
-  const [zone, menuRows] = await Promise.all([
+  const [zone, menuRows, activeOrders, campusWeather] = await Promise.all([
     client.from("zones").select("id,name").eq("id", stall.zone_id).maybeSingle().then(r => unwrap(r)),
     client
       .from("menu_items")
@@ -36,6 +72,15 @@ export async function gatherVendorCopilotContext(client: RequestClient, vendorId
       .eq("vendor_id", vendorId)
       .order("name")
       .then(r => unwrap(r) ?? []),
+    client
+      .from("orders")
+      .select("id,status,pickup_at,lines")
+      .eq("vendor_id", vendorId)
+      .in("status", ["placed", "accepted", "preparing", "ready"])
+      .order("pickup_at", { ascending: true })
+      .limit(200)
+      .then(r => unwrap(r) ?? []),
+    fetchCampusWeather(),
   ]);
 
   let daysCovered = 14;
@@ -76,8 +121,43 @@ export async function gatherVendorCopilotContext(client: RequestClient, vendorId
     .map(d => ({ day: d.day, weekday: weekdayOf(d.day), count: d.count }));
 
   const now = new Date();
+  const nowMs = now.getTime();
+  const in60MinMs = nowMs + 60 * 60_000;
   const nowMalaysia = now.toLocaleString("en-MY", { timeZone: "Asia/Kuala_Lumpur", dateStyle: "medium", timeStyle: "short" });
   const currentMonth = now.toLocaleDateString("en-MY", { month: "long", timeZone: "Asia/Kuala_Lumpur" });
+
+  let placed = 0;
+  let accepted = 0;
+  let preparing = 0;
+  let ready = 0;
+  let overduePickups = 0;
+  let next60MinPickups = 0;
+  const queuedItemCounts = new Map<string, { itemId: string; name: string; quantity: number }>();
+
+  for (const order of activeOrders) {
+    if (order.status === "placed") placed += 1;
+    else if (order.status === "accepted") accepted += 1;
+    else if (order.status === "preparing") preparing += 1;
+    else if (order.status === "ready") ready += 1;
+
+    const pickupMs = Date.parse(order.pickup_at);
+    if (Number.isFinite(pickupMs)) {
+      if (pickupMs < nowMs) overduePickups += 1;
+      else if (pickupMs <= in60MinMs) next60MinPickups += 1;
+    }
+
+    const lines = Array.isArray(order.lines) ? order.lines : [];
+    for (const line of lines as Array<{ itemId?: string; name?: string; quantity?: number }>) {
+      if (!line || typeof line.itemId !== "string" || typeof line.quantity !== "number") continue;
+      const existing = queuedItemCounts.get(line.itemId);
+      if (existing) existing.quantity += line.quantity;
+      else queuedItemCounts.set(line.itemId, { itemId: line.itemId, name: line.name ?? line.itemId, quantity: line.quantity });
+    }
+  }
+
+  const topQueuedItems = [...queuedItemCounts.values()]
+    .sort((a, b) => b.quantity - a.quantity)
+    .slice(0, 5);
 
   return {
     stall: {
@@ -107,11 +187,24 @@ export async function gatherVendorCopilotContext(client: RequestClient, vendorId
       peakDays,
       statuses: report?.analytics?.statuses ?? [],
     },
+    kitchenQueue: {
+      totalActive: activeOrders.length,
+      placed,
+      accepted,
+      preparing,
+      ready,
+      overduePickups,
+      next60MinPickups,
+      topQueuedItems,
+    },
     campusContext: {
       nowMalaysia,
       currentMonth,
       timezone: "Asia/Kuala_Lumpur",
       currency: "MYR",
+      weather: campusWeather.weather,
+      weatherLabel: campusWeather.weatherLabel,
+      temperatureC: campusWeather.temperatureC,
       notes: "Asia Pacific University (APU) Malaysia campus cafeteria. Lunch rush typically peaks 12:00-14:00 on weekdays. July is mid-year semester with warm Malaysian weather, favoring quick-prep meals, value combos, and cold drinks.",
     },
   };

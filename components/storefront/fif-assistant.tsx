@@ -31,34 +31,55 @@ export type FifAssistantProps = {
 
 const studentPrompts = ["Fastest pickup now", "Meal deals today", "Quiet stalls"];
 const vendorPrompts = [
-  "Which item in my inventory would sell the most in July?",
-  "What are my peak hours and low-stock risks?",
-  "Summarize my recent sales and top sellers",
+  "What should I prep for the next rush?",
+  "Which item in my inventory would sell best in July?",
+  "Restock my lowest-stock item by +15",
+  "Pause any out-of-stock items",
 ];
 const storageKey = "ap-food-fif-position";
+
+type ActionDiffItem = { label: string; before: string; after: string };
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function actionDiffLines(action: CopilotProposedAction): string[] {
+function actionDiffItems(action: CopilotProposedAction): ActionDiffItem[] {
   if (action.type === "update_menu_item") {
-    const lines: string[] = [];
-    if (action.changes.stock !== undefined) lines.push(`Stock: ${action.before.stock} → ${action.changes.stock}`);
-    if (action.changes.priceSen !== undefined) lines.push(`Price: ${money(action.before.priceSen)} → ${money(action.changes.priceSen)}`);
-    if (action.changes.discountSen !== undefined) lines.push(`Discount: ${money(action.before.discountSen)} → ${money(action.changes.discountSen)}`);
-    if (action.changes.active !== undefined) {
-      lines.push(`Status: ${action.before.active ? "Published" : "Hidden"} → ${action.changes.active ? "Published" : "Hidden"}`);
+    const items: ActionDiffItem[] = [];
+    if (action.changes.stock !== undefined) {
+      items.push({ label: "Stock", before: String(action.before.stock), after: String(action.changes.stock) });
     }
-    return lines;
+    if (action.changes.priceSen !== undefined) {
+      items.push({ label: "Price", before: money(action.before.priceSen), after: money(action.changes.priceSen) });
+    }
+    if (action.changes.discountSen !== undefined) {
+      items.push({ label: "Discount", before: money(action.before.discountSen), after: money(action.changes.discountSen) });
+    }
+    if (action.changes.active !== undefined) {
+      items.push({
+        label: "Status",
+        before: action.before.active ? "Published" : "Hidden",
+        after: action.changes.active ? "Published" : "Hidden",
+      });
+    }
+    return items;
   }
-  const lines: string[] = [];
+  const items: ActionDiffItem[] = [];
   if (action.changes.paused !== undefined) {
-    lines.push(`Intake: ${action.before.paused ? "Paused" : "Open"} → ${action.changes.paused ? "Paused" : "Open"}`);
+    items.push({
+      label: "Intake",
+      before: action.before.paused ? "Paused" : "Open",
+      after: action.changes.paused ? "Paused" : "Open",
+    });
   }
-  if (action.changes.capacity !== undefined) lines.push(`Capacity: ${action.before.capacity} → ${action.changes.capacity} units`);
-  if (action.changes.leadMinutes !== undefined) lines.push(`Lead time: ${action.before.leadMinutes} → ${action.changes.leadMinutes} min`);
-  return lines;
+  if (action.changes.capacity !== undefined) {
+    items.push({ label: "Capacity", before: `${action.before.capacity} u`, after: `${action.changes.capacity} u` });
+  }
+  if (action.changes.leadMinutes !== undefined) {
+    items.push({ label: "Lead time", before: `${action.before.leadMinutes}m`, after: `${action.changes.leadMinutes}m` });
+  }
+  return items;
 }
 
 export function FifAssistant({ mode = "student", hosted = false, vendorId }: FifAssistantProps) {
@@ -86,6 +107,7 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
   const launcherRef = useRef<HTMLButtonElement>(null);
   const suppressClick = useRef(false);
   const prevVendorIdRef = useRef<string | undefined>(undefined);
+  const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
 
   const activeStall = stalls.find(entry => entry.id === vendorId) ?? stalls[0];
   const resolvedVendorId = vendorId ?? activeStall?.id;
@@ -167,6 +189,29 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
   }, [messages, open, loading]);
 
+  const loadingRef = useRef(false);
+  loadingRef.current = loading;
+
+  useEffect(() => {
+    const onPrompt = (event: Event) => {
+      const detail = (event as CustomEvent<{ prompt?: string; autoSend?: boolean }>).detail;
+      const prompt = typeof detail?.prompt === "string" ? detail.prompt.trim().slice(0, 400) : "";
+      setOpen(true);
+      if (!prompt) {
+        requestAnimationFrame(() => inputRef.current?.focus());
+        return;
+      }
+      if (detail?.autoSend === false || loadingRef.current) {
+        setDraft(prompt);
+        requestAnimationFrame(() => inputRef.current?.focus());
+        return;
+      }
+      void sendRef.current(prompt);
+    };
+    window.addEventListener("apfood:copilot-prompt", onPrompt);
+    return () => window.removeEventListener("apfood:copilot-prompt", onPrompt);
+  }, []);
+
   function startDrag(event: ReactPointerEvent<HTMLElement>) {
     if (event.button !== 0 && event.pointerType === "mouse") return;
     if ((event.target as HTMLElement).closest(".fif-window-close")) return;
@@ -208,7 +253,7 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
   }
 
   async function send(text: string) {
-    const clean = text.trim();
+    const clean = text.trim().slice(0, 400);
     if (!clean || loading) return;
     const userMessage: Message = { id: crypto.randomUUID(), role: "user", text: clean };
     const history = messages
@@ -289,6 +334,7 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
       setLoading(false);
     }
   }
+  sendRef.current = send;
 
   async function confirmAction(messageId: string, action: CopilotProposedAction, actionVendorId?: string) {
     const targetVendorId = actionVendorId ?? resolvedVendorId;
@@ -386,9 +432,18 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
                   {message.actionState === "cancelled" && <span className="fif-action-tag is-cancelled">Cancelled</span>}
                 </div>
                 <p className="fif-action-summary">{message.proposedAction.summary}</p>
-                <ul className="fif-action-diff">
-                  {actionDiffLines(message.proposedAction).map(line => <li key={line}>{line}</li>)}
-                </ul>
+                <div className="fif-action-diffs">
+                  {actionDiffItems(message.proposedAction).map(item => (
+                    <div key={item.label} className="fif-action-diff-row">
+                      <span className="fif-diff-label">{item.label}</span>
+                      <span className="fif-diff-badges">
+                        <span className="fif-diff-before">{item.before}</span>
+                        <span className="fif-diff-arrow" aria-hidden>→</span>
+                        <span className="fif-diff-after">{item.after}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
                 {message.actionError && <p className="fif-action-error">{message.actionError}</p>}
                 {(message.actionState === "pending" || message.actionState === "applying" || message.actionState === "error") && (
                   <div className="fif-action-buttons">
@@ -427,7 +482,7 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
           aria-label="Message FIF AI"
           value={draft}
           onChange={event => setDraft(event.target.value)}
-          maxLength={240}
+          maxLength={400}
           disabled={loading}
         />
         <button type="submit" aria-label="Send message" disabled={!draft.trim() || loading}><SendHorizontal size={17} aria-hidden /></button>

@@ -133,7 +133,7 @@ async function main() {
         pickup_at: pickupIso,
         status,
         payment,
-        lines: [{ itemId: item.id, name: item.name, quantity: qty, unit: unitPrice }],
+        lines: [{ itemId: item.id, name: item.name, quantity: qty, unit: unitPrice, work: item.work_units ?? 1, extra: false }],
         total_sen: totalSen,
         units,
         created_at: createdIso,
