@@ -8,6 +8,7 @@ import { inviteAccount, manageAccount, qrUrl, uploadMenuImage, uploadVendorQr } 
 import { clearRecovery } from "./recovery";
 import { recommendations } from "./fif";
 import { executeVendorCopilotAction, vendorCopilot } from "./vendor-copilot";
+import { studentChatInput, studentFifChat } from "./student-fif-chat";
 import { dayKey } from "../orders";
 import { canUseWorkspace } from "../login-routing";
 import { scenarioInput } from "../fif-scenarios";
@@ -157,6 +158,11 @@ export async function handleRequest(request: Request, path: string[]) {
       const input = await body(request, copilotExecuteInput);
       requireMembership(await getSession(), "vendor", input.vendorId);
       return result(await executeVendorCopilotAction(client, input));
+    }
+    if (method === "POST" && key === "fif/student/chat") {
+      const input = await body(request, studentChatInput);
+      const actor = requireMembership(await getSession(), "student");
+      return result(await studentFifChat(client, actor.userId, input));
     }
     if (method === "POST" && key === "fif/recommendations") {
       const input = await body(

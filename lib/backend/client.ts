@@ -20,6 +20,7 @@ import {
   pickupOutput,
   quoteOutput,
   sessionOutput,
+  studentFifChatOutput,
   usersOutput,
   vendorPayment,
   vendorRow,
@@ -82,6 +83,8 @@ export function createApiClient(userId?: string) {
       call("fif/copilot", copilotOutput, "POST", input),
     executeVendorCopilot: (input: { vendorId: string; action: CopilotProposedAction }) =>
       call("fif/copilot/execute", copilotExecuteOutput, "POST", input),
+    studentFifChat: (messages: { role: "user" | "assistant"; text: string }[]) =>
+      call("fif/student/chat", studentFifChatOutput, "POST", { messages }),
     signIn: async (email: string, password: string) => {
       const session = await request("auth/session", sessionOutput, "POST", { email, password });
       window.dispatchEvent(new CustomEvent(sessionInvalidated, { detail: { session } }));

@@ -7,6 +7,7 @@ import { LogOut } from "lucide-react";
 import { Brand, ErrorMessage, Footer } from "../shared";
 import { createApiClient, apiClient, sessionInvalidated } from "../../lib/backend/client";
 import { RoleHero } from "../ui/role-hero";
+import { clearStudentFifChats } from "../../lib/student-fif-chat-storage";
 
 export type Session = Awaited<ReturnType<typeof apiClient.session>>;
 export type Role = Session["memberships"][number]["role"];
@@ -52,6 +53,10 @@ export function OptionalSession({ children }: { children: (session?: Session) =>
       {children(session)}
     </SessionUserContext.Provider>
   );
+}
+
+export function useSessionUser() {
+  return useContext(SessionUserContext);
 }
 
 export function useApi() {
@@ -200,6 +205,7 @@ export function SignOut() {
           setBusy(true);
           try {
             await createApiClient(user ?? undefined).signOut();
+            clearStudentFifChats();
             router.replace("/");
             router.refresh();
           } catch (problem) {

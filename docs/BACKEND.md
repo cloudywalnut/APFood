@@ -61,6 +61,7 @@ Sign-in, sign-up and recovery are rate limited per IP address in the database. T
 - QR checkout reserves stock and capacity and allows five minutes for payment. The "I've paid" claim is a demonstration mechanism, not bank verification. A scheduled job (`pg_cron`, every minute) expires unpaid QR orders.
 - Guest carts live in browser storage. On sign-in they move to the account cart, or the student chooses which to keep when both exist. The pending checkout attempt is kept in session storage so a lost response can be retried safely.
 - FIF builds candidate actions from live data on the server. Rules choose by default. With `GEMINI_API_KEY` set, Gemini breaks ties between equally ranked actions (five-second timeout, 30-second cache, 12 calls per user per hour) and may only pick from the server's candidates.
+- Student FIF AI chat (`POST /api/fif/student/chat`, students only) runs the shared tool-calling loop in `lib/backend/fif-agent.ts`. The model can only call the read-only student tools in `lib/backend/student-fif-chat.ts` (orders, order details, menu search, stalls, pickup availability, cart). Tools use the student's own Supabase session, so row-level security still applies. Limits: up to four model calls per question, a 13-second deadline, the last 5 exchanges of history and 100 questions per student per hour. While `OPENAI_API_KEY` is set, the chat uses OpenAI (`OPENAI_MODEL`, default `gpt-6-luna`) instead of Gemini. Without either key the endpoint returns `FIF_UNAVAILABLE` (503).
 
 ## Tests
 

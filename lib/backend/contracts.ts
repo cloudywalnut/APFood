@@ -22,6 +22,15 @@ export const fifOutput = z.object({
   generatedAt: z.string(),
   dataSource: z.literal("demo"),
 });
+export const studentFifChatOutput = z.object({
+  reply: z.string(),
+  ok: z.boolean(),
+  links: z
+    .array(
+      z.object({ href: z.string().regex(/^\/(?:app(?:\/[A-Za-z0-9-]+)*|account|privacy|terms)$/), label: z.string() }),
+    )
+    .default([]),
+});
 export const orderId = z.uuid();
 export const payment = z.enum(["demo", "counter", "duitnow_qr"]);
 export const cartLine = z
