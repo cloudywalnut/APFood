@@ -5,7 +5,7 @@ const { reportCsv, reportPdf } = require("../.test-build/lib/report-export");
 
 test("student cancellation and pickup code eligibility preserve existing state machine", () => {
   for (const status of Object.keys(trackingCopy)) {
-    assert.equal(canStudentCancel(status), ["placed", "accepted"].includes(status));
+    assert.equal(canStudentCancel(status), ["placed", "accepted", "preparing", "ready"].includes(status));
     assert.equal(canShowPickup(status), status === "ready");
   }
 });

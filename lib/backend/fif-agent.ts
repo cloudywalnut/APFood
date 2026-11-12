@@ -23,6 +23,22 @@ type Content = { role: "user" | "model"; parts: Part[] };
 
 export const fallbackReply = "Sorry, I couldn’t work that out just now. Please try again in a moment.";
 
+async function runToolBeforeDeadline(tool: AgentTool, args: Record<string, unknown>, deadline: number) {
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) throw new Error("Agent deadline exceeded");
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      tool.run(args),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Agent deadline exceeded")), remaining);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const candidate = z.object({
   candidates: z
     .array(
@@ -32,6 +48,13 @@ const candidate = z.object({
     )
     .min(1),
 });
+
+async function providerFailure(response: Response, step: number) {
+  const payload = await response.json().catch(() => null);
+  const code = payload?.error?.code ?? payload?.error?.status;
+  const safeCode = typeof code === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(code) ? " " + code : "";
+  return `HTTP ${response.status}${safeCode} at step ${step}`;
+}
 
 export async function runAgent(input: {
   system: string;
@@ -54,6 +77,7 @@ export async function runAgent(input: {
   const declarations = input.tools.map(({ name, description, parameters }) => ({ name, description, parameters }));
   const toolsUsed: string[] = [];
   const maxSteps = input.maxSteps ?? 4;
+  let retriedUnavailable = false;
 
   for (let step = 0; step < maxSteps; step++) {
     const remaining = deadline - Date.now();
@@ -70,9 +94,11 @@ export async function runAgent(input: {
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: input.system }] },
             contents,
-            tools: [{ functionDeclarations: declarations }],
+            ...(declarations.length ? { tools: [{ functionDeclarations: declarations }] } : {}),
             // On the last step the model must answer with what it has.
-            toolConfig: { functionCallingConfig: { mode: lastStep ? "NONE" : "AUTO" } },
+            ...(declarations.length
+              ? { toolConfig: { functionCallingConfig: { mode: lastStep ? "NONE" : "AUTO" } } }
+              : {}),
             generationConfig: {
               maxOutputTokens: 1024,
               temperature: 0.3,
@@ -85,8 +111,21 @@ export async function runAgent(input: {
       const name = error instanceof Error ? error.name : "Error";
       return { reply: fallbackReply, toolsUsed, ok: false, failure: "request " + name + " at step " + step };
     }
+    if (
+      !response.ok &&
+      step === 0 &&
+      !retriedUnavailable &&
+      [502, 503].includes(response.status) &&
+      deadline - Date.now() > 2000
+    ) {
+      retriedUnavailable = true;
+      await response.body?.cancel();
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      step--;
+      continue;
+    }
     if (!response.ok)
-      return { reply: fallbackReply, toolsUsed, ok: false, failure: "HTTP " + response.status + " at step " + step };
+      return { reply: fallbackReply, toolsUsed, ok: false, failure: await providerFailure(response, step) };
     const parsed = candidate.safeParse(await response.json().catch(() => null));
     if (!parsed.success)
       return { reply: fallbackReply, toolsUsed, ok: false, failure: "unexpected response at step " + step };
@@ -107,15 +146,15 @@ export async function runAgent(input: {
     // Echo the model turn unchanged so any thought signatures are preserved.
     contents.push({ role: "model", parts });
     const results: Part[] = [];
-    for (const part of calls.slice(0, 4)) {
+    for (const [index, part] of calls.entries()) {
       const call = part.functionCall!;
       const tool = input.tools.find((entry) => entry.name === call.name);
       let output: unknown;
-      if (!tool) output = { error: "Unknown tool." };
+      if (!tool || index >= 4) output = { error: tool ? "Too many lookups at once." : "Unknown tool." };
       else {
         toolsUsed.push(tool.name);
         try {
-          output = await tool.run(call.args ?? {});
+          output = await runToolBeforeDeadline(tool, call.args ?? {}, deadline);
         } catch {
           output = { error: "This information is unavailable right now." };
         }
@@ -196,6 +235,7 @@ export async function runOpenAIAgent(input: Parameters<typeof runAgent>[0]) {
         headers: { "Content-Type": "application/json", Authorization: "Bearer " + input.key },
         body: JSON.stringify({
           model,
+          store: false,
           messages,
           ...(tools.length ? { tools, tool_choice: lastStep ? "none" : "auto" } : {}),
           // GPT-6 models only allow function tools on Chat Completions with reasoning switched off.
@@ -208,7 +248,7 @@ export async function runOpenAIAgent(input: Parameters<typeof runAgent>[0]) {
       return { reply: fallbackReply, toolsUsed, ok: false, failure: "request " + name + " at step " + step };
     }
     if (!response.ok)
-      return { reply: fallbackReply, toolsUsed, ok: false, failure: "HTTP " + response.status + " at step " + step };
+      return { reply: fallbackReply, toolsUsed, ok: false, failure: await providerFailure(response, step) };
     const parsed = completion.safeParse(await response.json().catch(() => null));
     if (!parsed.success)
       return { reply: fallbackReply, toolsUsed, ok: false, failure: "unexpected response at step " + step };
@@ -231,7 +271,7 @@ export async function runOpenAIAgent(input: Parameters<typeof runAgent>[0]) {
         toolsUsed.push(tool.name);
         try {
           const args = JSON.parse(call.function.arguments || "{}");
-          output = await tool.run(args && typeof args === "object" ? args : {});
+          output = await runToolBeforeDeadline(tool, args && typeof args === "object" ? args : {}, deadline);
         } catch {
           output = { error: "This information is unavailable right now." };
         }

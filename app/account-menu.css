@@ -1,0 +1,71 @@
+.ap-account-menu {
+  position: relative;
+}
+.ap-account-trigger {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 11px;
+  border: 1px solid #e3ddd0;
+  border-radius: 12px;
+  background: #fffdf8;
+  color: #35291f;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ap-account-options {
+  position: absolute;
+  z-index: 100;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 224px;
+  max-width: calc(100vw - 28px);
+  padding: 10px;
+  border: 1px solid #e3ddd0;
+  border-radius: 14px;
+  background: #fffdf8;
+  box-shadow: 0 10px 35px #35291f20;
+  color: #35291f;
+}
+.ap-account-options > strong {
+  display: block;
+  padding: 8px;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.ap-account-options > a,
+.ap-account-options > button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  text-decoration: none;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.ap-account-options > a:hover,
+.ap-account-options > button:hover {
+  background: #f5eedc;
+}
+.ap-account-options > p {
+  margin: 8px;
+  font-size: 12px;
+  color: #9e3227;
+}
+@media (max-width: 900px) {
+  .ap-account-trigger > span {
+    display: none;
+  }
+  .ap-account-trigger {
+    padding: 9px;
+  }
+}

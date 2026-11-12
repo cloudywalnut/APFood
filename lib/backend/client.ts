@@ -47,7 +47,9 @@ async function request<T>(path: string, output: z.ZodType<T>, method = "GET", in
   const response = await fetch("/api/" + path, {
     method,
     cache: "no-store",
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(
+      ["fif/vendor-scenarios", "fif/copilot", "fif/student/chat"].includes(path) ? 25_000 : 15_000,
+    ),
     headers: {
       ...(input === undefined || form ? {} : { "Content-Type": "application/json" }),
       ...(userId ? { "X-AP-Food-User": userId } : {}),
@@ -78,7 +80,8 @@ export function createApiClient(userId?: string) {
   return {
     recommendations: (input: { role: "student" | "vendor" | "admin"; vendorId?: string; zoneId?: string }) =>
       call("fif/recommendations", fifOutput, "POST", input),
-    vendorScenarios: (input: z.infer<typeof scenarioInput>) => call("fif/vendor-scenarios", scenarioOutput, "POST", input),
+    vendorScenarios: (input: z.infer<typeof scenarioInput>) =>
+      call("fif/vendor-scenarios", scenarioOutput, "POST", input),
     vendorCopilot: (input: { vendorId: string; message: string; history?: CopilotHistoryTurn[] }) =>
       call("fif/copilot", copilotOutput, "POST", input),
     executeVendorCopilot: (input: { vendorId: string; action: CopilotProposedAction }) =>

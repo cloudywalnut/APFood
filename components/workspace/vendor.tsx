@@ -8,7 +8,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Eye, ImagePlus, Package, Pause, Play, Plus, Trash2, UtensilsCrossed } from "lucide-react";
-import { money } from "../../lib/orders";
+import { canCancelOrder, money } from "../../lib/orders";
 import { apiClient } from "../../lib/backend/client";
 import { isValidImageSrc, type OrderRow } from "../../lib/backend/contracts";
 import { subscribeToOrders } from "../../lib/backend/realtime";
@@ -43,13 +43,20 @@ function VendorContent({ session, section, id }: { session: Session; section: st
   const selection = useSearchParams().get("stall");
   const api = useApi();
   const stalls = useRemote(api.assignedStalls);
+  useEffect(() => {
+    const onActionApplied = () => {
+      stalls.reload();
+    };
+    window.addEventListener("apfood:vendor-action-applied", onActionApplied);
+    return () => window.removeEventListener("apfood:vendor-action-applied", onActionApplied);
+  }, [stalls.reload]);
   if (id) return <VendorOrder key={id} id={id} session={session} />;
   if (!stalls.value) return <RemoteStatus error={stalls.error} reload={stalls.reload} />;
   const stall = stalls.value.find((entry) => entry.id === selection) ?? stalls.value[0];
   if (!stall)
     return <Empty title="No assigned stalls" detail="Ask an administrator to check your vendor membership." />;
   const titles: Record<string, string> = {
-    home: "Shift dashboard",
+    home: "Stall overview",
     orders: "Kitchen board",
     menu: "Menu & stock",
     insights: "AI Insights",
@@ -62,18 +69,20 @@ function VendorContent({ session, section, id }: { session: Session; section: st
           <h1>{titles[section] ?? "Shift dashboard"}</h1>
           <p>{stall.name}</p>
         </div>
-        <div className="line wrap">
-          <label className="field compact">
-            Stall
-            <select value={stall.id} onChange={(event) => replaceFilters({ stall: event.target.value })}>
-              {stalls.value.map((entry) => (
-                <option key={entry.id} value={entry.id}>
-                  {entry.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        {stalls.value.length > 1 && (
+          <div className="line wrap">
+            <label className="field compact">
+              Stall
+              <select value={stall.id} onChange={(event) => replaceFilters({ stall: event.target.value })}>
+                {stalls.value.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
       </div>
       {(section === "home" || section === "orders" || section === "insights") && (
         <Kitchen
@@ -114,7 +123,8 @@ function VendorOrder({ id, session }: { id: string; session: Session }) {
   const result = useRemote(load);
   const order = result.value;
   const stall =
-    order && session.memberships.find((entry) => entry.role === "vendor" && entry.vendor_id === order.vendor_id)?.vendor_id;
+    order &&
+    session.memberships.find((entry) => entry.role === "vendor" && entry.vendor_id === order.vendor_id)?.vendor_id;
   useEffect(() => {
     if (stall) return subscribeToOrders({ vendorId: stall }, result.reload);
   }, [stall, result.reload]);
@@ -184,7 +194,9 @@ function VendorOrderActions({ order, reload }: { order: OrderRow; reload: () => 
           </div>
         ))}
         <div className="line spread cart-total">
-          <strong>{order.payment === "counter" ? "Pay at counter" : order.payment === "duitnow_qr" ? "DuitNow QR" : "Payment"}</strong>
+          <strong>
+            {order.payment === "counter" ? "Pay at counter" : order.payment === "duitnow_qr" ? "DuitNow QR" : "Payment"}
+          </strong>
           <strong>{money(order.total_sen)}</strong>
         </div>
         <div className="line wrap">
@@ -202,7 +214,7 @@ function VendorOrderActions({ order, reload }: { order: OrderRow; reload: () => 
               Reject order
             </button>
           )}
-          {["accepted", "preparing"].includes(order.status) && (
+          {canCancelOrder(order.status) && (
             <button className="button secondary" disabled={busy} onClick={() => open("cancel")}>
               Cancel order
             </button>
@@ -274,6 +286,13 @@ function VendorMenu({ stall }: { stall: Stall }) {
   const api = useApi();
   const load = useCallback(() => api.vendorMenu(stall.id), [stall.id, api]);
   const result = useRemote(load);
+  useEffect(() => {
+    const onActionApplied = () => {
+      result.reload();
+    };
+    window.addEventListener("apfood:vendor-action-applied", onActionApplied);
+    return () => window.removeEventListener("apfood:vendor-action-applied", onActionApplied);
+  }, [result.reload]);
   const [edit, setEdit] = useState<MenuItem | null>();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "published" | "hidden" | "low">("all");
@@ -531,7 +550,7 @@ function EditItem({
 }) {
   const api = useApi();
   const [id] = useState(() => item?.id ?? crypto.randomUUID());
-  const [imageUrl, setImageUrl] = useState(() => item?.image || (item ? mealPhoto(item) ?? "" : ""));
+  const [imageUrl, setImageUrl] = useState(() => item?.image || (item ? (mealPhoto(item) ?? "") : ""));
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -699,7 +718,9 @@ function EditItem({
             placeholder="Defaults to 1"
             defaultValue={item?.work_units ?? ""}
           />
-          <span className="field-hint">Capacity units per order; leave blank for standard or cooked-to-order items.</span>
+          <span className="field-hint">
+            Capacity units per order; leave blank for standard or cooked-to-order items.
+          </span>
         </label>
         <label className="check">
           <input name="active" type="checkbox" defaultChecked={item?.active ?? true} /> Publish item on student menu

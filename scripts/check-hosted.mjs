@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { readFile } from "node:fs/promises";
+import { verifySmokeCatalogue, verifySmokeSessions } from "./hosted-smoke-preflight.mjs";
 
 const {
   NEXT_PUBLIC_SUPABASE_URL: url,
@@ -33,7 +34,7 @@ async function token(email) {
         email +
         " (" +
         (error?.code ?? "missing session") +
-        "). Run npm run seed:demo-users first.",
+        "). Provision the missing fixture account before running this check; do not reset an existing demo project.",
     );
   }
   return data.session.access_token;
@@ -58,14 +59,24 @@ async function success(path, options) {
 }
 const post = (path, actor, input) => success(path, { actor, method: "POST", input });
 const [student, other, vendor, coffee, admin] = await Promise.all(
-  // The second buyer is a vendor account from an untouched stall; every account also holds a student membership.
-  ["student", "japanese", "chinese", "malay", "admin"].map((name) => token(name + "@apfoods.local")),
+  ["student", "student-two", "chinese", "malay", "admin"].map((name) => token(name + "@apfoods.local")),
 );
+verifySmokeSessions(
+  await Promise.all([student, other, vendor, coffee, admin].map((actor) => success("auth/session", { actor }))),
+);
+const fixtureCatalogue = JSON.parse(
+  await readFile(new URL("../supabase/fixtures/demo-catalogue.json", import.meta.url), "utf8"),
+);
+const catalogue = await success("catalogue");
+verifySmokeCatalogue(catalogue, fixtureCatalogue);
+// Read both count-checked reporting endpoints before creating any checkout quotes
+// or orders, so schema drift or oversized demo history fails during preflight.
+await Promise.all([success("admin/report?days=1", { actor: admin }), success("admin/orders?days=1", { actor: admin })]);
 const cleanup = new Map();
 const attempts = 20;
 try {
   const buyers = [student, other];
-  async function race(stall, capacity, item, expected, failure, operator) {
+  async function prepareRace(stall, capacity, item) {
     const options = await success("traffic/zones");
     const candidates = options.buckets.filter(
       (slot) => slot.vendor_id === stall && slot.reserved_units === 0 && slot.total_units === capacity,
@@ -85,6 +96,9 @@ try {
         quotes.every((quote) => quote.slots.some((window) => Date.parse(window) === Date.parse(candidate.starts_at))),
     );
     assert.ok(slot, "The smoke test requires a fresh pickup window. Start with a clean demo.");
+    return { quotes, slot };
+  }
+  async function race(stall, expected, failure, operator, { quotes, slot }) {
     const inputs = quotes.map((quote) => ({
       quoteId: quote.quoteId,
       pickupAt: slot.starts_at,
@@ -131,8 +145,12 @@ try {
     toast?.work_units === 1 && toast.stock > 0 && toast.stock < Math.min(attempts, coffeeCapacity),
     "The toast race requires a one-unit item with less stock than pickup capacity.",
   );
-  const winner = await race(noodleStall, noodleCapacity, noodles, noodleCapacity, "SLOT_UNAVAILABLE", vendor);
-  await race(coffeeStall, coffeeCapacity, toast, toast.stock, "OUT_OF_STOCK", coffee);
+  const [noodlePlan, coffeePlan] = await Promise.all([
+    prepareRace(noodleStall, noodleCapacity, noodles),
+    prepareRace(coffeeStall, coffeeCapacity, toast),
+  ]);
+  const winner = await race(noodleStall, noodleCapacity, "SLOT_UNAVAILABLE", vendor, noodlePlan);
+  await race(coffeeStall, toast.stock, "OUT_OF_STOCK", coffee, coffeePlan);
   assert.equal((await post("orders", winner.owner, winner.input)).id, winner.id);
   const unrelated = winner.owner === student ? other : student;
   assert.equal((await request("orders/" + winner.id, { actor: unrelated })).status, 404);

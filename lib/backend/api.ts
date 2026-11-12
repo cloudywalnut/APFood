@@ -1,6 +1,16 @@
 import { z } from "zod";
 import { BackendError, unwrap } from "./errors";
-import { basketCheckoutInput, cartInput, checkoutInput, copilotExecuteInput, copilotInput, id, isValidImageSrc, orderId, quoteInput } from "./contracts";
+import {
+  basketCheckoutInput,
+  cartInput,
+  checkoutInput,
+  copilotExecuteInput,
+  copilotInput,
+  id,
+  isValidImageSrc,
+  orderId,
+  quoteInput,
+} from "./contracts";
 import { requestClient, type RequestClient } from "./supabase";
 import { adminReport } from "./reports";
 import { authAction, authLimit } from "./auth";
@@ -48,7 +58,10 @@ const menuImage = z
   .string()
   .trim()
   .max(500)
-  .refine((value) => value === "" || isValidImageSrc(value), "Enter an image URL starting with https://, http://, or /.");
+  .refine(
+    (value) => value === "" || isValidImageSrc(value),
+    "Enter an image URL starting with https://, http://, or /.",
+  );
 const menu = z
   .object({
     id,
@@ -262,6 +275,7 @@ export async function handleRequest(request: Request, path: string[]) {
       });
     }
     if (method === "POST" && key === "checkout/quote") {
+      requireMembership(await getSession(), "student");
       const input = await body(request, quoteInput);
       const quote = unwrap(await client.rpc("quote_checkout", { p_vendor: input.vendorId, p_cart: input.items }));
       if (input.payment === "duitnow_qr") {
@@ -274,6 +288,7 @@ export async function handleRequest(request: Request, path: string[]) {
       return result(quote);
     }
     if (method === "POST" && key === "orders") {
+      requireMembership(await getSession(), "student");
       const input = await body(request, checkoutInput);
       return result(
         unwrap(
@@ -392,10 +407,14 @@ export async function handleRequest(request: Request, path: string[]) {
     if (method === "POST" && path[0] === "orders" && path.length === 3) {
       const order = orderId.parse(path[1]);
       if (path[2] === "payment-claim") {
+        requireMembership(await getSession(), "student");
         unwrap(await client.rpc("claim_qr_payment", { p_id: order }));
         return result({ ok: true });
       }
-      if (path[2] === "pickup-token") return result(unwrap(await client.rpc("issue_pickup_code", { p_id: order })));
+      if (path[2] === "pickup-token") {
+        requireMembership(await getSession(), "student");
+        return result(unwrap(await client.rpc("issue_pickup_code", { p_id: order })));
+      }
       if (path[2] === "cancel") {
         const input = await body(request, cancellation);
         return result(

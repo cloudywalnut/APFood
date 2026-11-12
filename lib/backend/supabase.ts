@@ -3,6 +3,27 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { BackendError } from "./errors";
 
+export function isAllowedRequestOrigin(request: Request) {
+  const requestOrigin = new URL(request.url).origin;
+  const allowed = process.env.AP_FOOD_APP_ORIGIN || requestOrigin;
+  const origin = request.headers.get("origin");
+  if (origin === allowed) return true;
+  if (process.env.NODE_ENV !== "development" || origin !== requestOrigin) return false;
+  const loopback = new Set(["localhost", "127.0.0.1", "[::1]"]);
+  try {
+    const configured = new URL(allowed);
+    const incoming = new URL(requestOrigin);
+    return (
+      loopback.has(configured.hostname) &&
+      loopback.has(incoming.hostname) &&
+      ["http:", "https:"].includes(configured.protocol) &&
+      ["http:", "https:"].includes(incoming.protocol)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function requestClient(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -21,9 +42,7 @@ export async function requestClient(request: Request) {
   }
 
   if (request.method !== "GET" && request.method !== "HEAD") {
-    const allowed = process.env.AP_FOOD_APP_ORIGIN || new URL(request.url).origin;
-    if (request.headers.get("origin") !== allowed)
-      throw new BackendError(403, "FORBIDDEN", "Request origin is not allowed.");
+    if (!isAllowedRequestOrigin(request)) throw new BackendError(403, "FORBIDDEN", "Request origin is not allowed.");
   }
   const store = await cookies();
   return createServerClient(url, key, {

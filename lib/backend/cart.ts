@@ -12,7 +12,7 @@ const guestKey = "ap-food-guest-cart";
 const eventName = "ap-food-cart-changed";
 const revisionKey = "ap-food-cart-revision";
 
-function broadcastCart() {
+export function broadcastCart() {
   // The marker contains no cart data; storage events invalidate other tabs.
   try {
     localStorage.setItem(revisionKey, crypto.randomUUID());

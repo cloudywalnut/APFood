@@ -4,6 +4,102 @@ import { fallbackReply, runAgent, runOpenAIAgent } from "../lib/backend/fif-agen
 
 const reply = (parts) => Response.json({ candidates: [{ content: { role: "model", parts } }] });
 
+test("Gemini retries one initial temporary service failure, but never retries invalid credentials", async () => {
+  let calls = 0;
+  const result = await runAgent({
+    system: "test",
+    messages: [],
+    tools: [],
+    key: "test",
+    fetcher: async () => {
+      calls++;
+      return calls === 1
+        ? Response.json({ error: { status: "UNAVAILABLE" } }, { status: 503 })
+        : reply([{ text: "Hello" }]);
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(calls, 2);
+  calls = 0;
+  await runAgent({
+    system: "test",
+    messages: [],
+    tools: [],
+    key: "test",
+    fetcher: async () => {
+      calls++;
+      return new Response(null, { status: 401 });
+    },
+  });
+  assert.equal(calls, 1);
+});
+
+test("Gemini receives a response for every tool call while only four lookups execute", async () => {
+  let executions = 0;
+  const { fetcher, requests } = scripted([
+    Array.from({ length: 5 }, (_, i) => ({ functionCall: { id: "c" + i, name: "lookup", args: {} } })),
+    [{ text: "The lookup completed." }],
+  ]);
+  const result = await runAgent({
+    system: "test",
+    messages: [{ role: "user", text: "Check" }],
+    key: "test",
+    fetcher,
+    tools: [
+      {
+        name: "lookup",
+        description: "test",
+        parameters: { type: "OBJECT", properties: {} },
+        run: async () => {
+          executions++;
+          return {};
+        },
+      },
+    ],
+  });
+  assert.equal(result.ok, true);
+  assert.equal(executions, 4);
+  assert.equal(requests[1].contents.at(-1).parts.length, 5);
+});
+
+test("provider failures preserve safe diagnostic codes without logging response messages", async () => {
+  const result = await runOpenAIAgent({
+    system: "test",
+    messages: [],
+    tools: [],
+    key: "test",
+    fetcher: async () =>
+      Response.json(
+        { error: { code: "invalid_api_key", message: "secret-value-must-not-be-logged" } },
+        { status: 401 },
+      ),
+  });
+  assert.match(result.failure, /HTTP 401 invalid_api_key/);
+  assert.doesNotMatch(result.failure, /secret-value/);
+});
+
+test("a stalled read-only tool cannot overrun the agent deadline", async () => {
+  const fetcher = async () => reply([{ functionCall: { name: "stall", args: {} } }]);
+  const result = await runAgent({
+    system: "test",
+    messages: [{ role: "user", text: "hello" }],
+    key: "test",
+    fetcher,
+    deadlineMs: 1100,
+    tools: [
+      {
+        name: "stall",
+        description: "test",
+        parameters: { type: "OBJECT", properties: {} },
+        run: () => new Promise(() => {}),
+      },
+    ],
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.reply, fallbackReply);
+  assert.deepEqual(result.toolsUsed, ["stall"]);
+});
+
 function scripted(turns) {
   const requests = [];
   const fetcher = async (_url, init) => {
@@ -187,6 +283,7 @@ test("Student FIF chat turns app paths into buttons and keeps the text readable"
     extractLinks("- Iced Kopi: RM 5.50. [View Iced Kopi](/app/vendors/a/item/b)\n- Next").text,
     "- Iced Kopi: RM 5.50.\n- Next",
   );
+  assert.equal(extractLinks("Choose your pickup time in your /app/cart.").text, "Choose your pickup time below.");
   assert.deepEqual(extractLinks("Your cart is empty. You can view it in the app at /app/cart."), {
     text: "Your cart is empty. You can view it in the app.",
     links: [{ href: "/app/cart", label: "View cart" }],

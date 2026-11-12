@@ -1840,6 +1840,8 @@
   .market-cuisine-row img,
   .market-active-order,
   .market-active-segments > span,
+  .fif-launcher,
+  .fif-window,
   .student-fif-launcher,
   .student-fif-window {
     transition: none;
@@ -1847,11 +1849,12 @@
   }
 }
 
+.fif-launcher,
 .student-fif-launcher {
   position: fixed;
   right: 20px;
   bottom: 20px;
-  z-index: 42;
+  z-index: 70;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1871,15 +1874,18 @@
   touch-action: none;
   user-select: none;
 }
+.fif-launcher:hover,
 .student-fif-launcher:hover {
   background: #4e3829;
   transform: translateY(-1px);
 }
+.fif-launcher.is-dragging,
 .student-fif-launcher.is-dragging {
   cursor: grabbing;
   transform: scale(1.03);
   transition: none;
 }
+.fif-launcher-logo,
 .student-fif-launcher-logo {
   display: grid;
   place-items: center;
@@ -1890,7 +1896,9 @@
   overflow: hidden;
   flex-shrink: 0;
 }
+.fif-launcher-logo img,
 .student-fif-launcher-logo img,
+.fif-window-badge img,
 .student-fif-window-badge img {
   width: 18px;
   height: 18px;
@@ -1898,11 +1906,12 @@
   mix-blend-mode: multiply;
   display: block;
 }
+.fif-window,
 .student-fif-window {
   position: fixed;
   right: 20px;
   bottom: 74px;
-  z-index: 42;
+  z-index: 70;
   width: min(420px, calc(100vw - 28px));
   height: clamp(320px, calc(100vh - 96px), 620px);
   display: grid;
@@ -1912,11 +1921,22 @@
   border-radius: 14px;
   box-shadow: 0 16px 40px #3b2a1e26;
   overflow: hidden;
-  animation: student-fif-pop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: fif-pop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   transform-origin: bottom right;
 }
+.fif-window.is-dragging,
 .student-fif-window.is-dragging {
   animation: none;
+}
+@keyframes fif-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 @keyframes student-fif-pop {
   from {
@@ -1928,6 +1948,7 @@
     transform: translateY(0) scale(1);
   }
 }
+.fif-window-head,
 .student-fif-window-head {
   display: flex;
   align-items: center;
@@ -1940,23 +1961,28 @@
   touch-action: none;
   user-select: none;
 }
+.fif-window.is-dragging .fif-window-head,
 .student-fif-window.is-dragging .student-fif-window-head {
   cursor: grabbing;
 }
+.fif-window-controls,
 .student-fif-window-controls {
   display: flex;
   align-items: center;
   gap: 6px;
   color: #9a8567;
 }
+.fif-drag-hint,
 .student-fif-drag-hint {
   opacity: 0.75;
 }
+.fif-window-brand,
 .student-fif-window-brand {
   display: flex;
   align-items: center;
   gap: 10px;
 }
+.fif-window-badge,
 .student-fif-window-badge {
   display: grid;
   place-items: center;
@@ -1966,10 +1992,12 @@
   background: #fff8e6;
   border: 1px solid #e6d7b7;
 }
+.fif-window-badge img,
 .student-fif-window-badge img {
   width: 20px;
   height: 20px;
 }
+.fif-window-brand strong,
 .student-fif-window-brand strong {
   display: block;
   font-size: 14px;
@@ -1977,11 +2005,13 @@
   color: #352a22;
   line-height: 1.2;
 }
+.fif-window-brand small,
 .student-fif-window-brand small {
   display: block;
   font-size: 11px;
   color: #826e54;
 }
+.fif-window-close,
 .student-fif-window-close {
   display: grid;
   place-items: center;
@@ -1992,9 +2022,11 @@
   background: transparent;
   color: #6e5940;
 }
+.fif-window-close:hover,
 .student-fif-window-close:hover {
   background: #eee4d0;
 }
+.fif-window-messages,
 .student-fif-window-messages {
   display: flex;
   flex-direction: column;
@@ -2006,12 +2038,15 @@
 }
 /* Messages sit at the bottom and grow upwards, like a messaging app. An auto margin is used instead of
    justify-content: flex-end so older messages stay reachable by scrolling once the chat overflows. */
+.fif-window-messages > :first-child,
 .student-fif-window-messages > :first-child {
   margin-top: auto;
 }
+.fif-msg,
 .student-fif-msg {
   display: flex;
 }
+.fif-msg-user,
 .student-fif-msg-user {
   justify-content: flex-end;
 }
@@ -2096,12 +2131,14 @@
   color: #fffefa;
   border-bottom-right-radius: 4px;
 }
+.fif-prompts,
 .student-fif-prompts {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 2px;
 }
+.fif-prompts button,
 .student-fif-prompts button {
   border: 1px solid #e2d5bc;
   border-radius: 999px;
@@ -2111,10 +2148,12 @@
   font-weight: 600;
   padding: 6px 11px;
 }
+.fif-prompts button:hover,
 .student-fif-prompts button:hover {
   background: #fbf1da;
   border-color: #d2b475;
 }
+.fif-window-form,
 .student-fif-window-form {
   display: flex;
   align-items: center;
@@ -2123,6 +2162,7 @@
   border-top: 1px solid #eadfce;
   background: #fffefa;
 }
+.fif-window-form input,
 .student-fif-window-form input {
   flex: 1;
   min-width: 0;
@@ -2133,11 +2173,13 @@
   background: #fbf9f3;
   color: #352a22;
 }
+.fif-window-form input:focus,
 .student-fif-window-form input:focus {
   outline: none;
   border-color: #c59536;
   background: #fffefa;
 }
+.fif-window-form button,
 .student-fif-window-form button {
   display: grid;
   place-items: center;
@@ -2149,11 +2191,13 @@
   color: #3b2a1e;
   flex-shrink: 0;
 }
+.fif-window-form button:disabled,
 .student-fif-window-form button:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 @media (max-width: 700px) {
+  .fif-launcher,
   .student-fif-launcher {
     right: 14px;
     bottom: calc(78px + env(safe-area-inset-bottom));
@@ -2161,6 +2205,7 @@
     padding: 0 13px 0 8px;
     font-size: 12px;
   }
+  .fif-window,
   .student-fif-window {
     right: 14px;
     left: 14px;
@@ -2170,30 +2215,157 @@
   }
 }
 
-.fif-msg-body { display: grid; gap: 6px; max-width: 88%; }
-.fif-msg p { margin: 0; padding: 9px 12px; border-radius: 11px; font-size: 12.5px; line-height: 1.5; }
-.fif-msg-assistant .fif-msg-body > p { background: #f5efe2; color: #3b2a1e; border-bottom-left-radius: 4px; }
-.fif-msg-user .fif-msg-body > p { background: #3b2a1e; color: #fffefa; border-bottom-right-radius: 4px; }
-.fif-typing { font-style: italic; opacity: .8; }
-.fif-action-card { padding: 10px 11px; border-radius: 10px; border: 1px solid #dfd0b4; background: #fffbf2; color: #3b2a1e; display: grid; gap: 6px; font-size: 12px; }
-.fif-action-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.fif-action-head strong { font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: #7a5c2e; }
-.fif-action-tag { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
-.fif-action-tag.is-applied { background: #e3f3e6; color: #1f6b36; }
-.fif-action-tag.is-cancelled { background: #efe8da; color: #6e5940; }
-.fif-action-card .fif-action-summary { margin: 0; padding: 0; background: transparent; font-weight: 650; font-size: 12px; color: #352a22; }
-.fif-action-diffs { display: grid; gap: 5px; }
-.fif-action-diff-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11.5px; }
-.fif-diff-label { color: #6e5940; font-weight: 600; }
-.fif-diff-badges { display: inline-flex; align-items: center; gap: 5px; }
-.fif-diff-before { padding: 2px 7px; border-radius: 999px; background: #efe8da; color: #786248; font-weight: 600; text-decoration: line-through; }
-.fif-diff-arrow { color: #9a8567; font-size: 11px; }
-.fif-diff-after { padding: 2px 7px; border-radius: 999px; background: #e3f3e6; color: #1f6b36; font-weight: 700; }
-.fif-action-card .fif-action-error { margin: 0; padding: 6px 8px; border-radius: 6px; background: #fdecec; color: #9c2b2b; font-size: 11.5px; }
-.fif-action-buttons { display: flex; gap: 6px; margin-top: 2px; }
-.fif-action-confirm, .fif-action-cancel { border-radius: 7px; font-size: 11.5px; font-weight: 700; padding: 6px 10px; cursor: pointer; }
-.fif-action-confirm { border: 0; background: #e6ae22; color: #3b2a1e; }
-.fif-action-confirm:hover:not(:disabled) { background: #d69e18; }
-.fif-action-cancel { border: 1px solid #dccbb0; background: #fffefa; color: #5f4a33; }
-.fif-action-cancel:hover:not(:disabled) { background: #f5efe2; }
-.fif-action-confirm:disabled, .fif-action-cancel:disabled { opacity: .55; cursor: not-allowed; }
+.fif-msg-body {
+  display: grid;
+  gap: 6px;
+  max-width: 88%;
+}
+.fif-msg p {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 11px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.fif-msg-assistant .fif-msg-body > p {
+  background: #f5efe2;
+  color: #3b2a1e;
+  border-bottom-left-radius: 4px;
+}
+.fif-msg-user .fif-msg-body > p {
+  background: #3b2a1e;
+  color: #fffefa;
+  border-bottom-right-radius: 4px;
+}
+.fif-typing {
+  font-style: italic;
+  opacity: 0.8;
+}
+.fif-action-card {
+  padding: 10px 11px;
+  border-radius: 10px;
+  border: 1px solid #dfd0b4;
+  background: #fffbf2;
+  color: #3b2a1e;
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+.fif-action-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.fif-action-head strong {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #7a5c2e;
+}
+.fif-action-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+.fif-action-tag.is-applied {
+  background: #e3f3e6;
+  color: #1f6b36;
+}
+.fif-action-tag.is-cancelled {
+  background: #efe8da;
+  color: #6e5940;
+}
+.fif-action-card .fif-action-summary {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  font-weight: 650;
+  font-size: 12px;
+  color: #352a22;
+}
+.fif-action-diffs {
+  display: grid;
+  gap: 5px;
+}
+.fif-action-diff-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11.5px;
+}
+.fif-diff-label {
+  color: #6e5940;
+  font-weight: 600;
+}
+.fif-diff-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.fif-diff-before {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #efe8da;
+  color: #786248;
+  font-weight: 600;
+  text-decoration: line-through;
+}
+.fif-diff-arrow {
+  color: #9a8567;
+  font-size: 11px;
+}
+.fif-diff-after {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #e3f3e6;
+  color: #1f6b36;
+  font-weight: 700;
+}
+.fif-action-card .fif-action-error {
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #fdecec;
+  color: #9c2b2b;
+  font-size: 11.5px;
+}
+.fif-action-buttons {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+.fif-action-confirm,
+.fif-action-cancel {
+  border-radius: 7px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.fif-action-confirm {
+  border: 0;
+  background: #e6ae22;
+  color: #3b2a1e;
+}
+.fif-action-confirm:hover:not(:disabled) {
+  background: #d69e18;
+}
+.fif-action-cancel {
+  border: 1px solid #dccbb0;
+  background: #fffefa;
+  color: #5f4a33;
+}
+.fif-action-cancel:hover:not(:disabled) {
+  background: #f5efe2;
+}
+.fif-action-confirm:disabled,
+.fif-action-cancel:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

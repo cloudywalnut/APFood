@@ -3,6 +3,7 @@ import { HostedSessionProvider } from "../components/hosted/session-provider";
 import { ToastOutlet } from "../components/ui/toasts";
 import type { Metadata } from "next";
 import "./globals.css";
+import "./account-menu.css";
 import "./storefront.css";
 import "./ui.css";
 import "./cafeteria.css";
@@ -18,6 +19,7 @@ import "./vendor-scenarios.css";
 import "./vendor-sales.css";
 import "./vendor-density.css";
 import "./vendor-analytics.css";
+import "./vendor-dashboard.css";
 
 export const metadata: Metadata = {
   title: "APFoods · Campus pickup",

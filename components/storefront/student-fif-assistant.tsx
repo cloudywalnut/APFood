@@ -9,8 +9,10 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import Link from "next/link";
-import { ArrowRight, GripHorizontal, SendHorizontal, X } from "lucide-react";
+import { ArrowRight, GripHorizontal, RotateCcw, SendHorizontal, X } from "lucide-react";
 import { createApiClient } from "../../lib/backend/client";
+import { broadcastCart } from "../../lib/backend/cart";
+import { confirmFifCart } from "../../lib/confirm-fif-cart";
 import { useSessionUser } from "../workspace/common";
 import { RichText } from "../ui/rich-text";
 import {
@@ -47,6 +49,9 @@ export function StudentFifAssistant() {
   const [messages, setMessages] = useState<Message[]>([welcome]);
   const [pending, setPending] = useState(false);
   const user = useSessionUser();
+  const activeUser = useRef(user);
+  activeUser.current = user;
+  const addingCart = useRef(false);
   const api = useMemo(() => (user ? createApiClient(user) : undefined), [user]);
   // Becomes the user ID once that student's saved chat has been loaded, so the empty
   // starting state never overwrites what is stored.
@@ -61,12 +66,22 @@ export function StudentFifAssistant() {
     }
     const stored = readStoredChat(user);
     // A question asked just before the page changed never got its answer.
-    if (stored?.[stored.length - 1]?.role === "user")
+    if (stored?.[stored.length - 1]?.role === "user") {
+      const interrupted = stored.at(-1)!;
+      const suggestion = stored.filter((message) => message.role === "assistant").at(-1);
+      const recoverCart =
+        /^(?:yes(?: please)?|confirm|go ahead|add it)[!.\s]*$/i.test(interrupted.text) &&
+        suggestion?.cartAction &&
+        suggestion.actionState !== "added";
       stored.push({
         id: crypto.randomUUID(),
         role: "assistant",
-        text: "That answer was interrupted when the page changed. Please ask again.",
+        text: recoverCart
+          ? "That cart confirmation was interrupted. Confirm again to check whether it saved; it won't add twice."
+          : "That answer was interrupted when the page changed. Please ask again.",
+        ...(recoverCart ? { cartAction: suggestion.cartAction } : {}),
       });
+    }
     setMessages(stored ?? [welcome]);
     setRestoredFor(user);
   }, [user]);
@@ -194,8 +209,11 @@ export function StudentFifAssistant() {
     const clean = text.trim();
     if (!clean || pending) return;
     const question: Message = { id: crypto.randomUUID(), role: "user", text: clean };
-    const reply = (answer: string, links?: Message["links"]) =>
-      setMessages((previous) => [...previous, { id: crypto.randomUUID(), role: "assistant", text: answer, links }]);
+    const reply = (answer: string, links?: Message["links"], cartAction?: Message["cartAction"]) =>
+      setMessages((previous) => [
+        ...previous,
+        { id: crypto.randomUUID(), role: "assistant", text: answer, links, cartAction },
+      ]);
     setMessages((previous) => [...previous, question]);
     setDraft("");
     if (!api) {
@@ -204,15 +222,59 @@ export function StudentFifAssistant() {
     }
     setPending(true);
     try {
+      const lastAssistant = messages.filter((message) => message.role === "assistant").at(-1);
+      if (/^(?:yes(?: please)?|confirm|go ahead|add it)[!.\s]*$/i.test(clean)) {
+        if (lastAssistant?.cartAction && lastAssistant.actionState !== "added") await addPreparedCart(lastAssistant);
+        else reply("Please tell me which menu item and quantity to add. I need a cart suggestion to confirm first.");
+        return;
+      }
       const earlier = messages.filter((message) => message.id !== "welcome").slice(-historyExchanges * 2);
       // Never start the history with an answer whose question was cut off.
       if (earlier[0]?.role === "assistant") earlier.shift();
-      const history = [...earlier, question].map(({ role, text }) => ({ role, text }));
+      const history = [...earlier, question].map(({ role, text }) => ({ role, text: text.slice(0, 2000) }));
       const result = await api.studentFifChat(history);
-      reply(result.reply, result.links);
+      if (activeUser.current !== user) return;
+      reply(result.reply, result.links, result.cartAction);
     } catch (error) {
+      if (activeUser.current !== user) return;
       reply(error instanceof Error ? error.message : "Sorry, something went wrong. Please try again.");
     } finally {
+      setPending(false);
+    }
+  }
+
+  async function addPreparedCart(message: Message) {
+    if (!api || !user || !message.cartAction || addingCart.current) return;
+    addingCart.current = true;
+    setPending(true);
+    try {
+      const savedAttempt = sessionStorage.getItem("ap-food-checkout:" + user);
+      if (savedAttempt && JSON.parse(savedAttempt).pending)
+        throw new Error("Resolve your pending checkout before changing the cart.");
+      await confirmFifCart(api, user, message.cartAction);
+      if (activeUser.current !== user) return;
+      setMessages((previous) => [
+        ...previous.map((entry) => (entry.id === message.id ? { ...entry, actionState: "added" as const } : entry)),
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          text: `Added ${message.cartAction!.description} to your cart.`,
+          links: [{ href: "/app/cart", label: "View cart" }],
+        },
+      ]);
+      broadcastCart();
+    } catch (error) {
+      if (activeUser.current !== user) return;
+      setMessages((previous) => [
+        ...previous.map((entry) => (entry.id === message.id ? { ...entry, actionState: "failed" as const } : entry)),
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          text: error instanceof Error ? error.message : "The cart addition could not be confirmed. Please try again.",
+        },
+      ]);
+    } finally {
+      addingCart.current = false;
       setPending(false);
     }
   }
@@ -274,6 +336,20 @@ export function StudentFifAssistant() {
               <button
                 type="button"
                 className="student-fif-window-close"
+                aria-label="Start new chat"
+                title="Start new chat"
+                disabled={pending}
+                onClick={() => {
+                  setMessages([welcome]);
+                  setDraft("");
+                  inputRef.current?.focus();
+                }}
+              >
+                <RotateCcw size={16} aria-hidden />
+              </button>
+              <button
+                type="button"
+                className="student-fif-window-close"
                 aria-label="Close FIF AI"
                 onClick={() => setOpen(false)}
               >
@@ -287,6 +363,18 @@ export function StudentFifAssistant() {
                 <div className="student-fif-msg-bubble">
                   {message.role === "assistant" ? <RichText text={message.text} /> : message.text}
                 </div>
+                {message.cartAction && (
+                  <div className="student-fif-msg-links">
+                    <button
+                      type="button"
+                      className="student-fif-msg-link"
+                      disabled={pending || message.actionState === "added"}
+                      onClick={() => void addPreparedCart(message)}
+                    >
+                      {message.actionState === "added" ? "Added to cart" : "Add to cart"}
+                    </button>
+                  </div>
+                )}
                 {message.links?.length ? (
                   <div className="student-fif-msg-links">
                     {message.links.map((link) => (

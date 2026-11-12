@@ -22,15 +22,6 @@ export const fifOutput = z.object({
   generatedAt: z.string(),
   dataSource: z.literal("demo"),
 });
-export const studentFifChatOutput = z.object({
-  reply: z.string(),
-  ok: z.boolean(),
-  links: z
-    .array(
-      z.object({ href: z.string().regex(/^\/(?:app(?:\/[A-Za-z0-9-]+)*|account|privacy|terms)$/), label: z.string() }),
-    )
-    .default([]),
-});
 export const orderId = z.uuid();
 export const payment = z.enum(["demo", "counter", "duitnow_qr"]);
 export const cartLine = z
@@ -142,6 +133,36 @@ export const cartOutput = z.object({
 export const cartInput = z
   .object({ vendorId: id.nullable(), items: z.array(basketLine).max(20), revision: z.number().int().nonnegative() })
   .strict();
+export const studentCartAction = z.object({
+  id: z.uuid(),
+  userId: z.uuid(),
+  expiresAt: z.iso.datetime(),
+  description: z.string().max(2000),
+  issues: z.array(z.string().max(200)).max(20),
+  added: z
+    .array(
+      z.object({
+        itemId: id,
+        name: z.string().max(100),
+        quantity: z.number().int().min(1).max(20),
+        unitPriceSen: z.number().int().nonnegative(),
+      }),
+    )
+    .min(1)
+    .max(20),
+  cart: cartInput,
+});
+export type StudentCartAction = z.infer<typeof studentCartAction>;
+export const studentFifChatOutput = z.object({
+  reply: z.string(),
+  ok: z.boolean(),
+  cartAction: studentCartAction.optional(),
+  links: z
+    .array(
+      z.object({ href: z.string().regex(/^\/(?:app(?:\/[A-Za-z0-9-]+)*|account|privacy|terms)$/), label: z.string() }),
+    )
+    .default([]),
+});
 export const userRow = profileRow.extend({
   email: z.string(),
   email_confirmed_at: z.string().nullable(),
@@ -238,55 +259,73 @@ export type QuoteInput = z.infer<typeof quoteInput>;
 export type CheckoutInput = z.infer<typeof checkoutInput>;
 export type OrderRow = z.infer<typeof orderRow>;
 
-export const copilotHistoryTurn = z.object({
-  role: z.enum(["user", "assistant"]),
-  text: z.string().trim().min(1).max(600),
-}).strict();
+export const copilotHistoryTurn = z
+  .object({
+    role: z.enum(["user", "assistant"]),
+    text: z.string().trim().min(1).max(600),
+  })
+  .strict();
 
-export const copilotInput = z.object({
-  vendorId: id,
-  message: z.string().trim().min(1).max(400),
-  history: z.array(copilotHistoryTurn).max(10).optional(),
-}).strict();
+export const copilotInput = z
+  .object({
+    vendorId: id,
+    message: z.string().trim().min(1).max(400),
+    history: z.array(copilotHistoryTurn).max(10).optional(),
+  })
+  .strict();
 
-export const copilotMenuChanges = z.object({
-  stock: z.number().int().min(0).max(5000).optional(),
-  priceSen: z.number().int().min(50).max(50000).optional(),
-  discountSen: z.number().int().min(0).max(49950).optional(),
-  active: z.boolean().optional(),
-}).strict().refine(v => Object.keys(v).length > 0);
+export const copilotMenuChanges = z
+  .object({
+    stock: z.number().int().min(0).max(5000).optional(),
+    priceSen: z.number().int().min(50).max(50000).optional(),
+    discountSen: z.number().int().min(0).max(49950).optional(),
+    active: z.boolean().optional(),
+  })
+  .strict()
+  .refine((v) => Object.keys(v).length > 0);
 
-export const copilotStallChanges = z.object({
-  paused: z.boolean().optional(),
-  capacity: z.number().int().min(1).max(300).optional(),
-  leadMinutes: z.number().int().min(1).max(120).optional(),
-}).strict().refine(v => Object.keys(v).length > 0);
+export const copilotStallChanges = z
+  .object({
+    paused: z.boolean().optional(),
+    capacity: z.number().int().min(1).max(300).optional(),
+    leadMinutes: z.number().int().min(1).max(120).optional(),
+  })
+  .strict()
+  .refine((v) => Object.keys(v).length > 0);
 
 export const copilotProposedAction = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("update_menu_item"),
-    summary: z.string().trim().min(1).max(200),
-    itemId: id,
-    itemName: z.string().trim().min(1).max(80),
-    expectedStock: z.number().int().min(0).max(1_000_000),
-    before: z.object({
-      stock: z.number().int(),
-      priceSen: z.number().int(),
-      discountSen: z.number().int(),
-      active: z.boolean(),
-    }).strict(),
-    changes: copilotMenuChanges,
-  }).strict(),
-  z.object({
-    type: z.literal("update_stall_settings"),
-    summary: z.string().trim().min(1).max(200),
-    before: z.object({
-      paused: z.boolean(),
-      capacity: z.number().int(),
-      leadMinutes: z.number().int(),
-    }).strict(),
-    changes: copilotStallChanges,
-  }).strict(),
+  z
+    .object({
+      type: z.literal("update_menu_item"),
+      summary: z.string().trim().min(1).max(200),
+      itemId: id,
+      itemName: z.string().trim().min(1).max(80),
+      expectedStock: z.number().int().min(0).max(1_000_000),
+      before: z
+        .object({
+          stock: z.number().int(),
+          priceSen: z.number().int(),
+          discountSen: z.number().int(),
+          active: z.boolean(),
+        })
+        .strict(),
+      changes: copilotMenuChanges,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("update_stall_settings"),
+      summary: z.string().trim().min(1).max(200),
+      before: z
+        .object({
+          paused: z.boolean(),
+          capacity: z.number().int(),
+          leadMinutes: z.number().int(),
+        })
+        .strict(),
+      changes: copilotStallChanges,
+    })
+    .strict(),
 ]);
 
 export const copilotOutput = z.object({
@@ -296,10 +335,12 @@ export const copilotOutput = z.object({
   generatedAt: z.string(),
 });
 
-export const copilotExecuteInput = z.object({
-  vendorId: id,
-  action: copilotProposedAction,
-}).strict();
+export const copilotExecuteInput = z
+  .object({
+    vendorId: id,
+    action: copilotProposedAction,
+  })
+  .strict();
 
 export const copilotExecuteOutput = z.object({
   ok: z.literal(true),

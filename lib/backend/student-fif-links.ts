@@ -52,6 +52,8 @@ export function extractStudentLinks(reply: string) {
     return gap;
   });
   text = text
+    // A bare path after "in your/the" becomes a button below the message.
+    .replace(/\b(?:in|on|from|at|via|to)[ \t]+(?:your|the)[ \t]*\u0000/gi, "below" + gap)
     // Separators between removed links ("A · B", "A, B or C") go with them.
     .replace(/\u0000(?:[ \t]*(?:[·|,/]|\band\b|\bor\b)?[ \t]*\u0000)+/gi, gap)
     // "…order page: [link]", "…here [link]", "…in [link]" or "… — [link]" lose their lead-in words.

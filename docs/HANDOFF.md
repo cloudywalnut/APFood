@@ -5,10 +5,14 @@ AP Food is a campus food pickup app for students, stall vendors and cafeteria ad
 ## Run and verify
 
 1. `npm ci`, fill in `.env.local` (see [BACKEND.md](BACKEND.md)), then `npm run dev` and open http://localhost:3000.
-2. In development the sign-in page lists the demo accounts from `supabase/fixtures/demo-accounts.json`; click one to fill in the form. Use separate browser profiles to be signed in as several roles at once.
+2. Sign in with accounts provisioned in the connected project. `supabase/fixtures/demo-accounts.json` describes a fresh demo setup; an existing hosted project may still use older local fixture credentials. The misleading quick-fill list has been removed. Use separate browser profiles for several roles. Do not reset an existing demo project just to align credentials.
 3. Before handing changes back, run `npm run format`, `npm run typecheck`, `npm run build`, `npm test` and `npm run test:backend`.
 
+Historical demo data is now hosted: 76,513 additional orders across all ten stalls, spanning January 2023–October 2026, with matching receipts, payment records and expenses. November's generated activity was subsequently reset at the user's request; app-created orders were preserved. See [HISTORICAL_DEMO_DATA.md](HISTORICAL_DEMO_DATA.md) for verified counts, provenance, reporting limits and the resumable `npm run seed:history` command. Generated fixture passwords remain in ignored local files.
+
 ## Features
+
+The current functionality review and its remaining verification limits are in [FUNCTIONALITY_AUDIT.md](FUNCTIONALITY_AUDIT.md). Vendor FIF automatically checks sales, peak periods, stock, the live kitchen queue, published campus prices, campus timing and local weather when generating insights. Its evidence drawer distinguishes missing observations from assumptions. Revenue/workload charts are what-if estimates, not measured uplift.
 
 | Area | What works |
 | --- | --- |
@@ -16,7 +20,7 @@ AP Food is a campus food pickup app for students, stall vendors and cafeteria ad
 | Student | Browse stalls as cards or on the cafeteria map, search menus, open campus deals, build a basket across stalls, get prices and shared 15-minute pickup windows, pay by demo, counter or DuitNow QR, track orders live, and show a QR or text pickup code. Current traffic shows booked pickup load per stall. |
 | Vendor | Kitchen board with accept, prepare, ready and reject; verify pickup codes and confirm counter payment; edit menu, prices and stock; set capacity, lead time, hours and pause; upload a merchant payment QR; record refunds; reports. |
 | Admin | Dashboard by period and stall, cashflow with expenses and reversals, product and vendor performance, stall approval and food-court assignment, traffic, audit trail, and user management (search, roles, suspension, invitations). The last active admin cannot be removed. |
-| FIF | Vendor and admin dashboards show one recommended action built on the server from live data (pickup load, low stock, upcoming orders). Rules decide; optional Gemini only breaks ties. The student FIF AI chat (`lib/backend/student-fif-chat.ts`, `POST /api/fif/student/chat`, UI in `components/storefront/student-fif-assistant.tsx`) answers questions about the student's orders, pickups, history, cart, menus and deals. The AI (OpenAI while `OPENAI_API_KEY` is set, otherwise Gemini) calls read-only server tools that run with the student's own session. |
+| FIF | Vendor and admin dashboards show one recommended action built on the server from live data (pickup load, low stock, upcoming orders). Rules decide; optional Gemini only breaks ties. The student FIF AI chat (`lib/backend/student-fif-chat.ts`, `POST /api/fif/student/chat`, UI in `components/storefront/student-fif-assistant.tsx`) answers questions about the student's orders, pickups, history, cart, menus and deals. It can prepare cart additions for confirmation via Add to cart or “yes please”; the UI then saves through the existing owner-scoped cart API and updates cart badges. Models themselves use read-only lookups/preparation tools. `FIF_CHAT_PROVIDER=gemini` or `openai` uses that provider alone; `auto` tries Gemini, then OpenAI on failure. |
 | Reports | Students, vendors and admins can download their orders, stock or cashflow as PDF or CSV. |
 | Public | Landing page at `/welcome`, and Privacy, Terms and Cookies pages with optional preference cookies. |
 

@@ -3,17 +3,17 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, ChevronRight, CircleCheck, Clock3, MapPin, ShieldCheck } from "lucide-react";
-import { addonPrice, isActive, money, statusNames } from "../../lib/orders";
+import { addonPrice, canCancelOrder, isActive, money, statusNames } from "../../lib/orders";
 import { apiClient } from "../../lib/backend/client";
 import { useCart } from "../../lib/backend/cart";
 import { subscribeToOrders } from "../../lib/backend/realtime";
 import { pickupWindow } from "../../lib/pickup-time";
-import { canShowPickup, canStudentCancel, trackingCopy } from "../../lib/tracking";
+import { canShowPickup, trackingCopy } from "../../lib/tracking";
 import { Empty, ErrorMessage, Modal, StatusBadge, StudentShell } from "../shared";
 import { TabBar } from "../ui/primitives";
 import { WarmIllustration } from "../ui/illustration";
 import { PickupDialog } from "./pickup-dialog";
-import { OptionalSession, messageOf, RemoteStatus, useApi, useRemote } from "./common";
+import { OptionalSession, WorkspaceAccess, messageOf, RemoteStatus, useApi, useRemote } from "./common";
 import { TrafficView } from "./traffic";
 import { OrderPayment } from "./payments";
 import { BasketCheckout } from "./basket-checkout";
@@ -38,17 +38,21 @@ export function StudentWorkspace({
 }) {
   return (
     <OptionalSession>
-      {(session) => (
-        <StudentContent
-          key={session?.userId ?? "guest"}
-          route={route}
-          section={section}
-          id={id}
-          itemId={itemId}
-          signedIn={Boolean(session)}
-          userId={session?.profile.status === "active" && session.emailVerified ? session.userId : undefined}
-        />
-      )}
+      {(session) =>
+        session?.memberships.some((entry) => entry.role === "vendor") ? (
+          <WorkspaceAccess role="student">{() => null}</WorkspaceAccess>
+        ) : (
+          <StudentContent
+            key={session?.userId ?? "guest"}
+            route={route}
+            section={section}
+            id={id}
+            itemId={itemId}
+            signedIn={Boolean(session)}
+            userId={session?.profile.status === "active" && session.emailVerified ? session.userId : undefined}
+          />
+        )
+      }
     </OptionalSession>
   );
 }
@@ -458,7 +462,7 @@ function OrderDetail({ id, userId }: { id: string; userId: string }) {
                     Show pickup code
                   </button>
                 )}
-                {canStudentCancel(order.status) && (
+                {canCancelOrder(order.status) && (
                   <button
                     className="button secondary"
                     disabled={busy}

@@ -58,9 +58,15 @@ const sampleContext = {
     netRevenueSen: 44400,
     orderedValueSen: 46000,
     outstandingCounterSen: 1500,
-    peakHours: [{ hour: "12:00", count: 22 }, { hour: "13:00", count: 16 }],
+    peakHours: [
+      { hour: "12:00", count: 22 },
+      { hour: "13:00", count: 16 },
+    ],
     peakDays: [{ day: "2026-11-11", weekday: "Wed", count: 14 }],
-    statuses: [{ status: "collected", count: 50 }, { status: "ready", count: 3 }],
+    statuses: [
+      { status: "collected", count: 50 },
+      { status: "ready", count: 3 },
+    ],
   },
   kitchenQueue: {
     totalActive: 4,
@@ -84,7 +90,7 @@ const sampleContext = {
   },
 };
 
-const geminiReply = value => async () =>
+const geminiReply = (value) => async () =>
   Response.json({ candidates: [{ content: { parts: [{ text: JSON.stringify(value) }] } }] });
 
 test("validateProposedAction enforces stall ownership, bounds, and non-noop changes", () => {
@@ -98,41 +104,65 @@ test("validateProposedAction enforces stall ownership, bounds, and non-noop chan
 
   // Unowned or unknown itemId is rejected
   assert.equal(
-    validateProposedAction({ type: "update_menu_item", summary: "Hack", itemId: "other-stall-item", stock: 10 }, sampleContext),
+    validateProposedAction(
+      { type: "update_menu_item", summary: "Hack", itemId: "other-stall-item", stock: 10 },
+      sampleContext,
+    ),
     null,
   );
 
   // Out-of-bounds stock, price, discount, or net price < 50 sen are rejected
   assert.equal(
-    validateProposedAction({ type: "update_menu_item", summary: "Bad stock", itemId: "nasi-lemak", stock: -1 }, sampleContext),
+    validateProposedAction(
+      { type: "update_menu_item", summary: "Bad stock", itemId: "nasi-lemak", stock: -1 },
+      sampleContext,
+    ),
     null,
   );
   assert.equal(
-    validateProposedAction({ type: "update_menu_item", summary: "Huge stock", itemId: "nasi-lemak", stock: 5001 }, sampleContext),
+    validateProposedAction(
+      { type: "update_menu_item", summary: "Huge stock", itemId: "nasi-lemak", stock: 5001 },
+      sampleContext,
+    ),
     null,
   );
   assert.equal(
-    validateProposedAction({ type: "update_menu_item", summary: "Free item", itemId: "nasi-lemak", priceSen: 20 }, sampleContext),
+    validateProposedAction(
+      { type: "update_menu_item", summary: "Free item", itemId: "nasi-lemak", priceSen: 20 },
+      sampleContext,
+    ),
     null,
   );
   assert.equal(
-    validateProposedAction({ type: "update_menu_item", summary: "Over-discount", itemId: "nasi-lemak", discountSen: 810 }, sampleContext),
+    validateProposedAction(
+      { type: "update_menu_item", summary: "Over-discount", itemId: "nasi-lemak", discountSen: 810 },
+      sampleContext,
+    ),
     null,
   );
 
   // No-op change is rejected
   assert.equal(
-    validateProposedAction({ type: "update_menu_item", summary: "Same stock", itemId: "nasi-lemak", stock: 4 }, sampleContext),
+    validateProposedAction(
+      { type: "update_menu_item", summary: "Same stock", itemId: "nasi-lemak", stock: 4 },
+      sampleContext,
+    ),
     null,
   );
 
   // Lowering priceSen below existing discount_sen + 50 without also lowering discountSen is rejected
   assert.equal(
-    validateProposedAction({ type: "update_menu_item", summary: "Too cheap for discount", itemId: "iced-teh-tarik", priceSen: 80 }, sampleContext),
+    validateProposedAction(
+      { type: "update_menu_item", summary: "Too cheap for discount", itemId: "iced-teh-tarik", priceSen: 80 },
+      sampleContext,
+    ),
     null,
   );
   assert.equal(
-    validateProposedAction({ type: "update_menu_item", summary: "Free after discount", itemId: "iced-teh-tarik", priceSen: 50 }, sampleContext),
+    validateProposedAction(
+      { type: "update_menu_item", summary: "Free after discount", itemId: "iced-teh-tarik", priceSen: 50 },
+      sampleContext,
+    ),
     null,
   );
 
@@ -205,7 +235,9 @@ test("runVendorCopilotModel falls back deterministically on missing key, 429, ti
 
   for (const fetcher of [
     async () => new Response("rate limited", { status: 429 }),
-    async () => { throw new DOMException("Timeout", "TimeoutError"); },
+    async () => {
+      throw new DOMException("Timeout", "TimeoutError");
+    },
     async () => Response.json({}),
     geminiReply({ invalid: true }),
   ]) {
@@ -259,7 +291,7 @@ test("buildFallbackCopilotReply handles next-rush prep, relative lowest-stock re
 
   const withZeroStock = {
     ...sampleContext,
-    menu: sampleContext.menu.map(item => (item.id === "nasi-lemak" ? { ...item, stock: 0 } : item)),
+    menu: sampleContext.menu.map((item) => (item.id === "nasi-lemak" ? { ...item, stock: 0 } : item)),
   };
   const pauseZero = buildFallbackCopilotReply("Pause any out-of-stock items", withZeroStock);
   assert.equal(pauseZero.proposedAction?.type, "update_menu_item");

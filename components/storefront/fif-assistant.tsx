@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Check, GripHorizontal, SendHorizontal, X } from "lucide-react";
-import { hostedData } from "../../lib/backend/client";
+import { createApiClient, hostedData } from "../../lib/backend/client";
 import type { CopilotProposedAction } from "../../lib/backend/contracts";
 import { money } from "../../lib/orders";
+import { useSessionUser } from "../workspace/common";
 
 type ActionState = "pending" | "applying" | "applied" | "cancelled" | "error";
 
@@ -54,7 +62,11 @@ function actionDiffItems(action: CopilotProposedAction): ActionDiffItem[] {
       items.push({ label: "Price", before: money(action.before.priceSen), after: money(action.changes.priceSen) });
     }
     if (action.changes.discountSen !== undefined) {
-      items.push({ label: "Discount", before: money(action.before.discountSen), after: money(action.changes.discountSen) });
+      items.push({
+        label: "Discount",
+        before: money(action.before.discountSen),
+        after: money(action.changes.discountSen),
+      });
     }
     if (action.changes.active !== undefined) {
       items.push({
@@ -77,13 +89,19 @@ function actionDiffItems(action: CopilotProposedAction): ActionDiffItem[] {
     items.push({ label: "Capacity", before: `${action.before.capacity} u`, after: `${action.changes.capacity} u` });
   }
   if (action.changes.leadMinutes !== undefined) {
-    items.push({ label: "Lead time", before: `${action.before.leadMinutes}m`, after: `${action.changes.leadMinutes}m` });
+    items.push({
+      label: "Lead time",
+      before: `${action.before.leadMinutes}m`,
+      after: `${action.changes.leadMinutes}m`,
+    });
   }
   return items;
 }
 
 export function FifAssistant({ mode = "student", hosted = false, vendorId }: FifAssistantProps) {
   const router = useRouter();
+  const sessionUser = useSessionUser();
+  const api = useMemo(() => createApiClient(sessionUser ?? undefined), [sessionUser]);
   const isHostedVendor = mode === "vendor" && hosted;
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -107,10 +125,25 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
   const launcherRef = useRef<HTMLButtonElement>(null);
   const suppressClick = useRef(false);
   const prevVendorIdRef = useRef<string | undefined>(undefined);
-  const sendRef = useRef<(text: string) => Promise<void>>(async () => {});
+  const sendRef = useRef<(text: string, vendorIdOverride?: string) => Promise<void>>(async () => {});
 
-  const activeStall = stalls.find(entry => entry.id === vendorId) ?? stalls[0];
-  const resolvedVendorId = vendorId ?? activeStall?.id;
+  const [urlStall, setUrlStall] = useState<string | undefined>(() => {
+    if (typeof window === "undefined") return undefined;
+    return new URLSearchParams(window.location.search).get("stall") ?? undefined;
+  });
+
+  useEffect(() => {
+    const syncStall = () => {
+      const nextStall = new URLSearchParams(window.location.search).get("stall") ?? undefined;
+      setUrlStall(nextStall);
+    };
+    window.addEventListener("popstate", syncStall);
+    return () => window.removeEventListener("popstate", syncStall);
+  }, []);
+
+  const currentStallId = vendorId ?? urlStall;
+  const activeStall = stalls.find((entry) => entry.id === currentStallId) ?? stalls[0];
+  const resolvedVendorId = currentStallId ?? activeStall?.id;
   const starterPrompts = isHostedVendor ? vendorPrompts : studentPrompts;
 
   useEffect(() => {
@@ -128,15 +161,20 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
   }, [isHostedVendor, resolvedVendorId]);
 
   useEffect(() => {
-    if (!isHostedVendor || !open || stalls.length > 0) return;
+    if (!isHostedVendor || stalls.length > 0) return;
     let cancelled = false;
-    hostedData.assignedStalls()
-      .then(rows => {
-        if (!cancelled) setStalls(rows.map(row => ({ id: row.id, name: row.name })));
+    api
+      .assignedStalls()
+      .then((rows) => {
+        if (!cancelled) setStalls(rows.map((row) => ({ id: row.id, name: row.name })));
       })
-      .catch(() => { /* Keep fallback state if stalls fail to load. */ });
-    return () => { cancelled = true; };
-  }, [isHostedVendor, open, stalls.length]);
+      .catch(() => {
+        /* Keep fallback state if stalls fail to load. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isHostedVendor, stalls.length, api]);
 
   useEffect(() => {
     const syncViewport = () => {
@@ -147,17 +185,26 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
       const lHeight = rect?.height || 44;
       setViewport({ width, height });
       setLauncherSize({ width: lWidth, height: lHeight });
-      setPos(previous => previous ? {
-        left: clamp(previous.left, 12, width - lWidth - 12),
-        top: clamp(previous.top, 12, height - lHeight - 12),
-      } : previous);
+      setPos((previous) =>
+        previous
+          ? {
+              left: clamp(previous.left, 12, width - lWidth - 12),
+              top: clamp(previous.top, 12, height - lHeight - 12),
+            }
+          : previous,
+      );
     };
     syncViewport();
     try {
       const raw = sessionStorage.getItem(storageKey);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<Position>;
-        if (typeof parsed.left === "number" && typeof parsed.top === "number" && Number.isFinite(parsed.left) && Number.isFinite(parsed.top)) {
+        if (
+          typeof parsed.left === "number" &&
+          typeof parsed.top === "number" &&
+          Number.isFinite(parsed.left) &&
+          Number.isFinite(parsed.top)
+        ) {
           const rect = launcherRef.current?.getBoundingClientRect();
           setPos({
             left: clamp(parsed.left, 12, window.innerWidth - (rect?.width || 112) - 12),
@@ -165,14 +212,20 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
           });
         }
       }
-    } catch { /* Default corner position remains available. */ }
+    } catch {
+      /* Default corner position remains available. */
+    }
     window.addEventListener("resize", syncViewport);
     return () => window.removeEventListener("resize", syncViewport);
   }, []);
 
   useEffect(() => {
     if (!pos) return;
-    try { sessionStorage.setItem(storageKey, JSON.stringify(pos)); } catch { /* Ignore storage errors. */ }
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(pos));
+    } catch {
+      /* Ignore storage errors. */
+    }
   }, [pos]);
 
   useEffect(() => {
@@ -194,7 +247,7 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
 
   useEffect(() => {
     const onPrompt = (event: Event) => {
-      const detail = (event as CustomEvent<{ prompt?: string; autoSend?: boolean }>).detail;
+      const detail = (event as CustomEvent<{ prompt?: string; autoSend?: boolean; vendorId?: string }>).detail;
       const prompt = typeof detail?.prompt === "string" ? detail.prompt.trim().slice(0, 400) : "";
       setOpen(true);
       if (!prompt) {
@@ -206,7 +259,7 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
         requestAnimationFrame(() => inputRef.current?.focus());
         return;
       }
-      void sendRef.current(prompt);
+      void sendRef.current(prompt, detail?.vendorId);
     };
     window.addEventListener("apfood:copilot-prompt", onPrompt);
     return () => window.removeEventListener("apfood:copilot-prompt", onPrompt);
@@ -252,45 +305,46 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
     window.addEventListener("pointercancel", stop);
   }
 
-  async function send(text: string) {
+  async function send(text: string, vendorIdOverride?: string) {
     const clean = text.trim().slice(0, 400);
     if (!clean || loading) return;
     const userMessage: Message = { id: crypto.randomUUID(), role: "user", text: clean };
     const history = messages
-      .filter(entry => entry.id !== "welcome")
+      .filter((entry) => entry.id !== "welcome" && entry.text.trim().length > 0)
       .slice(-8)
-      .map(entry => ({ role: entry.role, text: entry.text.slice(0, 600) }));
+      .map((entry) => ({ role: entry.role, text: entry.text.trim().slice(0, 600) }));
 
-    setMessages(previous => [...previous, userMessage]);
+    setMessages((previous) => [...previous, userMessage]);
     setDraft("");
 
     if (!isHostedVendor) {
-      setMessages(previous => [
+      setMessages((previous) => [
         ...previous,
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          text: mode === "vendor"
-            ? "Vendor AI Copilot requires a signed-in hosted vendor session. Sign in to chat with live stall data and guarded actions."
-            : "FIF AI student chat is coming soon. Meanwhile, use SmartQueue and Campus Deals to pick the fastest stall.",
+          text:
+            mode === "vendor"
+              ? "Vendor AI Copilot requires a signed-in hosted vendor session. Sign in to chat with live stall data and guarded actions."
+              : "FIF AI student chat is coming soon. Meanwhile, use SmartQueue and Campus Deals to pick the fastest stall.",
         },
       ]);
       return;
     }
 
-    let targetVendorId: string | undefined = resolvedVendorId;
+    let targetVendorId: string | undefined = vendorIdOverride ?? resolvedVendorId;
     if (!targetVendorId) {
       try {
-        const assigned = await hostedData.assignedStalls();
-        setStalls(assigned.map(row => ({ id: row.id, name: row.name })));
-        targetVendorId = assigned[0]?.id;
+        const assigned = await api.assignedStalls();
+        setStalls(assigned.map((row) => ({ id: row.id, name: row.name })));
+        targetVendorId = vendorIdOverride ?? assigned[0]?.id;
       } catch {
         targetVendorId = undefined;
       }
     }
 
     if (!targetVendorId) {
-      setMessages(previous => [
+      setMessages((previous) => [
         ...previous,
         {
           id: crypto.randomUUID(),
@@ -303,12 +357,12 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
 
     setLoading(true);
     try {
-      const response = await hostedData.vendorCopilot({
+      const response = await api.vendorCopilot({
         vendorId: targetVendorId,
         message: clean,
         history,
       });
-      setMessages(previous => [
+      setMessages((previous) => [
         ...previous,
         {
           id: crypto.randomUUID(),
@@ -322,7 +376,7 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
       ]);
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Could not reach FIF AI Copilot.";
-      setMessages(previous => [
+      setMessages((previous) => [
         ...previous,
         {
           id: crypto.randomUUID(),
@@ -339,20 +393,20 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
   async function confirmAction(messageId: string, action: CopilotProposedAction, actionVendorId?: string) {
     const targetVendorId = actionVendorId ?? resolvedVendorId;
     if (!targetVendorId) return;
-    setMessages(previous => previous.map(entry =>
-      entry.id === messageId ? { ...entry, actionState: "applying", actionError: undefined } : entry,
-    ));
+    setMessages((previous) =>
+      previous.map((entry) =>
+        entry.id === messageId ? { ...entry, actionState: "applying", actionError: undefined } : entry,
+      ),
+    );
     try {
-      const result = await hostedData.executeVendorCopilot({
+      const result = await api.executeVendorCopilot({
         vendorId: targetVendorId,
         action,
       });
-      setMessages(previous => previous.map(entry =>
-        entry.id === messageId
-          ? { ...entry, actionState: "applied" }
-          : entry,
-      ));
-      setMessages(previous => [
+      setMessages((previous) =>
+        previous.map((entry) => (entry.id === messageId ? { ...entry, actionState: "applied" } : entry)),
+      );
+      setMessages((previous) => [
         ...previous,
         {
           id: crypto.randomUUID(),
@@ -361,24 +415,28 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
         },
       ]);
       router.refresh();
+      window.dispatchEvent(new Event("apfood:vendor-action-applied"));
     } catch (error) {
       const detail = error instanceof Error ? error.message : "Failed to apply action.";
-      setMessages(previous => previous.map(entry =>
-        entry.id === messageId ? { ...entry, actionState: "error", actionError: detail } : entry,
-      ));
+      setMessages((previous) =>
+        previous.map((entry) =>
+          entry.id === messageId ? { ...entry, actionState: "error", actionError: detail } : entry,
+        ),
+      );
     }
   }
 
   function cancelAction(messageId: string) {
-    setMessages(previous => previous.map(entry =>
-      entry.id === messageId ? { ...entry, actionState: "cancelled" } : entry,
-    ));
+    setMessages((previous) =>
+      previous.map((entry) => (entry.id === messageId ? { ...entry, actionState: "cancelled" } : entry)),
+    );
   }
 
-  const windowWidth = Math.min(360, viewport.width - 24);
+  const windowWidth = Math.min(380, viewport.width - 24);
+  const windowHeight = Math.max(320, Math.min(540, viewport.height - 96));
   const spaceAbove = pos ? pos.top - 22 : 0;
   const spaceBelow = pos ? viewport.height - (pos.top + launcherSize.height + 22) : 0;
-  const openAbove = pos ? spaceAbove >= 260 || spaceAbove >= spaceBelow : true;
+  const openAbove = pos ? spaceAbove >= windowHeight || spaceAbove >= spaceBelow : true;
 
   const launcherStyle: CSSProperties | undefined = pos
     ? { left: pos.left, top: pos.top, right: "auto", bottom: "auto" }
@@ -394,8 +452,16 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
           viewport.width - windowWidth - 12,
         ),
         ...(openAbove
-          ? { top: "auto", bottom: viewport.height - pos.top + 10, maxHeight: Math.min(460, Math.max(220, spaceAbove)) }
-          : { top: pos.top + launcherSize.height + 10, bottom: "auto", maxHeight: Math.min(460, Math.max(220, spaceBelow)) }),
+          ? {
+              top: "auto",
+              bottom: viewport.height - pos.top + 10,
+              height: Math.min(windowHeight, Math.max(260, spaceAbove)),
+            }
+          : {
+              top: pos.top + launcherSize.height + 10,
+              bottom: "auto",
+              height: Math.min(windowHeight, Math.max(260, spaceBelow)),
+            }),
         right: "auto",
         width: windowWidth,
         transformOrigin: `${pos.left + launcherSize.width / 2 > viewport.width / 2 ? "right" : "left"} ${openAbove ? "bottom" : "top"}`,
@@ -403,97 +469,164 @@ export function FifAssistant({ mode = "student", hosted = false, vendorId }: Fif
     : undefined;
 
   const subtitle = isHostedVendor
-    ? (activeStall ? `Vendor Copilot · ${activeStall.name}` : "Vendor AI Copilot")
+    ? activeStall
+      ? `Vendor Copilot · ${activeStall.name}`
+      : "Vendor AI Copilot"
     : "Campus pickup assistant";
 
-  return <>
-    {open && <section className={"fif-window" + (dragging ? " is-dragging" : "")} style={windowStyle} role="dialog" aria-label="FIF AI assistant">
-      <header className="fif-window-head" onPointerDown={startDrag}>
-        <div className="fif-window-brand">
-          <span className="fif-window-badge"><img src="/brand/ap-monogram-v2.png" alt="" width="20" height="20" /></span>
-          <div><strong>FIF AI</strong><small>{subtitle}</small></div>
-        </div>
-        <div className="fif-window-controls">
-          <GripHorizontal size={16} className="fif-drag-hint" aria-hidden />
-          <button type="button" className="fif-window-close" aria-label="Close FIF AI" onClick={() => setOpen(false)}>
-            <X size={18} aria-hidden />
-          </button>
-        </div>
-      </header>
-      <div className="fif-window-messages" ref={listRef}>
-        {messages.map(message => <div key={message.id} className={"fif-msg fif-msg-" + message.role}>
-          <div className="fif-msg-body">
-            <p>{message.text}</p>
-            {message.proposedAction && (
-              <div className="fif-action-card">
-                <div className="fif-action-head">
-                  <strong>Proposed change</strong>
-                  {message.actionState === "applied" && <span className="fif-action-tag is-applied"><Check size={12} aria-hidden /> Applied</span>}
-                  {message.actionState === "cancelled" && <span className="fif-action-tag is-cancelled">Cancelled</span>}
-                </div>
-                <p className="fif-action-summary">{message.proposedAction.summary}</p>
-                <div className="fif-action-diffs">
-                  {actionDiffItems(message.proposedAction).map(item => (
-                    <div key={item.label} className="fif-action-diff-row">
-                      <span className="fif-diff-label">{item.label}</span>
-                      <span className="fif-diff-badges">
-                        <span className="fif-diff-before">{item.before}</span>
-                        <span className="fif-diff-arrow" aria-hidden>→</span>
-                        <span className="fif-diff-after">{item.after}</span>
-                      </span>
+  return (
+    <>
+      {open && (
+        <section
+          className={"fif-window" + (dragging ? " is-dragging" : "")}
+          style={windowStyle}
+          role="dialog"
+          aria-label="FIF AI assistant"
+        >
+          <header className="fif-window-head" onPointerDown={startDrag}>
+            <div className="fif-window-brand">
+              <span className="fif-window-badge">
+                <img src="/brand/ap-monogram-v2.png" alt="" width="20" height="20" />
+              </span>
+              <div>
+                <strong>FIF AI</strong>
+                <small>{subtitle}</small>
+              </div>
+            </div>
+            <div className="fif-window-controls">
+              <GripHorizontal size={16} className="fif-drag-hint" aria-hidden />
+              <button
+                type="button"
+                className="fif-window-close"
+                aria-label="Close FIF AI"
+                onClick={() => setOpen(false)}
+              >
+                <X size={18} aria-hidden />
+              </button>
+            </div>
+          </header>
+          <div className="fif-window-messages" ref={listRef}>
+            {messages.map((message) => (
+              <div key={message.id} className={"fif-msg fif-msg-" + message.role}>
+                <div className="fif-msg-body">
+                  <p>{message.text}</p>
+                  {message.proposedAction && (
+                    <div className="fif-action-card">
+                      <div className="fif-action-head">
+                        <strong>Proposed change</strong>
+                        {message.actionState === "applied" && (
+                          <span className="fif-action-tag is-applied">
+                            <Check size={12} aria-hidden /> Applied
+                          </span>
+                        )}
+                        {message.actionState === "cancelled" && (
+                          <span className="fif-action-tag is-cancelled">Cancelled</span>
+                        )}
+                      </div>
+                      <p className="fif-action-summary">{message.proposedAction.summary}</p>
+                      <div className="fif-action-diffs">
+                        {actionDiffItems(message.proposedAction).map((item) => (
+                          <div key={item.label} className="fif-action-diff-row">
+                            <span className="fif-diff-label">{item.label}</span>
+                            <span className="fif-diff-badges">
+                              <span className="fif-diff-before">{item.before}</span>
+                              <span className="fif-diff-arrow" aria-hidden>
+                                →
+                              </span>
+                              <span className="fif-diff-after">{item.after}</span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      {message.actionError && <p className="fif-action-error">{message.actionError}</p>}
+                      {(message.actionState === "pending" ||
+                        message.actionState === "applying" ||
+                        message.actionState === "error") && (
+                        <div className="fif-action-buttons">
+                          <button
+                            type="button"
+                            className="fif-action-confirm"
+                            disabled={message.actionState === "applying"}
+                            onClick={() => confirmAction(message.id, message.proposedAction!, message.actionVendorId)}
+                          >
+                            {message.actionState === "applying" ? "Applying…" : "Confirm & Apply"}
+                          </button>
+                          <button
+                            type="button"
+                            className="fif-action-cancel"
+                            disabled={message.actionState === "applying"}
+                            onClick={() => cancelAction(message.id)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  )}
                 </div>
-                {message.actionError && <p className="fif-action-error">{message.actionError}</p>}
-                {(message.actionState === "pending" || message.actionState === "applying" || message.actionState === "error") && (
-                  <div className="fif-action-buttons">
-                    <button
-                      type="button"
-                      className="fif-action-confirm"
-                      disabled={message.actionState === "applying"}
-                      onClick={() => confirmAction(message.id, message.proposedAction!, message.actionVendorId)}
-                    >
-                      {message.actionState === "applying" ? "Applying…" : "Confirm & Apply"}
-                    </button>
-                    <button
-                      type="button"
-                      className="fif-action-cancel"
-                      disabled={message.actionState === "applying"}
-                      onClick={() => cancelAction(message.id)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
+              </div>
+            ))}
+            {loading && (
+              <div className="fif-msg fif-msg-assistant">
+                <div className="fif-msg-body">
+                  <p className="fif-typing">Thinking with live stall data…</p>
+                </div>
+              </div>
+            )}
+            {messages.length === 1 && !loading && (
+              <div className="fif-prompts">
+                {starterPrompts.map((prompt) => (
+                  <button type="button" key={prompt} onClick={() => send(prompt)}>
+                    {prompt}
+                  </button>
+                ))}
               </div>
             )}
           </div>
-        </div>)}
-        {loading && <div className="fif-msg fif-msg-assistant"><p className="fif-typing">Thinking with live stall data…</p></div>}
-        {messages.length === 1 && !loading && <div className="fif-prompts">
-          {starterPrompts.map(prompt => <button type="button" key={prompt} onClick={() => send(prompt)}>{prompt}</button>)}
-        </div>}
-      </div>
-      <form className="fif-window-form" onSubmit={event => { event.preventDefault(); send(draft); }}>
-        <input
-          ref={inputRef}
-          type="text"
-          placeholder={isHostedVendor ? "Ask about sales, July demand, or stock…" : "Ask FIF AI anything…"}
-          aria-label="Message FIF AI"
-          value={draft}
-          onChange={event => setDraft(event.target.value)}
-          maxLength={400}
-          disabled={loading}
-        />
-        <button type="submit" aria-label="Send message" disabled={!draft.trim() || loading}><SendHorizontal size={17} aria-hidden /></button>
-      </form>
-    </section>}
-    <button ref={launcherRef} type="button" className={"fif-launcher" + (dragging ? " is-dragging" : "")} style={launcherStyle} aria-expanded={open} aria-label={open ? "Close FIF AI" : "Open FIF AI"} onPointerDown={startDrag} onClick={() => {
-      if (suppressClick.current) { suppressClick.current = false; return; }
-      setOpen(value => !value);
-    }}>
-      <span className="fif-launcher-logo"><img src="/brand/ap-monogram-v2.png" alt="" width="18" height="18" /></span>
-      <span>FIF AI</span>
-    </button>
-  </>;
+          <form
+            className="fif-window-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              send(draft);
+            }}
+          >
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder={isHostedVendor ? "Ask about sales, July demand, or stock…" : "Ask FIF AI anything…"}
+              aria-label="Message FIF AI"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              maxLength={400}
+              disabled={loading}
+            />
+            <button type="submit" aria-label="Send message" disabled={!draft.trim() || loading}>
+              <SendHorizontal size={17} aria-hidden />
+            </button>
+          </form>
+        </section>
+      )}
+      <button
+        ref={launcherRef}
+        type="button"
+        className={"fif-launcher" + (dragging ? " is-dragging" : "")}
+        style={launcherStyle}
+        aria-expanded={open}
+        aria-label={open ? "Close FIF AI" : "Open FIF AI"}
+        onPointerDown={startDrag}
+        onClick={() => {
+          if (suppressClick.current) {
+            suppressClick.current = false;
+            return;
+          }
+          setOpen((value) => !value);
+        }}
+      >
+        <span className="fif-launcher-logo">
+          <img src="/brand/ap-monogram-v2.png" alt="" width="18" height="18" />
+        </span>
+        <span>FIF AI</span>
+      </button>
+    </>
+  );
 }

@@ -20,12 +20,17 @@ export function HostedSessionProvider({ children }: { children: ReactNode }) {
         const value = await hostedData.session();
         if (version === generation.current) setState({ value, ready: true });
       } catch (error) {
-        if (version === generation.current) setState(previous => ({
-          value: error instanceof ApiError && error.status === 401 ? undefined : previous.value,
-          error, ready: true,
-        }));
+        if (version === generation.current)
+          setState((previous) => ({
+            value: error instanceof ApiError && error.status === 401 ? undefined : previous.value,
+            error,
+            ready: true,
+          }));
       } finally {
-        if (version === generation.current) { checkedAt.current = Date.now(); pending.current = null; }
+        if (version === generation.current) {
+          checkedAt.current = Date.now();
+          pending.current = null;
+        }
       }
     })();
     pending.current = task;
@@ -34,18 +39,33 @@ export function HostedSessionProvider({ children }: { children: ReactNode }) {
     reload();
     const changed = (event: Event) => {
       const detail = (event as CustomEvent<{ session?: Session | null }>).detail;
-      generation.current++; pending.current = null;
+      generation.current++;
+      pending.current = null;
       if (detail && "session" in detail) {
-        setState(detail.session ? { value: detail.session, ready: true } : { ready: true, error: new ApiError(401, "UNAUTHENTICATED", "Sign in to continue.") });
+        setState(
+          detail.session
+            ? { value: detail.session, ready: true }
+            : { ready: true, error: new ApiError(401, "UNAUTHENTICATED", "Sign in to continue.") },
+        );
         checkedAt.current = Date.now();
-      } else { setState({ ready: false }); reload(); }
+      } else {
+        setState({ ready: false });
+        reload();
+      }
     };
-    const refresh = () => { if (document.visibilityState === "visible" && Date.now() - checkedAt.current >= 60_000) reload(); };
+    const refresh = () => {
+      if (document.visibilityState === "visible" && Date.now() - checkedAt.current >= 60_000) reload();
+    };
     const timer = window.setInterval(refresh, 60_000);
     window.addEventListener(sessionInvalidated, changed);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
-    return () => { clearInterval(timer); window.removeEventListener(sessionInvalidated, changed); window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener(sessionInvalidated, changed);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [reload]);
   const value = useMemo(() => ({ ...state, reload }), [state, reload]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

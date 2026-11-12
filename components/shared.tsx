@@ -78,12 +78,14 @@ export function OpsShell({
 }
 
 export function replaceFilters(changes: Record<string, string>) {
+  if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
   for (const [key, value] of Object.entries(changes)) {
     if (value) url.searchParams.set(key, value);
     else url.searchParams.delete(key);
   }
   window.history.replaceState(null, "", url);
+  window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
 export function StatusBadge({ status }: { status: Status }) {

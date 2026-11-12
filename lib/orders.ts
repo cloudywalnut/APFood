@@ -13,7 +13,10 @@ export const statusNames: Record<Status, string> = {
   rejected: "Rejected",
 };
 export const stages = ["placed", "accepted", "preparing", "ready", "collected"] as const;
-export const isActive = (status: Status) => ["placed", "accepted", "preparing", "ready"].includes(status);
+export const isActive = (status: Status | string) =>
+  ["placed", "accepted", "preparing", "ready"].includes(status as Status);
+/** Whether an order can be cancelled at its current status (placed, accepted, preparing, or ready). */
+export const canCancelOrder = (status: Status | string) => isActive(status);
 
 /** Price of the optional add-on, in sen. */
 export const addonPrice = 200;

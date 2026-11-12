@@ -3,6 +3,7 @@ import { privilegedClient } from "./auth";
 import type { CopilotExecuteInput, CopilotHistoryTurn } from "./contracts";
 import { BackendError, unwrap } from "./errors";
 import { adminReport } from "./reports";
+import { fetchCampusWeather } from "./campus-weather";
 import type { RequestClient } from "./supabase";
 import {
   runVendorCopilotModel,
@@ -11,42 +12,6 @@ import {
   type VendorCopilotContext,
 } from "./vendor-copilot-core";
 
-const weatherCache = {
-  expires: 0,
-  weather: "hot" as "rainy" | "hot",
-  label: "Tropical warm · Bukit Jalil",
-  tempC: undefined as number | undefined,
-};
-
-async function fetchCampusWeather() {
-  if (Date.now() < weatherCache.expires) {
-    return { weather: weatherCache.weather, weatherLabel: weatherCache.label, temperatureC: weatherCache.tempC };
-  }
-  try {
-    const res = await fetch(
-      "https://api.open-meteo.com/v1/forecast?latitude=3.0554&longitude=101.7006&current=temperature_2m,precipitation,weather_code&timezone=Asia%2FKuala_Lumpur",
-      { signal: AbortSignal.timeout(2500) },
-    );
-    if (!res.ok) throw new Error("Weather unavailable");
-    const json = await res.json() as { current?: { temperature_2m?: number; precipitation?: number; weather_code?: number } };
-    const temp = typeof json.current?.temperature_2m === "number" ? Math.round(json.current.temperature_2m * 10) / 10 : undefined;
-    const precip = typeof json.current?.precipitation === "number" ? json.current.precipitation : 0;
-    const code = typeof json.current?.weather_code === "number" ? json.current.weather_code : 0;
-    const rainy = precip > 0 || code >= 51;
-    const weather = (rainy ? "rainy" : "hot") as "rainy" | "hot";
-    const label = rainy
-      ? (code >= 95 ? "Thunderstorm" : "Rainy") + (temp !== undefined ? ` · ${temp}°C` : "")
-      : (temp !== undefined && temp >= 30 ? "Warm & humid" : "Clear") + (temp !== undefined ? ` · ${temp}°C` : "");
-    weatherCache.expires = Date.now() + 10 * 60_000;
-    weatherCache.weather = weather;
-    weatherCache.label = label;
-    weatherCache.tempC = temp;
-  } catch {
-    weatherCache.expires = Date.now() + 2 * 60_000;
-  }
-  return { weather: weatherCache.weather, weatherLabel: weatherCache.label, temperatureC: weatherCache.tempC };
-}
-
 function weekdayOf(dayIso: string) {
   const date = new Date(dayIso + "T12:00:00+08:00");
   return Number.isNaN(date.getTime())
@@ -54,7 +19,10 @@ function weekdayOf(dayIso: string) {
     : date.toLocaleDateString("en-MY", { weekday: "short", timeZone: "Asia/Kuala_Lumpur" });
 }
 
-export async function gatherVendorCopilotContext(client: RequestClient, vendorId: string): Promise<VendorCopilotContext> {
+export async function gatherVendorCopilotContext(
+  client: RequestClient,
+  vendorId: string,
+): Promise<VendorCopilotContext> {
   const stall = unwrap(
     await client
       .from("vendors")
@@ -65,13 +33,18 @@ export async function gatherVendorCopilotContext(client: RequestClient, vendorId
   if (!stall) throw new BackendError(404, "STALL_UNAVAILABLE", "Stall unavailable.");
 
   const [zone, menuRows, activeOrders, campusWeather] = await Promise.all([
-    client.from("zones").select("id,name").eq("id", stall.zone_id).maybeSingle().then(r => unwrap(r)),
+    client
+      .from("zones")
+      .select("id,name")
+      .eq("id", stall.zone_id)
+      .maybeSingle()
+      .then((r) => unwrap(r)),
     client
       .from("menu_items")
       .select("id,vendor_id,name,description,price_sen,discount_sen,stock,active,work_units")
       .eq("vendor_id", vendorId)
       .order("name")
-      .then(r => unwrap(r) ?? []),
+      .then((r) => unwrap(r) ?? []),
     client
       .from("orders")
       .select("id,status,pickup_at,lines")
@@ -79,7 +52,7 @@ export async function gatherVendorCopilotContext(client: RequestClient, vendorId
       .in("status", ["placed", "accepted", "preparing", "ready"])
       .order("pickup_at", { ascending: true })
       .limit(200)
-      .then(r => unwrap(r) ?? []),
+      .then((r) => unwrap(r) ?? []),
     fetchCampusWeather(),
   ]);
 
@@ -96,8 +69,8 @@ export async function gatherVendorCopilotContext(client: RequestClient, vendorId
     }
   }
 
-  const productMap = new Map((report?.products ?? []).map(p => [p.id, p]));
-  const menu: CopilotStallItem[] = menuRows.map(item => {
+  const productMap = new Map((report?.products ?? []).map((p) => [p.id, p]));
+  const menu: CopilotStallItem[] = menuRows.map((item) => {
     const perf = productMap.get(item.id);
     return {
       ...item,
@@ -106,24 +79,28 @@ export async function gatherVendorCopilotContext(client: RequestClient, vendorId
     };
   });
 
-  const vendorStats = report?.vendors.find(v => v.id === vendorId);
+  const vendorStats = report?.vendors.find((v) => v.id === vendorId);
   const daily = report?.analytics?.daily ?? [];
   const hours = report?.analytics?.hours ?? [];
   const peakHours = [...hours]
-    .filter(h => h.count > 0)
+    .filter((h) => h.count > 0)
     .sort((a, b) => b.count - a.count)
     .slice(0, 3)
-    .map(h => ({ hour: `${String(h.hour).padStart(2, "0")}:00`, count: h.count }));
+    .map((h) => ({ hour: `${String(h.hour).padStart(2, "0")}:00`, count: h.count }));
   const peakDays = [...daily]
-    .filter(d => d.count > 0)
+    .filter((d) => d.count > 0)
     .sort((a, b) => b.count - a.count)
     .slice(0, 3)
-    .map(d => ({ day: d.day, weekday: weekdayOf(d.day), count: d.count }));
+    .map((d) => ({ day: d.day, weekday: weekdayOf(d.day), count: d.count }));
 
   const now = new Date();
   const nowMs = now.getTime();
   const in60MinMs = nowMs + 60 * 60_000;
-  const nowMalaysia = now.toLocaleString("en-MY", { timeZone: "Asia/Kuala_Lumpur", dateStyle: "medium", timeStyle: "short" });
+  const nowMalaysia = now.toLocaleString("en-MY", {
+    timeZone: "Asia/Kuala_Lumpur",
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
   const currentMonth = now.toLocaleDateString("en-MY", { month: "long", timeZone: "Asia/Kuala_Lumpur" });
 
   let placed = 0;
@@ -151,13 +128,16 @@ export async function gatherVendorCopilotContext(client: RequestClient, vendorId
       if (!line || typeof line.itemId !== "string" || typeof line.quantity !== "number") continue;
       const existing = queuedItemCounts.get(line.itemId);
       if (existing) existing.quantity += line.quantity;
-      else queuedItemCounts.set(line.itemId, { itemId: line.itemId, name: line.name ?? line.itemId, quantity: line.quantity });
+      else
+        queuedItemCounts.set(line.itemId, {
+          itemId: line.itemId,
+          name: line.name ?? line.itemId,
+          quantity: line.quantity,
+        });
     }
   }
 
-  const topQueuedItems = [...queuedItemCounts.values()]
-    .sort((a, b) => b.quantity - a.quantity)
-    .slice(0, 5);
+  const topQueuedItems = [...queuedItemCounts.values()].sort((a, b) => b.quantity - a.quantity).slice(0, 5);
 
   return {
     stall: {
@@ -205,7 +185,8 @@ export async function gatherVendorCopilotContext(client: RequestClient, vendorId
       weather: campusWeather.weather,
       weatherLabel: campusWeather.weatherLabel,
       temperatureC: campusWeather.temperatureC,
-      notes: "Asia Pacific University (APU) Malaysia campus cafeteria. Lunch rush typically peaks 12:00-14:00 on weekdays. July is mid-year semester with warm Malaysian weather, favoring quick-prep meals, value combos, and cold drinks.",
+      notes:
+        "Asia Pacific University (APU) Malaysia campus cafeteria. Lunch rush typically peaks 12:00-14:00 on weekdays. Weather unavailable labels are assumptions, not live observations.",
     },
   };
 }
@@ -220,7 +201,9 @@ export async function vendorCopilot(
   let allowed = Boolean(key);
   if (key && process.env.SUPABASE_SECRET_KEY) {
     try {
-      const hash = createHash("sha256").update("fif-copilot:" + userId).digest("hex");
+      const hash = createHash("sha256")
+        .update("fif-copilot:" + userId)
+        .digest("hex");
       const limit = await privilegedClient().rpc("consume_auth_request", { p_key: hash, p_limit: 30, p_seconds: 3600 });
       allowed = !limit.error && limit.data === true;
     } catch {
@@ -242,80 +225,84 @@ export async function executeVendorCopilotAction(client: RequestClient, input: C
   const action = input.action;
 
   if (action.type === "update_menu_item") {
-    const item = context.menu.find(entry => entry.id === action.itemId);
+    const item = context.menu.find((entry) => entry.id === action.itemId);
     if (!item) throw new BackendError(404, "ITEM_UNAVAILABLE", "Menu item not found for this stall.");
     if (item.stock !== action.expectedStock) {
-      throw new BackendError(409, "STOCK_CHANGED", "Item stock changed since this action was proposed. Ask FIF AI again.");
-    }
-
-    const validated = validateProposedAction({
-      type: "update_menu_item",
-      summary: action.summary,
-      itemId: item.id,
-      stock: action.changes.stock ?? null,
-      priceSen: action.changes.priceSen ?? null,
-      discountSen: action.changes.discountSen ?? null,
-      active: action.changes.active ?? null,
-    }, context);
-    if (!validated || validated.type !== "update_menu_item") {
-      throw new BackendError(400, "INVALID_ACTION", "This proposed menu update is outside allowed guardrails or no longer changes anything.");
-    }
-
-    const discountChanged = validated.changes.discountSen !== undefined && validated.changes.discountSen !== item.discount_sen;
-    if (discountChanged && !process.env.SUPABASE_SECRET_KEY) {
-      throw new BackendError(503, "DISCOUNT_UPDATE_UNAVAILABLE", "Discount updates require server configuration.");
-    }
-
-    const nextPrice = validated.changes.priceSen ?? item.price_sen;
-    const nextStock = validated.changes.stock ?? item.stock;
-    const nextActive = validated.changes.active ?? item.active;
-
-    unwrap(
-      await client.rpc("save_menu_item", {
-        p_vendor: input.vendorId,
-        p_id: item.id,
-        p_name: item.name,
-        p_description: item.description,
-        p_price: nextPrice,
-        p_stock: nextStock,
-        p_active: nextActive,
-        p_units: item.work_units,
-        p_expected_stock: item.stock,
-      }),
-    );
-
-    if (discountChanged) {
-      unwrap(
-        await privilegedClient()
-          .from("menu_items")
-          .update({ discount_sen: validated.changes.discountSen! })
-          .eq("id", item.id)
-          .eq("vendor_id", input.vendorId),
+      throw new BackendError(
+        409,
+        "STOCK_CHANGED",
+        "Item stock changed since this action was proposed. Ask FIF AI again.",
       );
     }
+    if (
+      item.stock !== action.before.stock ||
+      item.price_sen !== action.before.priceSen ||
+      item.discount_sen !== action.before.discountSen ||
+      item.active !== action.before.active
+    ) {
+      throw new BackendError(409, "ACTION_CHANGED", "The item changed. Ask FIF AI for a new proposal.");
+    }
+
+    const validated = validateProposedAction(
+      {
+        type: "update_menu_item",
+        summary: action.summary,
+        itemId: item.id,
+        stock: action.changes.stock ?? null,
+        priceSen: action.changes.priceSen ?? null,
+        discountSen: action.changes.discountSen ?? null,
+        active: action.changes.active ?? null,
+      },
+      context,
+    );
+    if (!validated || validated.type !== "update_menu_item") {
+      throw new BackendError(
+        400,
+        "INVALID_ACTION",
+        "This proposed menu update is outside allowed guardrails or no longer changes anything.",
+      );
+    }
+
+    unwrap(
+      await client.rpc("apply_vendor_copilot_action", {
+        p_vendor: input.vendorId,
+        p_action: { ...validated, before: action.before, expectedStock: action.expectedStock },
+      }),
+    );
 
     return { ok: true as const, appliedSummary: validated.summary };
   }
 
-  const validated = validateProposedAction({
-    type: "update_stall_settings",
-    summary: action.summary,
-    paused: action.changes.paused ?? null,
-    capacity: action.changes.capacity ?? null,
-    leadMinutes: action.changes.leadMinutes ?? null,
-  }, context);
+  if (
+    context.stall.paused !== action.before.paused ||
+    context.stall.capacity !== action.before.capacity ||
+    context.stall.leadMinutes !== action.before.leadMinutes
+  ) {
+    throw new BackendError(409, "ACTION_CHANGED", "The stall changed. Ask FIF AI for a new proposal.");
+  }
+
+  const validated = validateProposedAction(
+    {
+      type: "update_stall_settings",
+      summary: action.summary,
+      paused: action.changes.paused ?? null,
+      capacity: action.changes.capacity ?? null,
+      leadMinutes: action.changes.leadMinutes ?? null,
+    },
+    context,
+  );
   if (!validated || validated.type !== "update_stall_settings") {
-    throw new BackendError(400, "INVALID_ACTION", "This stall setting update is outside allowed guardrails or no longer changes anything.");
+    throw new BackendError(
+      400,
+      "INVALID_ACTION",
+      "This stall setting update is outside allowed guardrails or no longer changes anything.",
+    );
   }
 
   unwrap(
-    await client.rpc("update_vendor_settings", {
-      p_id: input.vendorId,
-      p_capacity: validated.changes.capacity ?? null,
-      p_lead: validated.changes.leadMinutes ?? null,
-      p_opens: null,
-      p_closes: null,
-      p_paused: validated.changes.paused ?? null,
+    await client.rpc("apply_vendor_copilot_action", {
+      p_vendor: input.vendorId,
+      p_action: { ...validated, before: action.before },
     }),
   );
 

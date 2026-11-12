@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -17,11 +17,11 @@ import {
   UserRound,
 } from "lucide-react";
 import { createApiClient, apiClient } from "../../lib/backend/client";
+import { AccountMenu } from "../account-menu";
 import { Brand, ErrorMessage, Footer } from "../shared";
-import { AuthFrame, messageOf, portalFor, RemoteStatus, useRemote, type Role } from "./common";
-import { loginDestination } from "../../lib/login-routing";
-
-type DemoAccounts = typeof import("../../supabase/fixtures/demo-accounts.json");
+import { AuthFrame, messageOf, portalFor, RemoteStatus, type Role } from "./common";
+import { useHostedSession } from "../hosted/session-provider";
+import { canUseWorkspace, loginDestination } from "../../lib/login-routing";
 
 const workspaceLabels: Record<Role, string> = {
   student: "Order campus food",
@@ -93,21 +93,6 @@ export function AuthScreen({ screen }: { screen: string }) {
     "accept-invite": "Welcome to the team.",
   };
   const next = returnPath(params.get("next"));
-  const form = useRef<HTMLFormElement>(null);
-  // Seeded demo accounts, offered as click-to-fill during development only. The dynamic import is
-  // removed from production builds, so the shared demo password never ships to the browser.
-  const [demoAccounts, setDemoAccounts] = useState<DemoAccounts>();
-  useEffect(() => {
-    if (process.env.NODE_ENV !== "production" && screen === "login")
-      void import("../../supabase/fixtures/demo-accounts.json").then((module) => setDemoAccounts(module.default));
-  }, [screen]);
-  function fillDemoAccount(email: string) {
-    const fields = form.current?.elements;
-    if (!fields || !demoAccounts) return;
-    (fields.namedItem("email") as HTMLInputElement).value = email;
-    (fields.namedItem("password") as HTMLInputElement).value = demoAccounts.password;
-    setError("");
-  }
   return (
     <AuthFrame authRole="student">
       <div className="auth-heading">
@@ -129,7 +114,6 @@ export function AuthScreen({ screen }: { screen: string }) {
         </p>
       </div>
       <form
-        ref={form}
         className="stack"
         onSubmit={async (event) => {
           event.preventDefault();
@@ -239,27 +223,13 @@ export function AuthScreen({ screen }: { screen: string }) {
       <nav className="auth-secondary-links" aria-label="Explore APFoods">
         <Link href="/app">Browse campus food</Link>
       </nav>
-      {demoAccounts && screen === "login" && (
-        <details className="ap-preview-accounts">
-          <summary>Accounts</summary>
-          <p>
-            Account password: <strong>{demoAccounts.password}</strong>
-          </p>
-          {demoAccounts.accounts.map((account) => (
-            <button type="button" key={account.email} onClick={() => fillDemoAccount(account.email)}>
-              <span>{account.name}</span>
-              <small>{account.email}</small>
-            </button>
-          ))}
-        </details>
-      )}
     </AuthFrame>
   );
 }
 
 export function AccountScreen() {
   const router = useRouter();
-  const result = useRemote(apiClient.session);
+  const result = useHostedSession();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -321,11 +291,15 @@ export function AccountScreen() {
         <div>
           <Brand />
           <div className="account-topbar-links">
-            <Link className="quiet-link" href="/app">
+            <AccountMenu />
+            <Link className="quiet-link" href={loginDestination(session)}>
               <ArrowLeft size={16} aria-hidden />
-              Campus food
+              Workspace
             </Link>
-            <Link className="button secondary" href="/app/settings">
+            <Link
+              className="button secondary"
+              href={loginDestination(session) === "/account" ? "/account" : loginDestination(session) + "/settings"}
+            >
               <Settings size={15} aria-hidden />
               Settings
             </Link>
@@ -356,12 +330,14 @@ export function AccountScreen() {
               </span>
             </div>
             <div className="account-workspaces">
-              {session.memberships.map((entry) => (
-                <Link className="button secondary" key={entry.role + entry.vendor_id} href={portalFor[entry.role]}>
-                  {workspaceLabels[entry.role]}
-                  <ArrowRight size={15} aria-hidden />
-                </Link>
-              ))}
+              {session.memberships
+                .filter((entry) => canUseWorkspace(session, entry.role))
+                .map((entry) => (
+                  <Link className="button secondary" key={entry.role + entry.vendor_id} href={portalFor[entry.role]}>
+                    {workspaceLabels[entry.role]}
+                    <ArrowRight size={15} aria-hidden />
+                  </Link>
+                ))}
             </div>
           </div>
           <div className="account-food-mosaic" aria-hidden="true">
@@ -424,31 +400,34 @@ export function AccountScreen() {
               </button>
             </form>
 
-            <section className="panel account-card account-shortcuts">
-              <div className="account-shortcut-photo">
-                <Image src="/cafeteria/stalls/campus-noodle-bar-storefront.jpg" alt="" fill sizes="120px" />
-              </div>
-              <div>
-                <h2>Ready for your next break?</h2>
-                <p className="muted small">Browse stalls on the campus map or check your active pickups.</p>
-                <div className="line wrap">
-                  <Link className="button secondary" href="/app">
-                    Browse stalls
-                  </Link>
-                  <Link className="quiet-link" href="/app/orders">
-                    My orders
-                    <ArrowRight size={15} aria-hidden />
-                  </Link>
+            {canUseWorkspace(session, "student") && (
+              <section className="panel account-card account-shortcuts">
+                <div className="account-shortcut-photo">
+                  <Image src="/cafeteria/stalls/campus-noodle-bar-storefront.jpg" alt="" fill sizes="120px" />
                 </div>
-              </div>
-            </section>
+                <div>
+                  <h2>Ready for your next break?</h2>
+                  <p className="muted small">Browse stalls on the campus map or check your active pickups.</p>
+                  <div className="line wrap">
+                    <Link className="button secondary" href="/app">
+                      Browse stalls
+                    </Link>
+                    <Link className="quiet-link" href="/app/orders">
+                      My orders
+                      <ArrowRight size={15} aria-hidden />
+                    </Link>
+                  </div>
+                </div>
+              </section>
+            )}
           </div>
 
           <form
             className="panel stack account-card"
             onSubmit={async (event) => {
               event.preventDefault();
-              const data = new FormData(event.currentTarget);
+              const securityForm = event.currentTarget;
+              const data = new FormData(securityForm);
               const password = String(data.get("password") ?? "");
               if (password && password !== data.get("confirm")) {
                 setError("The passwords do not match.");
@@ -464,7 +443,7 @@ export function AccountScreen() {
                   currentPassword: String(data.get("currentPassword")),
                 });
                 setNotice("Security details saved. Check your inbox if you changed your email.");
-                event.currentTarget?.reset();
+                securityForm.reset();
               } catch (problem) {
                 setError(messageOf(problem));
               } finally {

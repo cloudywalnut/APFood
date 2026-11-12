@@ -1,4 +1,4 @@
-import type { Status } from "./orders";
+import { canCancelOrder, type Status } from "./orders";
 export const trackingCopy: Record<
   Status,
   {
@@ -50,7 +50,7 @@ export const trackingCopy: Record<
   },
 };
 export function canStudentCancel(status: Status) {
-  return status === "placed" || status === "accepted";
+  return canCancelOrder(status);
 }
 export function canShowPickup(status: Status) {
   return status === "ready";

@@ -39,8 +39,8 @@ test("unverified accounts and unsafe destinations cannot bypass account routing"
     assert.equal(loginDestination(account("student"), path), "/app");
 });
 
-test('vendor memberships do not grant student workspace access', () => {
-  assert.equal(canUseWorkspace(account('student','vendor'), 'student'), false);
-  assert.equal(canUseWorkspace(account('student','vendor'), 'vendor'), true);
-  assert.equal(canUseWorkspace(account('student'), 'student'), true);
+test("vendor memberships do not grant student workspace access", () => {
+  assert.equal(canUseWorkspace(account("student", "vendor"), "student"), false);
+  assert.equal(canUseWorkspace(account("student", "vendor"), "vendor"), true);
+  assert.equal(canUseWorkspace(account("student"), "student"), true);
 });

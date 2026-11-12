@@ -1197,11 +1197,11 @@ input[type="checkbox"] {
     display: none;
   }
   .ap-topbar-inner {
-    gap: 15px;
+    gap: 10px;
   }
   .ap-primary-nav a {
-    min-width: 65px;
-    padding-inline: 8px;
+    min-width: 56px;
+    padding-inline: 6px;
   }
   .ap-header-actions a:last-child {
     display: none;

@@ -97,60 +97,77 @@ export type RawProposedAction = {
 };
 
 const idSchema = z.string().regex(/^[a-z0-9][a-z0-9-]{0,95}$/);
-const menuChangesSchema = z.object({
-  stock: z.number().int().min(0).max(5000).optional(),
-  priceSen: z.number().int().min(50).max(50000).optional(),
-  discountSen: z.number().int().min(0).max(49950).optional(),
-  active: z.boolean().optional(),
-}).strict().refine(v => Object.keys(v).length > 0);
+const menuChangesSchema = z
+  .object({
+    stock: z.number().int().min(0).max(5000).optional(),
+    priceSen: z.number().int().min(50).max(50000).optional(),
+    discountSen: z.number().int().min(0).max(49950).optional(),
+    active: z.boolean().optional(),
+  })
+  .strict()
+  .refine((v) => Object.keys(v).length > 0);
 
-const stallChangesSchema = z.object({
-  paused: z.boolean().optional(),
-  capacity: z.number().int().min(1).max(300).optional(),
-  leadMinutes: z.number().int().min(1).max(120).optional(),
-}).strict().refine(v => Object.keys(v).length > 0);
+const stallChangesSchema = z
+  .object({
+    paused: z.boolean().optional(),
+    capacity: z.number().int().min(1).max(300).optional(),
+    leadMinutes: z.number().int().min(1).max(120).optional(),
+  })
+  .strict()
+  .refine((v) => Object.keys(v).length > 0);
 
 const proposedActionSchema = z.discriminatedUnion("type", [
-  z.object({
-    type: z.literal("update_menu_item"),
-    summary: z.string().trim().min(1).max(200),
-    itemId: idSchema,
-    itemName: z.string().trim().min(1).max(80),
-    expectedStock: z.number().int().min(0).max(1_000_000),
-    before: z.object({
-      stock: z.number().int(),
-      priceSen: z.number().int(),
-      discountSen: z.number().int(),
-      active: z.boolean(),
-    }).strict(),
-    changes: menuChangesSchema,
-  }).strict(),
-  z.object({
-    type: z.literal("update_stall_settings"),
-    summary: z.string().trim().min(1).max(200),
-    before: z.object({
-      paused: z.boolean(),
-      capacity: z.number().int(),
-      leadMinutes: z.number().int(),
-    }).strict(),
-    changes: stallChangesSchema,
-  }).strict(),
+  z
+    .object({
+      type: z.literal("update_menu_item"),
+      summary: z.string().trim().min(1).max(200),
+      itemId: idSchema,
+      itemName: z.string().trim().min(1).max(80),
+      expectedStock: z.number().int().min(0).max(1_000_000),
+      before: z
+        .object({
+          stock: z.number().int(),
+          priceSen: z.number().int(),
+          discountSen: z.number().int(),
+          active: z.boolean(),
+        })
+        .strict(),
+      changes: menuChangesSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("update_stall_settings"),
+      summary: z.string().trim().min(1).max(200),
+      before: z
+        .object({
+          paused: z.boolean(),
+          capacity: z.number().int(),
+          leadMinutes: z.number().int(),
+        })
+        .strict(),
+      changes: stallChangesSchema,
+    })
+    .strict(),
 ]);
 
 const geminiResponseSchema = z.object({
   reply: z.string().trim().min(1).max(2000),
-  proposedAction: z.object({
-    type: z.enum(["update_menu_item", "update_stall_settings"]),
-    summary: z.string().trim().min(1).max(200),
-    itemId: z.string().nullable().optional(),
-    stock: z.number().int().nullable().optional(),
-    priceSen: z.number().int().nullable().optional(),
-    discountSen: z.number().int().nullable().optional(),
-    active: z.boolean().nullable().optional(),
-    paused: z.boolean().nullable().optional(),
-    capacity: z.number().int().nullable().optional(),
-    leadMinutes: z.number().int().nullable().optional(),
-  }).nullable().optional(),
+  proposedAction: z
+    .object({
+      type: z.enum(["update_menu_item", "update_stall_settings"]),
+      summary: z.string().trim().min(1).max(200),
+      itemId: z.string().nullable().optional(),
+      stock: z.number().int().nullable().optional(),
+      priceSen: z.number().int().nullable().optional(),
+      discountSen: z.number().int().nullable().optional(),
+      active: z.boolean().nullable().optional(),
+      paused: z.boolean().nullable().optional(),
+      capacity: z.number().int().nullable().optional(),
+      leadMinutes: z.number().int().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
 });
 
 function formatRm(sen: number) {
@@ -165,17 +182,35 @@ export function validateProposedAction(
 
   if (raw.type === "update_menu_item") {
     if (!raw.itemId) return null;
-    const item = context.menu.find(entry => entry.id === raw.itemId);
+    const item = context.menu.find((entry) => entry.id === raw.itemId);
     if (!item) return null;
 
     const changes: Record<string, unknown> = {};
-    if (typeof raw.stock === "number" && Number.isInteger(raw.stock) && raw.stock >= 0 && raw.stock <= 5000 && raw.stock !== item.stock) {
+    if (
+      typeof raw.stock === "number" &&
+      Number.isInteger(raw.stock) &&
+      raw.stock >= 0 &&
+      raw.stock <= 5000 &&
+      raw.stock !== item.stock
+    ) {
       changes.stock = raw.stock;
     }
-    if (typeof raw.priceSen === "number" && Number.isInteger(raw.priceSen) && raw.priceSen >= 50 && raw.priceSen <= 50000 && raw.priceSen !== item.price_sen) {
+    if (
+      typeof raw.priceSen === "number" &&
+      Number.isInteger(raw.priceSen) &&
+      raw.priceSen >= 50 &&
+      raw.priceSen <= 50000 &&
+      raw.priceSen !== item.price_sen
+    ) {
       changes.priceSen = raw.priceSen;
     }
-    if (typeof raw.discountSen === "number" && Number.isInteger(raw.discountSen) && raw.discountSen >= 0 && raw.discountSen <= 49950 && raw.discountSen !== item.discount_sen) {
+    if (
+      typeof raw.discountSen === "number" &&
+      Number.isInteger(raw.discountSen) &&
+      raw.discountSen >= 0 &&
+      raw.discountSen <= 49950 &&
+      raw.discountSen !== item.discount_sen
+    ) {
       changes.discountSen = raw.discountSen;
     }
     if (typeof raw.active === "boolean" && raw.active !== item.active) {
@@ -211,10 +246,22 @@ export function validateProposedAction(
     if (typeof raw.paused === "boolean" && raw.paused !== context.stall.paused) {
       changes.paused = raw.paused;
     }
-    if (typeof raw.capacity === "number" && Number.isInteger(raw.capacity) && raw.capacity >= 1 && raw.capacity <= 300 && raw.capacity !== context.stall.capacity) {
+    if (
+      typeof raw.capacity === "number" &&
+      Number.isInteger(raw.capacity) &&
+      raw.capacity >= 1 &&
+      raw.capacity <= 300 &&
+      raw.capacity !== context.stall.capacity
+    ) {
       changes.capacity = raw.capacity;
     }
-    if (typeof raw.leadMinutes === "number" && Number.isInteger(raw.leadMinutes) && raw.leadMinutes >= 1 && raw.leadMinutes <= 120 && raw.leadMinutes !== context.stall.leadMinutes) {
+    if (
+      typeof raw.leadMinutes === "number" &&
+      Number.isInteger(raw.leadMinutes) &&
+      raw.leadMinutes >= 1 &&
+      raw.leadMinutes <= 120 &&
+      raw.leadMinutes !== context.stall.leadMinutes
+    ) {
       changes.leadMinutes = raw.leadMinutes;
     }
     if (Object.keys(changes).length === 0) return null;
@@ -255,7 +302,7 @@ function findMentionedItem(message: string, menu: CopilotStallItem[]): CopilotSt
   const lower = message.toLowerCase();
   return [...menu]
     .sort((a, b) => b.name.length - a.name.length)
-    .find(item => lower.includes(item.name.toLowerCase()) || lower.includes(item.id.toLowerCase()));
+    .find((item) => lower.includes(item.name.toLowerCase()) || lower.includes(item.id.toLowerCase()));
 }
 
 export function buildFallbackCopilotReply(
@@ -263,20 +310,32 @@ export function buildFallbackCopilotReply(
   context: VendorCopilotContext,
 ): { reply: string; source: "rules"; proposedAction: CopilotProposedAction | null } {
   const lower = message.toLowerCase();
-  const topSellers = [...context.menu].sort((a, b) => b.unitsSold14d - a.unitsSold14d || b.fulfilledValueSen14d - a.fulfilledValueSen14d);
-  const lowStock = context.menu.filter(item => item.active && item.stock <= 5);
-  const outOfStock = context.menu.filter(item => item.active && item.stock === 0);
+  const topSellers = [...context.menu].sort(
+    (a, b) => b.unitsSold14d - a.unitsSold14d || b.fulfilledValueSen14d - a.fulfilledValueSen14d,
+  );
+  const lowStock = context.menu.filter((item) => item.active && item.stock <= 5);
+  const outOfStock = context.menu.filter((item) => item.active && item.stock === 0);
 
   const targetItem = findMentionedItem(message, context.menu);
-  const wantsAction = /\b(set|update|change|adjust|pause|hide|disable|activate|enable|resume|reopen|unpause|restock|add stock|discount|offer|lower|raise|increase|decrease|reduce|put|make)\b/i.test(message);
+  const wantsAction =
+    /\b(set|update|change|adjust|pause|hide|disable|activate|enable|resume|reopen|unpause|restock|add stock|discount|offer|lower|raise|increase|decrease|reduce|put|make)\b/i.test(
+      message,
+    );
 
-  if (wantsAction && /\b(stall|intake|orders)\b/i.test(lower) && /\b(pause|stop|close|resume|open|reopen|unpause)\b/i.test(lower)) {
+  if (
+    wantsAction &&
+    /\b(stall|intake|orders)\b/i.test(lower) &&
+    /\b(pause|stop|close|resume|open|reopen|unpause)\b/i.test(lower)
+  ) {
     const pause = /\b(pause|stop|close)\b/i.test(lower) && !/\b(resume|open|reopen|unpause)\b/i.test(lower);
-    const proposed = validateProposedAction({
-      type: "update_stall_settings",
-      summary: `${pause ? "Pause" : "Resume"} intake for ${context.stall.name}`,
-      paused: pause,
-    }, context);
+    const proposed = validateProposedAction(
+      {
+        type: "update_stall_settings",
+        summary: `${pause ? "Pause" : "Resume"} intake for ${context.stall.name}`,
+        paused: pause,
+      },
+      context,
+    );
     if (proposed) {
       return {
         reply: `I prepared a change to ${pause ? "pause" : "resume"} order intake for ${context.stall.name}. Please confirm below to apply it.`,
@@ -286,23 +345,33 @@ export function buildFallbackCopilotReply(
     }
   }
 
-  if (wantsAction && /\b(pause|hide|disable|deactivate)\b/i.test(lower) && /\b(out[- ]of[- ]stock|sold[- ]out|zero stock|empty)\b/i.test(lower)) {
+  if (
+    wantsAction &&
+    /\b(pause|hide|disable|deactivate)\b/i.test(lower) &&
+    /\b(out[- ]of[- ]stock|sold[- ]out|zero stock|empty)\b/i.test(lower)
+  ) {
     const target = outOfStock[0];
     if (!target) {
       return {
-        reply: `All ${context.menu.filter(i => i.active).length} active items at ${context.stall.name} currently have stock above 0, so nothing needs to be paused.`,
+        reply: `All ${context.menu.filter((i) => i.active).length} active items at ${context.stall.name} currently have stock above 0, so nothing needs to be paused.`,
         source: "rules",
         proposedAction: null,
       };
     }
-    const proposed = validateProposedAction({
-      type: "update_menu_item",
-      summary: `Pause ${target.name} (out of stock)`,
-      itemId: target.id,
-      active: false,
-    }, context);
+    const proposed = validateProposedAction(
+      {
+        type: "update_menu_item",
+        summary: `Pause ${target.name} (out of stock)`,
+        itemId: target.id,
+        active: false,
+      },
+      context,
+    );
     if (proposed) {
-      const moreNote = outOfStock.length > 1 ? ` (${outOfStock.length - 1} other out-of-stock item(s) remain — ask again after confirming to pause the next one.)` : "";
+      const moreNote =
+        outOfStock.length > 1
+          ? ` (${outOfStock.length - 1} other out-of-stock item(s) remain — ask again after confirming to pause the next one.)`
+          : "";
       return {
         reply: `I prepared a change to pause ${target.name} because its stock is 0.${moreNote} Review and confirm below to apply.`,
         source: "rules",
@@ -311,30 +380,39 @@ export function buildFallbackCopilotReply(
     }
   }
 
-  const lowestStockTarget = wantsAction && !targetItem && /\b(lowest[- ]stock|lowest stock|low[- ]stock|running low)\b/i.test(lower)
-    ? ([...context.menu].filter(i => i.active).sort((a, b) => a.stock - b.stock || b.unitsSold14d - a.unitsSold14d)[0]
-      ?? [...context.menu].sort((a, b) => a.stock - b.stock)[0])
-    : undefined;
+  const lowestStockTarget =
+    wantsAction && !targetItem && /\b(lowest[- ]stock|lowest stock|low[- ]stock|running low)\b/i.test(lower)
+      ? ([...context.menu]
+          .filter((i) => i.active)
+          .sort((a, b) => a.stock - b.stock || b.unitsSold14d - a.unitsSold14d)[0] ??
+        [...context.menu].sort((a, b) => a.stock - b.stock)[0])
+      : undefined;
   const actionItem = targetItem ?? lowestStockTarget;
 
   if (wantsAction && actionItem) {
     const isPriceOrDiscount = /\b(price|discount|rm)\b/i.test(lower);
     const hasSubVerb = /\b(reduce|decrease|subtract|lower|cut|remove)\b/i.test(lower);
     const relativeSubMatch = !isPriceOrDiscount
-      ? (hasSubVerb
-        ? (message.match(/\b(?:by|reduce|decrease|subtract|lower|cut|remove)\b[^0-9]*(\d+)\b/i) ?? message.match(/-\s*(\d+)\b/))
-        : message.match(/-\s*(\d+)\b/))
+      ? hasSubVerb
+        ? (message.match(/\b(?:by|reduce|decrease|subtract|lower|cut|remove)\b[^0-9]*(\d+)\b/i) ??
+          message.match(/-\s*(\d+)\b/))
+        : message.match(/-\s*(\d+)\b/)
       : null;
-    const relativeAddMatch = !isPriceOrDiscount && !relativeSubMatch
-      ? (message.match(/\b(?:by|add|increase|raise)\s*\+?\s*(\d+)\b/i) ?? message.match(/\+\s*(\d+)\b/))
-      : null;
+    const relativeAddMatch =
+      !isPriceOrDiscount && !relativeSubMatch
+        ? (message.match(/\b(?:by|add|increase|raise)\s*\+?\s*(\d+)\b/i) ?? message.match(/\+\s*(\d+)\b/))
+        : null;
     const stockMatch = !isPriceOrDiscount
       ? (message.match(/\b(?:stock|restock)\b[^0-9]*(\d+)/i) ?? message.match(/(\d+)\s*(?:portions?|units?|pcs?)\b/i))
       : null;
-    const discountMatch = message.match(/\bdiscount\b[^0-9]*(?:rm\s*)?(\d+(?:\.\d{1,2})?)/i)
-      ?? message.match(/(?:rm\s*)(\d+(?:\.\d{1,2})?)\s*\bdiscount\b/i);
-    const priceMatch = message.match(/\bprice\b[^0-9]*(?:rm\s*)?(\d+(?:\.\d{1,2})?)/i)
-      ?? (!discountMatch && !stockMatch && !relativeAddMatch && !relativeSubMatch ? message.match(/\brm\s*(\d+(?:\.\d{1,2})?)/i) : null);
+    const discountMatch =
+      message.match(/\bdiscount\b[^0-9]*(?:rm\s*)?(\d+(?:\.\d{1,2})?)/i) ??
+      message.match(/(?:rm\s*)(\d+(?:\.\d{1,2})?)\s*\bdiscount\b/i);
+    const priceMatch =
+      message.match(/\bprice\b[^0-9]*(?:rm\s*)?(\d+(?:\.\d{1,2})?)/i) ??
+      (!discountMatch && !stockMatch && !relativeAddMatch && !relativeSubMatch
+        ? message.match(/\brm\s*(\d+(?:\.\d{1,2})?)/i)
+        : null);
     const pauseItem = /\b(pause|hide|disable|deactivate)\b/i.test(lower);
     const activateItem = /\b(activate|enable|publish|show|unpause)\b/i.test(lower);
 
@@ -362,7 +440,7 @@ export function buildFallbackCopilotReply(
   }
 
   if (/\b(july|season|month|sell the most|forecast|best seller|most popular)\b/i.test(lower)) {
-    const activeTop = topSellers.filter(item => item.active);
+    const activeTop = topSellers.filter((item) => item.active);
     const lead = activeTop[0] ?? topSellers[0];
     if (!lead) {
       return {
@@ -372,37 +450,56 @@ export function buildFallbackCopilotReply(
       };
     }
     const runnerUp = activeTop[1];
-    const coldOrValue = activeTop.find(item =>
-      item.id !== lead.id && (item.discount_sen > 0 || /ice|iced|tea|coffee|drink|juice|milo|lemon|combo|set/i.test(item.name + " " + item.description)),
+    const coldOrValue = activeTop.find(
+      (item) =>
+        item.id !== lead.id &&
+        (item.discount_sen > 0 ||
+          /ice|iced|tea|coffee|drink|juice|milo|lemon|combo|set/i.test(item.name + " " + item.description)),
     );
     const parts = [
-      `Based on your last ${context.analytics.daysCovered} days at ${context.stall.name}, ${lead.name} (${formatRm(lead.price_sen - lead.discount_sen)}, ${lead.unitsSold14d} units sold, ${lead.stock} in stock) is your strongest candidate for July.`,
+      `Based on your last ${context.analytics.daysCovered} days at ${context.stall.name}, ${lead.name} (${formatRm(lead.price_sen - lead.discount_sen)}, ${lead.unitsSold14d} units sold, ${lead.stock} in stock) leads the recent sales baseline. This does not establish future seasonal demand.`,
     ];
     if (runnerUp) {
-      parts.push(`Runner-up in your menu is ${runnerUp.name} (${runnerUp.unitsSold14d} units sold, ${runnerUp.stock} in stock).`);
+      parts.push(
+        `Runner-up in your menu is ${runnerUp.name} (${runnerUp.unitsSold14d} units sold, ${runnerUp.stock} in stock).`,
+      );
     }
     if (coldOrValue) {
-      parts.push(`For July's warm mid-year semester rush, ${coldOrValue.name} also fits student demand for quick/refreshing value options.`);
+      parts.push(
+        `${coldOrValue.name} is another menu option to test for a value or refreshment promotion; its future demand has not been measured.`,
+      );
     }
     if (lead.stock <= 5) {
-      parts.push(`Heads up: ${lead.name} is low on stock (${lead.stock} left) — consider restocking before the lunch peak.`);
+      parts.push(
+        `Heads up: ${lead.name} is low on stock (${lead.stock} left) — consider restocking before the lunch peak.`,
+      );
     }
     return { reply: parts.join(" "), source: "rules", proposedAction: null };
   }
 
   if (/\b(prep|queue|kitchen|peak|hour|busy|day|rush|time|traffic|overdue)\b/i.test(lower)) {
     const hoursText = context.analytics.peakHours.length
-      ? context.analytics.peakHours.map(h => `${h.hour} (${h.count} orders)`).join(", ")
+      ? context.analytics.peakHours.map((h) => `${h.hour} (${h.count} orders)`).join(", ")
       : "no recorded pickup peaks yet";
     const daysText = context.analytics.peakDays.length
-      ? context.analytics.peakDays.map(d => `${d.weekday} ${d.day} (${d.count})`).join(", ")
+      ? context.analytics.peakDays.map((d) => `${d.weekday} ${d.day} (${d.count})`).join(", ")
       : "no recent daily peaks";
     const q = context.kitchenQueue;
     const queueText = q
-      ? `Live kitchen queue: ${q.totalActive} active (${q.placed} placed, ${q.accepted} accepted, ${q.preparing} preparing, ${q.ready} ready), ${q.overduePickups} overdue, ${q.next60MinPickups} due in the next 60 min${q.topQueuedItems.length ? ` (queued items: ${q.topQueuedItems.slice(0, 3).map(i => `${i.name} ×${i.quantity}`).join(", ")})` : ""}. `
+      ? `Live kitchen queue: ${q.totalActive} active (${q.placed} placed, ${q.accepted} accepted, ${q.preparing} preparing, ${q.ready} ready), ${q.overduePickups} overdue, ${q.next60MinPickups} due in the next 60 min${
+          q.topQueuedItems.length
+            ? ` (queued items: ${q.topQueuedItems
+                .slice(0, 3)
+                .map((i) => `${i.name} ×${i.quantity}`)
+                .join(", ")})`
+            : ""
+        }. `
       : "";
     const stockNote = lowStock.length
-      ? ` Low-stock watch: ${lowStock.slice(0, 3).map(i => `${i.name} (${i.stock} left)`).join(", ")}.`
+      ? ` Low-stock watch: ${lowStock
+          .slice(0, 3)
+          .map((i) => `${i.name} (${i.stock} left)`)
+          .join(", ")}.`
       : "";
     const weatherNote = context.campusContext.weatherLabel
       ? ` Campus weather: ${context.campusContext.weatherLabel}.`
@@ -417,12 +514,15 @@ export function buildFallbackCopilotReply(
   if (/\b(stock|low|inventory|out of|supply)\b/i.test(lower)) {
     if (!lowStock.length) {
       return {
-        reply: `All ${context.menu.filter(i => i.active).length} active items at ${context.stall.name} have more than 5 portions in stock.`,
+        reply: `All ${context.menu.filter((i) => i.active).length} active items at ${context.stall.name} have more than 5 portions in stock.`,
         source: "rules",
         proposedAction: null,
       };
     }
-    const list = lowStock.slice(0, 5).map(i => `${i.name} (${i.stock} left)`).join(", ");
+    const list = lowStock
+      .slice(0, 5)
+      .map((i) => `${i.name} (${i.stock} left)`)
+      .join(", ");
     return {
       reply: `${lowStock.length} active item(s) need attention (${outOfStock.length} out of stock): ${list}. You can ask me to restock any item (e.g., "Set stock of ${lowStock[0].name} to 20").`,
       source: "rules",
@@ -431,7 +531,10 @@ export function buildFallbackCopilotReply(
   }
 
   if (/\b(sale|revenue|money|income|earn|order|summary|performance)\b/i.test(lower)) {
-    const topText = topSellers.slice(0, 3).map(i => `${i.name} (${i.unitsSold14d} sold)`).join(", ");
+    const topText = topSellers
+      .slice(0, 3)
+      .map((i) => `${i.name} (${i.unitsSold14d} sold)`)
+      .join(", ");
     return {
       reply: `Last ${context.analytics.daysCovered} days for ${context.stall.name}: ${context.analytics.totalOrders} orders (${context.analytics.activeOrders} active), ordered value ${formatRm(context.analytics.orderedValueSen)}, net cashflow ${formatRm(context.analytics.netRevenueSen)}. Top items: ${topText || "none yet"}.`,
       source: "rules",
@@ -440,7 +543,7 @@ export function buildFallbackCopilotReply(
   }
 
   return {
-    reply: `${context.stall.name} (${context.stall.paused ? "Paused" : "Open"}) has ${context.menu.length} menu items (${lowStock.length} low stock), ${context.analytics.totalOrders} orders and ${formatRm(context.analytics.netRevenueSen)} net cashflow over ${context.analytics.daysCovered} days. Ask about July best-sellers, peak hours, stock risks, or ask me to update an item's stock, price, discount, or status.`,
+    reply: `${context.stall.name} (${context.stall.paused ? "Paused" : "Open"}) has ${context.menu.length} menu items (${lowStock.length} low stock), ${context.analytics.totalOrders} orders and ${formatRm(context.analytics.netRevenueSen)} net cashflow over ${context.analytics.daysCovered} days. Ask about recent best-sellers, peak hours, stock risks, or ask me to update an item's stock, price, discount, or status.`,
     source: "rules",
     proposedAction: null,
   };
@@ -453,7 +556,7 @@ export async function runVendorCopilotModel(
   const fallback = () => buildFallbackCopilotReply(input.message, input.context);
   if (!options.key) return fallback();
 
-  const historyContents = (input.history ?? []).slice(-6).map(turn => ({
+  const historyContents = (input.history ?? []).slice(-6).map((turn) => ({
     role: turn.role === "assistant" ? "model" : "user",
     parts: [{ text: turn.text }],
   }));
@@ -464,7 +567,7 @@ export async function runVendorCopilotModel(
       "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent",
       {
         method: "POST",
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(7_000),
         headers: { "Content-Type": "application/json", "x-goog-api-key": options.key },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: buildCopilotSystemPrompt(input.context) }] },

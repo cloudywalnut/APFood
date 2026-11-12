@@ -1,10 +1,13 @@
 // Student FIF chat history, kept in session storage: per browser tab, per signed-in student,
 // and removed on sign-out. Kept outside the chat component so sign-out code can clear it without a cycle.
+import type { StudentCartAction } from "./backend/contracts";
 export type StudentFifMessage = {
   id: string;
   role: "assistant" | "user";
   text: string;
   links?: { href: string; label: string }[];
+  cartAction?: StudentCartAction;
+  actionState?: "added" | "failed";
 };
 
 const chatStoragePrefix = "ap-food-student-fif-chat:";

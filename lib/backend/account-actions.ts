@@ -11,8 +11,16 @@ const management = z
     reason: z.string().trim().min(1).max(250),
   })
   .strict();
+async function accountInput(request: Request) {
+  try {
+    return await request.json();
+  } catch {
+    throw new BackendError(400, "INVALID_INPUT", "Send a valid JSON request.");
+  }
+}
+
 export async function manageAccount(request: Request, client: RequestClient, userId: string) {
-  const input = management.parse(await request.json());
+  const input = management.parse(await accountInput(request));
   unwrap(
     await client.rpc("manage_account", {
       p_user: orderId.parse(userId),
@@ -34,7 +42,7 @@ export async function inviteAccount(request: Request, client: RequestClient) {
     })
     .strict()
     .refine((data) => (data.role === "vendor") === (data.vendorId !== null))
-    .parse(await request.json());
+    .parse(await accountInput(request));
   const existing = unwrap(await client.rpc("list_accounts", { p_search: input.email }));
   if (existing.users?.some((user: { email: string }) => user.email.toLowerCase() === input.email.toLowerCase())) {
     throw new BackendError(409, "ACCOUNT_EXISTS", "This account already exists. Update its access from the user list.");

@@ -15,8 +15,8 @@ import {
   Search,
   ShoppingBag,
   Store,
-  UserRound,
 } from "lucide-react";
+import { AccountMenu } from "../account-menu";
 import { BrandLogo, SearchDialog } from "../ui/shell";
 
 const navigation = [
@@ -84,10 +84,7 @@ export function StorefrontHeader({
                 <span>Log in</span>
               </Link>
             ) : (
-              <Link href="/account" className="market-account">
-                <UserRound size={19} aria-hidden />
-                <span>Your account</span>
-              </Link>
+              <AccountMenu />
             )}
             <Link href="/app/cart" className="market-cart-link" aria-label={"Cart, " + cartCount + " items"}>
               <ShoppingBag size={20} aria-hidden />

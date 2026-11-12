@@ -3,6 +3,53 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 import { createLocalDemoDb, demoActors, demoStalls } from "./support/local-db.mjs";
 
+test("vendor membership disables student RPCs and personal student rows, preserving assigned stall access", async (t) => {
+  const { db, call, queryAs } = await createLocalDemoDb();
+  t.after(() => db.close());
+  const { student, other, vendor } = demoActors;
+  const { noodleBar, coffeeBar } = demoStalls;
+  const noodles = JSON.stringify([{ itemId: "chicken-noodles", quantity: 1, extra: false }]);
+  const coffee = JSON.stringify([{ itemId: "iced-coffee", quantity: 1, extra: false }]);
+  await call(student, "public.save_cart($1,$2,$3)", [coffeeBar, coffee, 0]);
+  const offer = await call(student, "public.quote_checkout($1,$2)", [coffeeBar, coffee]);
+  const personal = await call(student, "public.place_order($1,$2,$3,$4)", [
+    offer.quoteId,
+    offer.slots[1],
+    "demo",
+    randomUUID(),
+  ]);
+  const unused = await call(student, "public.quote_checkout($1,$2)", [coffeeBar, coffee]);
+  const assigned = await call(other, "public.quote_checkout($1,$2)", [noodleBar, noodles]);
+  const kitchen = await call(other, "public.place_order($1,$2,$3,$4)", [
+    assigned.quoteId,
+    assigned.slots[1],
+    "demo",
+    randomUUID(),
+  ]);
+  await db.query("insert into public.memberships (user_id, role, vendor_id) values ($1, 'vendor', $2)", [
+    student,
+    noodleBar,
+  ]);
+  await assert.rejects(() => call(student, "public.quote_checkout($1,$2)", [coffeeBar, coffee]), /FORBIDDEN/);
+  await assert.rejects(
+    () => call(student, "public.place_order($1,$2,$3,$4)", [unused.quoteId, unused.slots[1], "demo", randomUUID()]),
+    /FORBIDDEN/,
+  );
+  await assert.rejects(() => call(student, "public.save_cart($1,$2,$3)", [coffeeBar, coffee, 1]), /FORBIDDEN/);
+  await assert.rejects(() => call(student, "public.checkout_basket($1,$2,$3)", ["[]", randomUUID(), 1]), /FORBIDDEN/);
+  await assert.rejects(() => call(student, "public.issue_pickup_code($1)", [personal.id]), /FORBIDDEN/);
+  await assert.rejects(() => call(student, "public.claim_qr_payment($1)", [personal.id]), /ORDER_NOT_FOUND/);
+  assert.deepEqual(await queryAs(student, "select id from public.orders"), [{ id: kitchen.id }]);
+  assert.deepEqual(await queryAs(student, "select * from public.carts"), []);
+  await call(student, "public.transition_order($1,$2)", [kitchen.id, "accepted"]);
+  await assert.rejects(
+    () => call(student, "public.transition_order($1,$2)", [personal.id, "cancelled"]),
+    /ORDER_NOT_FOUND/,
+  );
+  // The original vendor's stall membership remains valid as well.
+  assert.equal((await queryAs(vendor, "select id from public.orders")).length, 1);
+});
+
 test("account policies, persistent cart conflicts, QR payment, cancellation, and expiry", async (t) => {
   const { db, call, queryAs } = await createLocalDemoDb();
   t.after(() => db.close());

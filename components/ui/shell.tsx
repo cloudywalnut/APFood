@@ -24,6 +24,7 @@ import {
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
+import { AccountMenu } from "../account-menu";
 import { readPreferences } from "../../lib/preferences";
 import type { Role } from "../../lib/types";
 import { ModalSheet } from "./primitives";
@@ -50,7 +51,12 @@ export const modules: Record<Role, ModuleLink[]> = {
       Icon: Utensils,
       detail: "Manage meals, pricing and available stock",
     },
-    { href: "/vendor/insights", label: "AI Insights", Icon: Sparkles, detail: "APU weather scenarios, peak windows and peer rank" },
+    {
+      href: "/vendor/insights",
+      label: "AI Insights",
+      Icon: Sparkles,
+      detail: "APU weather scenarios, peak windows and peer rank",
+    },
   ],
   admin: [
     { href: "/admin", label: "Dashboard", Icon: Grid2X2, detail: "Cafeteria overview and FIF priorities" },
@@ -212,6 +218,7 @@ export function WorkspaceHeader({
             })}
           </nav>
           <div className="ap-header-actions">
+            {!publicView && <AccountMenu />}
             <Link href={base + "/notifications"} aria-label="Order updates">
               <Bell size={21} />
             </Link>

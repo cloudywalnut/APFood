@@ -11,4 +11,4 @@ The demo succeeds when a student orders from a campus stall, the vendor prepares
 
 ## Out of scope
 
-Delivery, real money movement and bank verification, measured physical crowd data, advanced forecasting, timetable sync and campus system integration. The student FIF chat is read-only: it answers questions but cannot place, change or cancel orders.
+Delivery, real money movement and bank verification, measured physical crowd data, advanced forecasting, timetable sync and campus system integration. Student FIF can prepare cart additions and save them after explicit student confirmation. It cannot place, pay for, change or cancel orders, or autonomously remove items from the cart.

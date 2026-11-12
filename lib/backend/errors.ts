@@ -9,6 +9,8 @@ export class BackendError extends Error {
 }
 
 const failures: Record<string, [number, string]> = {
+  INVALID_ACTION: [400, "Review the proposed FIF update."],
+  ACTION_CHANGED: [409, "The item or stall changed. Ask FIF AI for a new proposal."],
   INVALID_PROFILE: [400, "Review the account details."],
   ACCOUNT_NOT_FOUND: [404, "Account unavailable."],
   LAST_ADMIN: [409, "Keep at least one active administrator."],

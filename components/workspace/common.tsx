@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { Brand, ErrorMessage, Footer } from "../shared";
-import { createApiClient, apiClient, sessionInvalidated } from "../../lib/backend/client";
+import { createApiClient, apiClient } from "../../lib/backend/client";
 import { RoleHero } from "../ui/role-hero";
+import { useHostedSession } from "../hosted/session-provider";
+import { canUseWorkspace } from "../../lib/login-routing";
 import { clearStudentFifChats } from "../../lib/student-fif-chat-storage";
 
 export type Session = Awaited<ReturnType<typeof apiClient.session>>;
@@ -16,20 +18,7 @@ const roles: Role[] = ["student", "vendor", "admin"];
 const SessionUserContext = createContext<string | null>(null);
 
 export function OptionalSession({ children }: { children: (session?: Session) => ReactNode }) {
-  const result = useRemote(apiClient.session);
-  useEffect(() => {
-    const refresh = () => {
-      if (document.visibilityState === "visible") result.reload();
-    };
-    window.addEventListener("focus", refresh);
-    window.addEventListener(sessionInvalidated, result.reload);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      window.removeEventListener("focus", refresh);
-      window.removeEventListener(sessionInvalidated, result.reload);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [result.reload]);
+  const result = useHostedSession();
   if (!result.value && !result.error)
     return (
       <AuthFrame>
@@ -177,7 +166,7 @@ export function AuthFrame({ children, authRole }: { children: ReactNode; authRol
 }
 
 function PortalLinks({ session }: { session: Session }) {
-  const available = roles.filter((role) => session.memberships.some((entry) => entry.role === role));
+  const available = roles.filter((role) => canUseWorkspace(session, role));
   return available.length ? (
     <div className="entrances auth-entrances">
       {available.map((role) => (
@@ -223,18 +212,7 @@ export function SignOut() {
 }
 
 export function WorkspaceAccess({ role, children }: { role: Role; children: (session: Session) => ReactNode }) {
-  const session = useRemote(apiClient.session);
-  useEffect(() => {
-    const visible = () => {
-      if (document.visibilityState === "visible") session.reload();
-    };
-    document.addEventListener("visibilitychange", visible);
-    window.addEventListener(sessionInvalidated, session.reload);
-    return () => {
-      document.removeEventListener("visibilitychange", visible);
-      window.removeEventListener(sessionInvalidated, session.reload);
-    };
-  }, [session.reload]);
+  const session = useHostedSession();
   if (!session.value) {
     const guest =
       typeof session.error === "object" &&
@@ -284,7 +262,7 @@ export function WorkspaceAccess({ role, children }: { role: Role; children: (ses
         <SignOut />
       </AuthFrame>
     );
-  if (!session.value.memberships.some((entry) => entry.role === role))
+  if (!canUseWorkspace(session.value, role))
     return (
       <AuthFrame>
         <h1>Workspace unavailable</h1>
