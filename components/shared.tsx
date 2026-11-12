@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight } from "lucide-react";
@@ -64,24 +64,9 @@ export function OpsShell({
 }) {
   const searchParams = useSearchParams();
   const stallId = kind === "vendor" ? (searchParams.get("stall") ?? undefined) : undefined;
-
-  // Loading screen: shown until the first real content render completes.
-  const [loading, setLoading] = useState(true);
-  const notifyRef = useRef<(() => void) | null>(null);
-  const onReady = useCallback((notify: () => void) => {
-    notifyRef.current = notify;
-    // Give children one frame to mount before we start the exit animation.
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setLoading(false);
-        notify();
-      });
-    });
-  }, []);
-
   return (
     <div className={"ops-theme ap-role-shell" + (kind === "vendor" ? " vendor-ops-theme" : " admin-ops-theme")}>
-      {loading && <OpsLoadingScreen onReady={onReady} />}
+      <OpsLoadingScreen />
       <WorkspaceHeader role={kind} route={route} />
       <div className="ap-ops-content">
         <main id="main-content" className="ops-main">
