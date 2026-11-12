@@ -1,18 +1,32 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
-import { createLocalDemoDb, demoActors } from "../scripts/local-demo-db.mjs";
+import { createLocalDemoDb, demoActors } from "./support/local-db.mjs";
 
-test("cross-stall baskets commit atomically, replay exactly, preserve newer carts and deny other users", async t => {
+test("cross-stall baskets commit atomically, replay exactly, preserve newer carts and deny other users", async (t) => {
   const { db, call, queryAs } = await createLocalDemoDb();
   t.after(() => db.close());
-  const items = [{ vendorId: "campus-noodle-bar", itemId: "chicken-noodles", quantity: 1, extra: false }, { vendorId: "brew-and-bites", itemId: "iced-coffee", quantity: 1, extra: true }];
+  const items = [
+    { vendorId: "campus-noodle-bar", itemId: "chicken-noodles", quantity: 1, extra: false },
+    { vendorId: "brew-and-bites", itemId: "iced-coffee", quantity: 1, extra: true },
+  ];
   await call(demoActors.student, "public.save_cart($1,$2,$3)", [items[0].vendorId, JSON.stringify(items), 0]);
-  const quotes = await Promise.all(items.map(({ vendorId, ...line }) => call(demoActors.student, "public.quote_checkout($1,$2)", [vendorId, JSON.stringify([line])])));
-  const pickup = quotes[0].slots.find(value => quotes[1].slots.includes(value));
+  const quotes = await Promise.all(
+    items.map(({ vendorId, ...line }) =>
+      call(demoActors.student, "public.quote_checkout($1,$2)", [vendorId, JSON.stringify([line])]),
+    ),
+  );
+  const pickup = quotes[0].slots.find((value) => quotes[1].slots.includes(value));
   assert.ok(pickup);
-  const orders = quotes.map((quote, index) => ({ vendorId: items[index].vendorId, quoteId: quote.quoteId, pickupAt: pickup, payment: "counter", idempotencyKey: randomUUID() }));
-  const place = (key, revision = 1, actor = demoActors.student, input = orders) => call(actor, "public.checkout_basket($1,$2,$3)", [JSON.stringify(input), key, revision]);
+  const orders = quotes.map((quote, index) => ({
+    vendorId: items[index].vendorId,
+    quoteId: quote.quoteId,
+    pickupAt: pickup,
+    payment: "counter",
+    idempotencyKey: randomUUID(),
+  }));
+  const place = (key, revision = 1, actor = demoActors.student, input = orders) =>
+    call(actor, "public.checkout_basket($1,$2,$3)", [JSON.stringify(input), key, revision]);
   const before = await queryAs(demoActors.student, "select count(*)::int as n from public.orders");
   await db.query("update public.menu_items set stock=0 where id='iced-coffee'");
   const key = randomUUID();
@@ -23,7 +37,7 @@ test("cross-stall baskets commit atomically, replay exactly, preserve newer cart
   await db.query("update public.menu_items set stock=20 where id='iced-coffee'");
   const result = await place(key);
   assert.equal(result.orders.length, 2);
-  assert.equal(new Set(result.orders.map(order => order.id)).size, 2);
+  assert.equal(new Set(result.orders.map((order) => order.id)).size, 2);
   assert.equal((await queryAs(demoActors.student, "select revision from public.carts"))[0].revision, 2);
   await call(demoActors.student, "public.save_cart($1,$2,$3)", [items[0].vendorId, JSON.stringify(items), 2]);
   assert.deepEqual(await place(key), result);
@@ -31,5 +45,13 @@ test("cross-stall baskets commit atomically, replay exactly, preserve newer cart
   await assert.rejects(() => place(key, 3), /IDEMPOTENCY_KEY_REUSED/);
   await assert.rejects(() => place(randomUUID(), 3, demoActors.other), /CART_CHANGED/);
   await assert.rejects(() => place(randomUUID(), 3, demoActors.student, orders.slice(0, 1)), /INVALID_CHECKOUT/);
-  await assert.rejects(() => call(demoActors.student, "public.save_cart($1,$2,$3)", [items[0].vendorId, JSON.stringify([{ ...items[0], vendorId: "brew-and-bites" }]), 3]), /INVALID_CART/);
+  await assert.rejects(
+    () =>
+      call(demoActors.student, "public.save_cart($1,$2,$3)", [
+        items[0].vendorId,
+        JSON.stringify([{ ...items[0], vendorId: "brew-and-bites" }]),
+        3,
+      ]),
+    /INVALID_CART/,
+  );
 });

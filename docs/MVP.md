@@ -1,24 +1,14 @@
-> Current UI: see [STOREFRONT_UPDATE.md](STOREFRONT_UPDATE.md). Hosted browsing starts with searchable stall cards and retains the cafeteria map. Optional cookies save display preferences; personal recommendations and ordering require sign-in. The basket supports multiple stalls. Changes remain local on Keyaan.
+# AP Food + FIF · Product scope
 
-# AP Food + FIF · Current MVP
+The demo succeeds when a student orders from a campus stall, the vendor prepares and hands off the order, and a cafeteria admin can trace the operational and financial result, with FIF helping at each step. Stalls, orders and payments in the demo project are fictional. See the [engineering overview](HANDOFF.md) for what is built.
 
-The hackathon demo succeeds when a student can order from a fictional campus stall, a vendor can prepare and hand off the order, and a cafeteria admin can trace the operational and financial result. FIF should visibly help at each step. See the [handoff](HANDOFF.md) for implementation status and the [original specification](../AP_Food_FIF_Agent_Ready_MVP_Spec.md) for the full domain and test reference.
+## Core flows
 
-## Core demo
+1. **Student pickup.** Find stalls on the cafeteria map or as cards, build a basket across stalls, see confirmed prices and shared 15-minute pickup windows, pay by QR, counter or demo tender, and follow each order to pickup with a one-time code.
+2. **Vendor fulfilment.** Accept, prepare and mark orders ready. Verify the pickup code and confirm counter payment. Manage menu, stock, hours, capacity and order intake.
+3. **Cafeteria operations.** Compare vendors and products, review receipts, expenses, reversals and net flow, manage stall approval and food courts, manage users, and review the audit trail.
+4. **FIF.** Pickup windows only offer slots the kitchen can handle. Traffic shows booked pickup load per stall. Vendor and admin dashboards recommend the next action from live data, with rules always available and optional Gemini ranking.
 
-1. **Student pickup.** Discover stalls on the cafeteria map, build a basket across stalls, see authoritative prices and shared feasible 15-minute slots, choose QR or counter payment, and follow each stall's order to pickup. The original single-stall flow remains supported.
-2. **Vendor fulfilment.** Accept, prepare, and mark an order ready. Verify one-time pickup by QR or manual code and confirm counter payment when applicable. Manage menu stock, hours, capacity, and intake.
-3. **Cafeteria operations.** Compare vendor activity and products. Review demo receipts, expenses, reversals, and net flow. Manage stall approval and zone assignments, with an audit trail.
-4. **FIF at the point of decision.** SmartQueue computes feasible pickup windows, FlowSense shows app demand and load, and InsightAI ranks evidence-backed actions for students, vendors, and admins. Core operations have a deterministic fallback.
-5. **Repeatable simulations.** Run Light, Medium, and Heavy demand through the real checkout path in an isolated demo context. Show the full bucket, resulting conflicts, and feasible alternatives. Label all simulated data and distinguish it from physical crowd observations.
+## Out of scope
 
-## Release sequence
-
-| Milestone | Gate |
-| --- | --- |
-| Frontend preview · available | Complete the three-role walkthrough with browser fixtures, including promotions, pickup, traffic filters, and expense reversal. |
-| Supabase foundation | Migrations, seeded roles, RLS, atomic checkout and capacity allocation, and scoped fulfilment pass integration checks. |
-| End-to-end backend demo | Private status updates, collection and receipt posting, and server-derived admin totals work across separate authenticated sessions. |
-| FIF and simulation | The CLI produces distinct reproducible load profiles. Gemini ranks eligible actions with validated evidence and a rules-based fallback. |
-
-Fictional orders and simulated tender are the basis for the demo. Keep the UI clear about the source of each metric. Delivery, real money movement, advanced forecasting, timetable sync, and campus service integration sit outside the hackathon release.
+Delivery, real money movement and bank verification, measured physical crowd data, advanced forecasting, timetable sync and campus system integration. The student FIF chat is not connected yet.

@@ -6,7 +6,7 @@ import { BackendError } from "./errors";
 export async function requestClient(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) throw new BackendError(503, "BACKEND_UNCONFIGURED", "The hosted demo has not been connected yet.");
+  if (!url || !key) throw new BackendError(503, "BACKEND_UNCONFIGURED", "The app is not connected to Supabase yet.");
   const auth = request.headers.get("authorization");
   if (auth) {
     const match = /^Bearer (\S+)$/i.exec(auth);
@@ -22,13 +22,14 @@ export async function requestClient(request: Request) {
 
   if (request.method !== "GET" && request.method !== "HEAD") {
     const allowed = process.env.AP_FOOD_APP_ORIGIN || new URL(request.url).origin;
-    if (request.headers.get("origin") !== allowed) throw new BackendError(403, "FORBIDDEN", "Request origin is not allowed.");
+    if (request.headers.get("origin") !== allowed)
+      throw new BackendError(403, "FORBIDDEN", "Request origin is not allowed.");
   }
   const store = await cookies();
   return createServerClient(url, key, {
     cookies: {
       getAll: () => store.getAll(),
-      setAll: values => values.forEach(({ name, value, options }) => store.set(name, value, options)),
+      setAll: (values) => values.forEach(({ name, value, options }) => store.set(name, value, options)),
     },
   });
 }

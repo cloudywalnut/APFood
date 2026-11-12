@@ -1,14 +1,12 @@
 # AP Food email setup
 
-AP Food uses Supabase Auth for signup, confirmation, invitations, email changes, and password recovery. Resend provides SMTP delivery. The application does not need a Resend API key at runtime.
+Supabase Auth sends sign-up confirmation, invitation, email-change and password-recovery emails. Resend delivers them over SMTP. The app itself does not need a Resend key.
+
+Configure this once per Supabase project. Until it is configured, the seeded demo accounts (already confirmed) can use the app, but new sign-ups cannot confirm their email.
 
 ## Sending domain
 
-The sending domain is `notify.keyaan.my`, created in Resend's Tokyo region with tracking disabled. DNS for `keyaan.my` uses Exabytes nameservers. All four records below were published on 11 November 2026 and confirmed through Google's public DNS resolver. Resend subsequently confirmed the domain as **Verified**. A confirmation delivery succeeded in the earlier setup session. The full recovery, invitation, email-change, and template walkthrough remains outstanding; see [verification results](VERIFICATION.md).
-
-Use `keyaan.my` for the current setup. The app's proposed deployed hostname is `food.keyaan.my`, with sender `AP Food <hello@notify.keyaan.my>`. `conceptsquad.my` is reserved for a later migration; its Resend domain has been created, but is not the current sending domain. Keep the local app origin unchanged until deployment exists.
-
-Open the [Resend domain setup](https://resend.com/domains/add/8595fc81-0177-4165-ab6b-04aa0befa5b3). In the existing `keyaan.my` DNS zone, add the records generated for this domain.
+The sending domain is `notify.keyaan.my` in Resend (Tokyo region, tracking disabled), with sender `AP Food <hello@notify.keyaan.my>`. Its DNS records live in the `keyaan.my` zone:
 
 | Type | Name within keyaan.my | Value |
 | --- | --- | --- |
@@ -17,13 +15,11 @@ Open the [Resend domain setup](https://resend.com/domains/add/8595fc81-0177-4165
 | CNAME | `send.notify` | `send.forge.rmta.net` |
 | TXT | `_dmarc.notify` | `v=DMARC1; p=none;` |
 
-Use the DNS manager's default TTL. Confirm the values against Resend before saving, then start verification from the Resend domain screen.
+Confirm these against the domain page in Resend before changing DNS.
 
 ## Supabase SMTP
 
-In the AP Foods Supabase project, open **Authentication → Email → SMTP Settings**.
-
-The sender and connection fields were entered during setup, and the operator supplied the SMTP password. The following table records the required configuration for future deployment or troubleshooting.
+In the Supabase project, open **Authentication → Email → SMTP Settings**:
 
 | Setting | Value |
 | --- | --- |
@@ -32,18 +28,20 @@ The sender and connection fields were entered during setup, and the operator sup
 | Host | `smtp.resend.com` |
 | Port | `465` |
 | Username | `resend` |
-| Password | A Resend sending key authorised for this domain |
+| Password | A Resend sending key for this domain |
 
-Set the Supabase Auth site URL to the app's actual origin. For the current local walkthrough use `http://127.0.0.1:3000`. Allow its `/auth/callback` redirect. Add the deployed origin when it exists. The proposed app hostname is `food.keyaan.my`.
+Keep the Resend key out of the repository.
 
-Paste the checked-in templates from `supabase/templates/` into their matching Supabase email-template editors. The callback exchanges `TokenHash` on the server. Recovery and invitation hashes also authorise the one-time password setup screen. Keep confirmation enabled and turn off email click tracking.
+## Auth URLs and templates
 
-## Verification
+1. Set the Supabase Auth **Site URL** to the app's origin (for local development, `http://localhost:3000`) and allow its `/auth/callback` redirect. Add the deployed origin when there is one, and set `AP_FOOD_APP_ORIGIN` to match.
+2. Paste the templates from `supabase/templates/` into the matching Supabase email-template editors. The callback route exchanges the token hash on the server; recovery and invitation links lead to the password setup screen.
+3. Keep email confirmation enabled and click tracking off.
 
-Run signup, resend confirmation, password recovery, email change, and staff invitation through the application using addresses controlled by the operator. Confirm delivery in Resend, then follow each link and test expiration and reuse. SMTP and DNS verification are external setup gates. Sample accounts are already confirmed and can exercise the app while email setup is pending.
+## Check it
 
-The current bootstrap Resend key is kept only in ignored local configuration. Rotate it after setup.
+Run sign-up, resend confirmation, password recovery, email change and staff invitation with addresses you control. Confirm delivery in Resend, then open each link and check that expired or reused links are rejected.
 
-## Later domain migration
+## Changing domain
 
-Before switching to `conceptsquad.my`, verify its Resend DNS records and configure app hosting and TLS. Then update the Supabase sender, Site URL, allowed callback URLs, and deployed `AP_FOOD_APP_ORIGIN` together. Test confirmation, recovery, and invitations on the new origin before retiring the old callback URLs. Domain changes do not require moving the Supabase database or recreating accounts.
+To move to another domain, verify its records in Resend and set up hosting and TLS, then update the Supabase sender, Site URL, allowed callback URLs and `AP_FOOD_APP_ORIGIN` together. Test confirmation, recovery and invitations before removing the old callback URLs. Accounts and data stay as they are.

@@ -1,0 +1,42 @@
+{
+  "vendors": [
+    {"id":"campus-noodle-bar","name":"Chinese","zone":"Main Food Court","category":"Noodles & rice","description":"Wok-tossed campus favourites, made to order.","image":"noodles","status":"approved","paused":false,"capacity":5,"lead":10,"hours":"10:00 AM – 3:00 PM"},
+    {"id":"brew-and-bites","name":"Malay","zone":"Main Food Court","category":"Malay cuisine & kopi","description":"Good coffee and quick bites between classes.","image":"coffee","status":"approved","paused":false,"capacity":6,"lead":5,"hours":"9:00 AM – 4:00 PM"},
+    {"id":"green-bowl-kitchen","name":"Japan & Korea","zone":"Annex Cafeteria","category":"Japanese & Korean cuisine","description":"Colourful bowls, crunchy greens and warm rice.","image":"bowl","status":"approved","paused":false,"capacity":7,"lead":10,"hours":"10:00 AM – 3:00 PM"},
+    {"id":"indian","name":"Indian","zone":"Main Food Court","category":"Indian cuisine","description":"Rice, curries and freshly made roti.","image":"bowl","status":"approved","paused":false,"capacity":8,"lead":10,"hours":"9:00 AM – 4:00 PM"},
+    {"id":"arab-shawarma","name":"Arab Shawarma","zone":"Annex Cafeteria","category":"Middle Eastern","description":"Shawarma wraps and fragrant rice plates.","image":"noodles","status":"approved","paused":false,"capacity":6,"lead":10,"hours":"10:00 AM – 5:00 PM"},
+    {"id":"drinks-counter","name":"Let’s Kopitiam","zone":"Main Food Court","category":"Drinks","description":"Cold drinks between classes.","image":"coffee","status":"approved","paused":true,"capacity":6,"lead":5,"hours":"Temporarily closed"},
+    {"id":"local-corner-left","name":"Local cuisine","zone":"Main Food Court","category":"Local rice dishes","description":"Rice plates and vegetables at the left side of the glass window.","image":"bowl","status":"approved","paused":false,"capacity":6,"lead":10,"hours":"10:00 AM – 3:00 PM"},
+    {"id":"local-corner-right","name":"Local corner","zone":"Main Food Court","category":"Local noodles & rice","description":"Freshly cooked noodles and rice at the right side of the glass window.","image":"noodles","status":"approved","paused":false,"capacity":6,"lead":10,"hours":"10:00 AM – 3:00 PM"},
+    {"id":"western","name":"Western","zone":"Main Food Court","category":"Western cuisine","description":"Grilled favourites and freshly cooked pasta.","image":"lunch","status":"approved","paused":false,"capacity":6,"lead":10,"hours":"10:00 AM – 5:00 PM"},
+    {"id":"fried-chicken","name":"Fried Chicken","zone":"Main Food Court","category":"Chicken & sides","description":"Crispy chicken and satisfying sides.","image":"lunch","status":"approved","paused":false,"capacity":6,"lead":10,"hours":"10:00 AM – 5:00 PM"}
+  ],
+  "items": [
+    {"id":"chicken-noodles","vendorId":"campus-noodle-bar","name":"Chicken Noodle Bowl","description":"Soy-glazed chicken, spring onions and wok-tossed noodles.","price":1100,"stock":18},
+    {"id":"chilli-rice","vendorId":"campus-noodle-bar","name":"Chilli Chicken Rice","description":"Fragrant rice, crispy chicken and house sambal.","price":1250,"stock":12},
+    {"id":"mushroom-noodles","vendorId":"campus-noodle-bar","name":"Mushroom Noodles","description":"Shiitake, greens and a savoury mushroom glaze.","price":1050,"stock":5},
+    {"id":"iced-coffee","vendorId":"brew-and-bites","name":"Iced Kopi","description":"Bold local coffee poured over ice.","price":650,"stock":20},
+    {"id":"egg-toast","vendorId":"brew-and-bites","name":"Egg & Kaya Toast","description":"Toasted bread with kaya and a soft egg.","price":850,"stock":11},
+    {"id":"toastie","vendorId":"brew-and-bites","name":"Cheese Toastie","description":"Golden toast and melted cheddar.","price":900,"stock":4},
+    {"id":"tofu-bowl","vendorId":"green-bowl-kitchen","name":"Sesame Tofu Bowl","description":"Crispy tofu, sesame greens and steamed rice.","price":1300,"stock":14},
+    {"id":"ginger-bowl","vendorId":"green-bowl-kitchen","name":"Ginger Chicken Bowl","description":"Tender ginger chicken, carrots and greens.","price":1400,"stock":10},
+    {"id":"harvest-bowl","vendorId":"green-bowl-kitchen","name":"Harvest Rice Bowl","description":"Seasonal vegetables and a bright lime dressing.","price":1200,"stock":3},
+    {"id":"chicken-curry","vendorId":"indian","name":"Chicken Curry Rice","description":"Chicken curry, steamed rice and vegetables.","price":1200,"stock":16},
+    {"id":"roti-set","vendorId":"indian","name":"Roti Canai Set","description":"Two pieces of roti with dhal and curry.","price":650,"stock":20},
+    {"id":"vegetable-biryani","vendorId":"indian","name":"Vegetable Biryani","description":"Spiced basmati rice and seasonal vegetables.","price":1000,"stock":12},
+    {"id":"chicken-shawarma","vendorId":"arab-shawarma","name":"Chicken Shawarma","description":"Grilled chicken, crunchy greens and garlic sauce in a warm wrap.","price":1150,"stock":16},
+    {"id":"falafel-wrap","vendorId":"arab-shawarma","name":"Falafel Wrap","description":"Chickpea falafel, salad and tahini.","price":1050,"stock":10},
+    {"id":"shawarma-rice","vendorId":"arab-shawarma","name":"Shawarma Rice","description":"Chicken shawarma served over fragrant rice.","price":1400,"stock":12},
+    {"id":"nasi-lemak","vendorId":"brew-and-bites","name":"Nasi Lemak","description":"Coconut rice, sambal, egg, cucumber and crispy anchovies.","price":950,"stock":16},
+    {"id":"iced-lemon-tea","vendorId":"drinks-counter","name":"Iced Lemon Tea","description":"Fresh lemon tea over ice.","price":390,"stock":20},
+    {"id":"crispy-dumplings","vendorId":"campus-noodle-bar","name":"Crispy Dumplings","description":"Vegetable dumplings with a soy dipping sauce.","price":800,"stock":0},
+    {"id":"local-left-chicken-rice","vendorId":"local-corner-left","name":"Chicken Rice","description":"Chicken, fragrant rice, cucumber and chilli sauce.","price":1000,"stock":20},
+    {"id":"local-left-vegetable-rice","vendorId":"local-corner-left","name":"Vegetable Rice","description":"Steamed rice with seasonal vegetables and tofu.","price":850,"stock":20},
+    {"id":"local-right-mee-goreng","vendorId":"local-corner-right","name":"Mee Goreng","description":"Stir-fried noodles with vegetables and egg.","price":950,"stock":20},
+    {"id":"local-right-nasi-goreng","vendorId":"local-corner-right","name":"Nasi Goreng","description":"Fried rice with vegetables and a fried egg.","price":1000,"stock":20},
+    {"id":"western-chicken-chop","vendorId":"western","name":"Chicken Chop","description":"Grilled chicken, fries and black pepper sauce.","price":1500,"stock":20},
+    {"id":"western-pasta","vendorId":"western","name":"Tomato Pasta","description":"Pasta in a tomato and herb sauce.","price":1100,"stock":20},
+    {"id":"fried-chicken-set","vendorId":"fried-chicken","name":"Crispy Chicken Set","description":"Crispy chicken with rice and slaw.","price":1200,"stock":20},
+    {"id":"chicken-tenders","vendorId":"fried-chicken","name":"Chicken Tenders","description":"Chicken tenders with a dipping sauce.","price":850,"stock":20}
+  ]
+}

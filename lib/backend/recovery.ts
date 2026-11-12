@@ -11,8 +11,11 @@ function signature(value: string) {
 export async function grantRecovery(userId: string) {
   const value = userId + ":" + (Date.now() + 600_000);
   (await cookies()).set(cookieName, value + ":" + signature(value), {
-    httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production",
-    path: "/", maxAge: 600,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 600,
   });
 }
 
@@ -24,4 +27,6 @@ export async function hasRecovery(userId: string) {
   return timingSafeEqual(Buffer.from(mac, "hex"), Buffer.from(signature(id + ":" + expires), "hex"));
 }
 
-export async function clearRecovery() { (await cookies()).delete(cookieName); }
+export async function clearRecovery() {
+  (await cookies()).delete(cookieName);
+}

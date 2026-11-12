@@ -37,17 +37,26 @@ export function FifAssistant() {
       const lHeight = rect?.height || 44;
       setViewport({ width, height });
       setLauncherSize({ width: lWidth, height: lHeight });
-      setPos(previous => previous ? {
-        left: clamp(previous.left, 12, width - lWidth - 12),
-        top: clamp(previous.top, 12, height - lHeight - 12),
-      } : previous);
+      setPos((previous) =>
+        previous
+          ? {
+              left: clamp(previous.left, 12, width - lWidth - 12),
+              top: clamp(previous.top, 12, height - lHeight - 12),
+            }
+          : previous,
+      );
     };
     syncViewport();
     try {
       const raw = sessionStorage.getItem(storageKey);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<Position>;
-        if (typeof parsed.left === "number" && typeof parsed.top === "number" && Number.isFinite(parsed.left) && Number.isFinite(parsed.top)) {
+        if (
+          typeof parsed.left === "number" &&
+          typeof parsed.top === "number" &&
+          Number.isFinite(parsed.left) &&
+          Number.isFinite(parsed.top)
+        ) {
           const rect = launcherRef.current?.getBoundingClientRect();
           setPos({
             left: clamp(parsed.left, 12, window.innerWidth - (rect?.width || 112) - 12),
@@ -55,14 +64,20 @@ export function FifAssistant() {
           });
         }
       }
-    } catch { /* Default corner position remains available. */ }
+    } catch {
+      /* Default corner position remains available. */
+    }
     window.addEventListener("resize", syncViewport);
     return () => window.removeEventListener("resize", syncViewport);
   }, []);
 
   useEffect(() => {
     if (!pos) return;
-    try { sessionStorage.setItem(storageKey, JSON.stringify(pos)); } catch { /* Ignore storage errors. */ }
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(pos));
+    } catch {
+      /* Ignore storage errors. */
+    }
   }, [pos]);
 
   useEffect(() => {
@@ -122,13 +137,16 @@ export function FifAssistant() {
   function send(text: string) {
     const clean = text.trim();
     if (!clean) return;
-    setMessages(previous => [
+    setMessages((previous) => [
       ...previous,
       { id: crypto.randomUUID(), role: "user", text: clean },
       {
         id: crypto.randomUUID(),
         role: "assistant",
-        text: "FIF AI backend is coming soon. Once connected, I’ll answer \"" + clean + "\" using live stall menus and capacity.",
+        text:
+          'FIF AI backend is coming soon. Once connected, I’ll answer "' +
+          clean +
+          '" using live stall menus and capacity.',
       },
     ]);
     setDraft("");
@@ -154,46 +172,107 @@ export function FifAssistant() {
         ),
         ...(openAbove
           ? { top: "auto", bottom: viewport.height - pos.top + 10, maxHeight: Math.min(440, Math.max(200, spaceAbove)) }
-          : { top: pos.top + launcherSize.height + 10, bottom: "auto", maxHeight: Math.min(440, Math.max(200, spaceBelow)) }),
+          : {
+              top: pos.top + launcherSize.height + 10,
+              bottom: "auto",
+              maxHeight: Math.min(440, Math.max(200, spaceBelow)),
+            }),
         right: "auto",
         width: windowWidth,
         transformOrigin: `${pos.left + launcherSize.width / 2 > viewport.width / 2 ? "right" : "left"} ${openAbove ? "bottom" : "top"}`,
       }
     : undefined;
 
-  return <>
-    {open && <section className={"fif-window" + (dragging ? " is-dragging" : "")} style={windowStyle} role="dialog" aria-label="FIF AI assistant">
-      <header className="fif-window-head" onPointerDown={startDrag}>
-        <div className="fif-window-brand">
-          <span className="fif-window-badge"><img src="/brand/ap-monogram-v2.png" alt="" width="20" height="20" /></span>
-          <div><strong>FIF AI</strong><small>Campus pickup assistant</small></div>
-        </div>
-        <div className="fif-window-controls">
-          <GripHorizontal size={16} className="fif-drag-hint" aria-hidden />
-          <button type="button" className="fif-window-close" aria-label="Close FIF AI" onClick={() => setOpen(false)}>
-            <X size={18} aria-hidden />
-          </button>
-        </div>
-      </header>
-      <div className="fif-window-messages" ref={listRef}>
-        {messages.map(message => <div key={message.id} className={"fif-msg fif-msg-" + message.role}>
-          <p>{message.text}</p>
-        </div>)}
-        {messages.length === 1 && <div className="fif-prompts">
-          {starterPrompts.map(prompt => <button type="button" key={prompt} onClick={() => send(prompt)}>{prompt}</button>)}
-        </div>}
-      </div>
-      <form className="fif-window-form" onSubmit={event => { event.preventDefault(); send(draft); }}>
-        <input ref={inputRef} type="text" placeholder="Ask FIF AI anything…" aria-label="Message FIF AI" value={draft} onChange={event => setDraft(event.target.value)} maxLength={240} />
-        <button type="submit" aria-label="Send message" disabled={!draft.trim()}><SendHorizontal size={17} aria-hidden /></button>
-      </form>
-    </section>}
-    <button ref={launcherRef} type="button" className={"fif-launcher" + (dragging ? " is-dragging" : "")} style={launcherStyle} aria-expanded={open} aria-label={open ? "Close FIF AI" : "Open FIF AI"} onPointerDown={startDrag} onClick={() => {
-      if (suppressClick.current) { suppressClick.current = false; return; }
-      setOpen(value => !value);
-    }}>
-      <span className="fif-launcher-logo"><img src="/brand/ap-monogram-v2.png" alt="" width="18" height="18" /></span>
-      <span>FIF AI</span>
-    </button>
-  </>;
+  return (
+    <>
+      {open && (
+        <section
+          className={"fif-window" + (dragging ? " is-dragging" : "")}
+          style={windowStyle}
+          role="dialog"
+          aria-label="FIF AI assistant"
+        >
+          <header className="fif-window-head" onPointerDown={startDrag}>
+            <div className="fif-window-brand">
+              <span className="fif-window-badge">
+                <img src="/brand/ap-monogram-v2.png" alt="" width="20" height="20" />
+              </span>
+              <div>
+                <strong>FIF AI</strong>
+                <small>Campus pickup assistant</small>
+              </div>
+            </div>
+            <div className="fif-window-controls">
+              <GripHorizontal size={16} className="fif-drag-hint" aria-hidden />
+              <button
+                type="button"
+                className="fif-window-close"
+                aria-label="Close FIF AI"
+                onClick={() => setOpen(false)}
+              >
+                <X size={18} aria-hidden />
+              </button>
+            </div>
+          </header>
+          <div className="fif-window-messages" ref={listRef}>
+            {messages.map((message) => (
+              <div key={message.id} className={"fif-msg fif-msg-" + message.role}>
+                <p>{message.text}</p>
+              </div>
+            ))}
+            {messages.length === 1 && (
+              <div className="fif-prompts">
+                {starterPrompts.map((prompt) => (
+                  <button type="button" key={prompt} onClick={() => send(prompt)}>
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <form
+            className="fif-window-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              send(draft);
+            }}
+          >
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Ask FIF AI anything…"
+              aria-label="Message FIF AI"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              maxLength={240}
+            />
+            <button type="submit" aria-label="Send message" disabled={!draft.trim()}>
+              <SendHorizontal size={17} aria-hidden />
+            </button>
+          </form>
+        </section>
+      )}
+      <button
+        ref={launcherRef}
+        type="button"
+        className={"fif-launcher" + (dragging ? " is-dragging" : "")}
+        style={launcherStyle}
+        aria-expanded={open}
+        aria-label={open ? "Close FIF AI" : "Open FIF AI"}
+        onPointerDown={startDrag}
+        onClick={() => {
+          if (suppressClick.current) {
+            suppressClick.current = false;
+            return;
+          }
+          setOpen((value) => !value);
+        }}
+      >
+        <span className="fif-launcher-logo">
+          <img src="/brand/ap-monogram-v2.png" alt="" width="18" height="18" />
+        </span>
+        <span>FIF AI</span>
+      </button>
+    </>
+  );
 }

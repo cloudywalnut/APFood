@@ -1,5 +1,11 @@
 export class BackendError extends Error {
-  constructor(public status: number, public code: string, message: string) { super(message); }
+  constructor(
+    public status: number,
+    public code: string,
+    message: string,
+  ) {
+    super(message);
+  }
 }
 
 const failures: Record<string, [number, string]> = {
@@ -38,7 +44,7 @@ export function databaseError(error: { code?: string; message: string }) {
   const match = error.code === "P0001" && failures[error.message];
   if (match) return new BackendError(match[0], error.message, match[1]);
   if (error.code === "42501") return new BackendError(403, "FORBIDDEN", failures.FORBIDDEN[1]);
-  if (["23503","23505","23514"].includes(error.code ?? "")) {
+  if (["23503", "23505", "23514"].includes(error.code ?? "")) {
     return new BackendError(409, "CONFLICT", "The requested change conflicts with current data.");
   }
   return new BackendError(500, "DATABASE_ERROR", "The service could not complete this request.");

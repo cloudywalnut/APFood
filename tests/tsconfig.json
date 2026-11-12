@@ -10,21 +10,12 @@
     "plugins": []
   },
   "include": [
-    "../lib/cafeteria/**/*.ts",
-    "../lib/demo.ts",
-    "../lib/demo-store.ts",
-    "../lib/promotions.ts",
-    "../services/cafeteria.ts",
-    "../lib/preview-auth.ts",
     "../lib/tracking.ts",
-    "../lib/report-model.ts",
+    "../lib/orders.ts",
     "../lib/report-export.ts",
-    "../services/mock.ts",
     "../lib/login-routing.ts",
     "../lib/preferences.ts",
     "../lib/traffic-load.ts"
   ],
-  "exclude": [
-    "../node_modules"
-  ]
+  "exclude": ["../node_modules"]
 }

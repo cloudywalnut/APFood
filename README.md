@@ -1,18 +1,8 @@
 # AP Food + FIF
 
-The Dalia UI and hosted backend are integrated on `Keyaan`. See [the combined feature map](docs/DALIA_INTEGRATION.md) for live cafeteria discovery, atomic multi-stall checkout, reports, preserved backend features, and verification results. Use `/welcome` for the public landing page; `/` opens the new sign-in experience.
+A campus food pickup app for students, stall vendors and cafeteria administrators, backed by Supabase. Stalls, orders and payments in the demo project are fictional.
 
-A frontend-only campus pickup demo. All stalls, orders, traffic scenarios, and payments are fictional.
-
-Start with the [current MVP](docs/MVP.md) and [engineering and AI handoff](docs/HANDOFF.md). The [original technical MVP specification](AP_Food_FIF_Agent_Ready_MVP_Spec.md) is also included.
-
-## Latest UI · Dalia
-
-The latest frontend includes the full-width student banner strip, an interactive cafeteria map, multi-stall basket and checkout, order tracking, reports, and contextual help for student, vendor and administrator workspaces.
-
-Use **Preview accounts** on the sign-in page to select a fictional account. Preview password: `APFoods123!`. Account and order state stay in this browser; this frontend does not connect to a production backend.
-
-This UI is published to `Dalia` and `main`. Backend development remains on `Keyaan`; it was not merged or modified by this frontend update. See [the latest UI notes](docs/LATEST_UI_UPDATE.md).
+Docs: [product scope](docs/MVP.md), [engineering overview](docs/HANDOFF.md), [backend guide](docs/BACKEND.md) and [email setup](docs/EMAIL_SETUP.md).
 
 ## Run locally
 
@@ -20,35 +10,45 @@ Use Node.js 22 or later.
 
 ```sh
 npm ci
+cp .env.example .env.local   # then fill in the Supabase values
 npm run dev
 ```
 
-Open http://localhost:3000 and choose Student, Vendor, or Admin. Run `npm run typecheck` and `npm run build` to verify the source and production bundle.
+Open http://localhost:3000. `/` is the sign-in page and `/welcome` is the public landing page. In development, the sign-in page lists the seeded demo accounts; click one to fill in its email and password. The list is not included in production builds.
 
-For Supabase setup, endpoint contracts, and database tests, see the [backend guide](docs/BACKEND.md).
+## Set up a Supabase project
 
-## Implementation phases
+See the [backend guide](docs/BACKEND.md) for the full steps. In short:
 
-| Phase | Modules | What it covers |
-| --- | --- | --- |
-| 1. Shells and fixtures | `app/`, `components/shared.tsx`, `components/public-page.tsx`, `lib/demo.ts` | App routes, shared UI, fictional stalls and orders, policy pages |
-| 2. Ordering and kitchen | `components/student.tsx`, `components/vendor.tsx`, `lib/demo-store.ts` | Menu, cart, scheduled pickup, status changes, QR and manual collection |
-| 3. Analytics and simulation | `components/admin.tsx`, `components/traffic.tsx`, `components/cashflow-chart.tsx`, `lib/analytics.ts` | Scenario filters, products, vendor controls, expense posting and reversal, audit |
-| 4. Prototype handoff | `docs/UI_IMAGE_PROMPT_KIT.md` | Screen inventory and image-generation prompts |
+1. Put the project URL, publishable key, secret key, `DATABASE_URL` and project ref in `.env.local`.
+2. Apply the schema and catalogue: `npx supabase@3 db push --remote="$DATABASE_URL" --include-seed`.
+3. Create the demo accounts and order history: `npm run seed:demo-users`.
 
-## Demo walkthrough
+Demo data lives in [supabase/fixtures/](supabase/fixtures/): `demo-accounts.json` (accounts and shared password) and `demo-catalogue.json` (stalls and menu). `supabase/seed.sql` holds the same catalogue for fresh projects.
 
-1. Open Student, choose Campus Noodle Bar, add a bowl, and place a demo order.
-2. Open Vendor in another tab using the same origin. In Kitchen, accept the order, start preparing, and mark it ready.
-3. Show the pickup code in the student tab, then paste it into Verify pickup on the vendor order. Counter orders also require payment confirmation.
-4. Open Admin and change the data source to Heavy. The first Campus Noodle Bar pickup window fills in the sample data and the student recommendation shifts to another stall.
-5. Record a demo expense in Cashflow and reverse it. Both entries remain visible and net flow returns to its previous amount.
-6. Use Cookies → Clear demo data to reset this browser.
+## Checks
 
-The demo state lives in local storage and syncs across tabs on the same origin. It is a prototype, so shared browser state has no account isolation or database transaction guarantees. Replace the demo data layer with authenticated Supabase and Gemini integrations in the backend phase.
+| Command | What it does |
+| --- | --- |
+| `npm run typecheck` | TypeScript check |
+| `npm run build` | Production build |
+| `npm test` | Unit tests for order tracking, report export, login routing, preferences and traffic load |
+| `npm run test:backend` | Runs the real SQL migrations in in-memory Postgres and tests policies, checkout, pickup, accounts and FIF |
+| `npm run format` / `npm run format:check` | Format the code with Prettier, or check formatting |
+| `npm run test:hosted` | Smoke test against the configured Supabase project (needs `AP_FOOD_HOSTED_SMOKE=1`) |
 
-## Artwork
+## Code map
 
-The built-in image generator produced the photo sheet used for `public/food/noodles.webp`, `public/food/coffee.webp`, `public/food/bowl.webp`, and `public/food/lunch.webp`. Fraunces and Inter are served locally with their font licenses in `public/fonts/`.
+| Area | Location |
+| --- | --- |
+| Routes | `app/[[...segments]]/page.tsx`, `app/api/[[...resource]]/route.ts`, `app/auth/callback/route.ts`, `proxy.ts` |
+| Student, vendor and admin screens | `components/workspace/` |
+| Storefront, map and shared UI | `components/storefront/`, `components/cafeteria/`, `components/ui/`, `components/shared.tsx` |
+| API handlers and Supabase access | `lib/backend/` |
+| Order, money and date helpers | `lib/orders.ts` |
+| Database schema and seed | `supabase/migrations/`, `supabase/seed.sql`, `supabase/fixtures/` |
+| Setup scripts | `scripts/seed-demo-users.mjs`, `scripts/bootstrap-admin.mjs`, `scripts/check-hosted.mjs` |
 
-> Photorealistic editorial food photography contact sheet for a fictional Malaysian campus food ordering app. A precisely equal 2x2 grid, zero margins, zero dividers, each quadrant entirely a different standalone horizontal photo. Top-left: Malaysian soy glazed chicken noodles, scallions, soft egg, warm cream table, overhead angled. Top-right: iced coffee in a clear glass with a small toast sandwich on pale olive linen. Bottom-left: bright rice grain bowl with green vegetables, roasted tofu, carrot and sesame on pale mint/cream. Bottom-right: campus Malaysian food photography wide editorial scene with a bowl of chilli chicken rice and noodles on warm light beige, subtle natural shadows. Each photo has the food centered with margins for crop, daylight, appetizing honest cafeteria portions, magazine quality. No people, no lettering, no logos, no collage overlays. 1536x1024 landscape.
+## Fonts
+
+Roboto is served locally from `public/fonts/` with its licence file.
