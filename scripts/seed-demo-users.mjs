@@ -1,111 +1,283 @@
+// Prepares a dedicated Supabase demo project: syncs the demo catalogue, creates the demo accounts with the
+// shared password, removes fixture accounts no longer listed, and loads 14 days of order and ledger history once.
 import { createClient } from "@supabase/supabase-js";
-import { randomBytes, createHash } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 
-const { NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: publicKey,
-  SUPABASE_SECRET_KEY: secret, AP_FOOD_DEMO_PROJECT_REF: projectRef,
-  AP_FOOD_DEMO_PASSWORD: sharedPassword } = process.env;
-if (!projectRef || !url || new URL(url).origin !== "https://" + projectRef + ".supabase.co" || !secret || !publicKey) {
-  throw new Error("Configure the dedicated project URL/ref and its API keys.");
+const {
+  NEXT_PUBLIC_SUPABASE_URL: url,
+  SUPABASE_SECRET_KEY: secret,
+  AP_FOOD_DEMO_PROJECT_REF: projectRef,
+} = process.env;
+if (!projectRef || !url || new URL(url).origin !== "https://" + projectRef + ".supabase.co" || !secret) {
+  throw new Error("Configure the dedicated project URL/ref and its secret key.");
 }
 const supabase = createClient(url, secret, { auth: { persistSession: false, autoRefreshToken: false } });
-const credentialsPath = new URL("../.env.demo-users.json", import.meta.url);
-let credentials = { projectRef, users: {} };
-try {
-  const saved = JSON.parse(await readFile(credentialsPath, "utf8"));
-  if (saved.projectRef === projectRef) credentials = saved;
-} catch (error) { if (error.code !== "ENOENT") throw error; }
-const fixtures = [
-  ["student-a", "Aina Rahman", "student", null],
-  ["student-b", "Daniel Tan", "student", null],
-  ["vendor-noodles", "Farah · Noodle Bar", "vendor", "campus-noodle-bar"],
-  ["vendor-coffee", "Jason · Brew & Bites", "vendor", "brew-and-bites"],
-  ["vendor-bowls", "Mei · Green Bowl Kitchen", "vendor", "green-bowl-kitchen"],
-  ["admin", "Keyaan · Campus Operations", "admin", null],
-];
-const lookup = new Map();
-for (let page = 1;; page++) {
-  const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 100 });
-  if (error) throw new Error("Cannot list fixture accounts.");
-  for (const user of data.users) lookup.set(user.email, user);
-  if (!data.nextPage || data.nextPage <= page) break;
-}
-const accounts = new Map();
-for (const [alias, name, role, vendorId] of fixtures) {
-  const email = alias + "@ap-food-demo.example";
-  let user = lookup.get(email);
-  if (!user) {
-    const password = sharedPassword || credentials.users[alias]?.password || randomBytes(18).toString("base64url") + "!Aa1";
-    // Persist intent first so an interrupted bootstrap can recover the original password.
-    credentials.users[alias] = { email, password };
-    await writeFile(credentialsPath, JSON.stringify(credentials, null, 2) + "\n", { mode: 0o600 });
-    const { data, error } = await supabase.auth.admin.createUser({
-      email, password, email_confirm: true,
-      user_metadata: { display_name: name }, app_metadata: { ap_food_fixture: true },
-    });
-    if (error || !data.user) throw new Error("Cannot create fixture " + alias);
-    user = data.user;
-  }
-  if (user.app_metadata.ap_food_fixture !== true) throw new Error("Existing non-fixture account conflicts with " + alias);
-  const { error } = await supabase.from("memberships").upsert({ user_id: user.id, role, vendor_id: vendorId },
-    { onConflict: "user_id,role,vendor_id", ignoreDuplicates: true });
-  if (error) throw new Error("Cannot assign fixture membership for " + alias);
-  accounts.set(alias, user);
-  console.log(email + " · " + role);
-}
-await writeFile(credentialsPath, JSON.stringify(credentials, null, 2) + "\n", { mode: 0o600 });
-console.log("Generated sign-in details saved locally in .env.demo-users.json.");
+const readJson = async (path) => JSON.parse(await readFile(new URL(path, import.meta.url), "utf8"));
+const { password, accounts } = await readJson("../supabase/fixtures/demo-accounts.json");
+const catalogue = await readJson("../supabase/fixtures/demo-catalogue.json");
 
-function requestKey(value) {
-  const hex = createHash("sha256").update(projectRef + ":" + value).digest("hex");
-  return hex.slice(0, 8) + "-" + hex.slice(8, 12) + "-4" + hex.slice(13, 16) + "-8" + hex.slice(17, 20) + "-" + hex.slice(20, 32);
+function check(result, message) {
+  if (result.error) throw new Error(message + " (" + result.error.message + ")");
+  return result.data;
 }
-async function signedIn(alias) {
-  const record = credentials.users[alias];
-  const password = record?.password || sharedPassword;
-  if (!password) throw new Error("The original password is required to seed order history for " + alias);
-  const client = createClient(url, publicKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  const { error } = await client.auth.signInWithPassword({ email: alias + "@ap-food-demo.example", password });
-  if (error) throw new Error("Fixture sign-in failed for " + alias);
-  return client;
+
+// Deterministic UUIDs keep re-runs idempotent.
+function stableId(value) {
+  const hex = createHash("sha256")
+    .update(projectRef + ":" + value)
+    .digest("hex");
+  return (
+    hex.slice(0, 8) +
+    "-" +
+    hex.slice(8, 12) +
+    "-4" +
+    hex.slice(13, 16) +
+    "-8" +
+    hex.slice(17, 20) +
+    "-" +
+    hex.slice(20, 32)
+  );
 }
-async function rpc(client, name, input) {
-  const { data, error } = await client.rpc(name, input);
-  if (error) throw new Error("History bootstrap failed at " + name);
-  return data;
+
+// 1. Catalogue. Stall hours stay as seeded (full day) so ordering works at any time.
+const zones = check(await supabase.from("zones").select("id,name"), "Cannot read zones");
+const zoneId = (name) =>
+  zones.find((zone) => zone.name === name)?.id ??
+  (() => {
+    throw new Error("Unknown zone " + name);
+  })();
+check(
+  await supabase.from("vendors").upsert(
+    catalogue.vendors.map((vendor) => ({
+      id: vendor.id,
+      zone_id: zoneId(vendor.zone),
+      name: vendor.name,
+      description: vendor.description,
+      category: vendor.category,
+      image: vendor.image,
+      status: vendor.status,
+      paused: vendor.paused,
+      capacity: vendor.capacity,
+      lead_minutes: vendor.lead,
+      opens_at: "00:00",
+      closes_at: "24:00",
+    })),
+  ),
+  "Cannot sync stalls",
+);
+check(
+  await supabase.from("menu_items").upsert(
+    catalogue.items.map((item) => ({
+      id: item.id,
+      vendor_id: item.vendorId,
+      name: item.name,
+      description: item.description,
+      price_sen: item.price,
+      stock: item.stock,
+      work_units: 1,
+      active: true,
+    })),
+  ),
+  "Cannot sync menu items",
+);
+const extras = check(
+  await supabase
+    .from("menu_items")
+    .select("id")
+    .not("id", "in", "(" + catalogue.items.map((item) => item.id).join(",") + ")"),
+  "Cannot read menu items",
+);
+if (extras.length)
+  check(
+    await supabase
+      .from("menu_items")
+      .update({ active: false })
+      .in(
+        "id",
+        extras.map((item) => item.id),
+      ),
+    "Cannot hide extra menu items",
+  );
+console.log(
+  "Catalogue synced · " +
+    catalogue.vendors.length +
+    " stalls, " +
+    catalogue.items.length +
+    " items" +
+    (extras.length ? ", " + extras.length + " extra hidden" : ""),
+);
+
+// 2. Accounts. Every fixture uses the shared demo password.
+const existing = new Map();
+for (let page = 1; ; page++) {
+  const { users, nextPage } = check(
+    await supabase.auth.admin.listUsers({ page, perPage: 100 }),
+    "Cannot list accounts",
+  );
+  for (const user of users) existing.set(user.email, user);
+  if (!nextPage || nextPage <= page) break;
 }
-const student = await signedIn("student-a");
-for (const [vendorAlias, vendorId, itemId] of [
-  ["vendor-noodles", "campus-noodle-bar", "chicken-noodles"],
-  ["vendor-coffee", "brew-and-bites", "iced-coffee"],
-  ["vendor-bowls", "green-bowl-kitchen", "tofu-bowl"],
-]) {
-  const key = requestKey("sample-history-v1:" + vendorId);
-  const previous = await supabase.from("audit_events").select("order_id").eq("action", "Sample history created").eq("target", key).maybeSingle();
-  if (previous.error) throw new Error("Cannot inspect sample history.");
-  if (previous.data) continue;
-  const operator = await signedIn(vendorAlias);
-  credentials.history ??= {};
-  let intent = credentials.history[vendorId];
-  if (!intent) {
-    const offer = await rpc(student, "quote_checkout", { p_vendor: vendorId, p_cart: [{ itemId, quantity: 1, extra: false }] });
-    intent = { p_quote: offer.quoteId, p_pickup: offer.slots.at(-2), p_payment: "counter", p_key: key };
-    credentials.history[vendorId] = intent;
-    await writeFile(credentialsPath, JSON.stringify(credentials, null, 2) + "\n", { mode: 0o600 });
+const userIds = new Map();
+for (const account of accounts) {
+  const attributes = {
+    password,
+    email_confirm: true,
+    user_metadata: { display_name: account.name },
+    app_metadata: { ap_food_fixture: true },
+  };
+  let user = existing.get(account.email);
+  if (user && user.app_metadata.ap_food_fixture !== true)
+    throw new Error("Existing non-fixture account conflicts with " + account.email);
+  user = user
+    ? check(await supabase.auth.admin.updateUserById(user.id, attributes), "Cannot update " + account.email).user
+    : check(
+        await supabase.auth.admin.createUser({ email: account.email, ...attributes }),
+        "Cannot create " + account.email,
+      ).user;
+  check(
+    await supabase
+      .from("memberships")
+      .upsert(
+        { user_id: user.id, role: account.role, vendor_id: account.vendorId ?? null },
+        { onConflict: "user_id,role,vendor_id", ignoreDuplicates: true },
+      ),
+    "Cannot assign membership for " + account.email,
+  );
+  userIds.set(account.role === "vendor" ? account.vendorId : account.role, user.id);
+  console.log(account.email + " · " + account.role);
+}
+for (const [email, user] of existing) {
+  if (user.app_metadata.ap_food_fixture !== true || accounts.some((account) => account.email === email)) continue;
+  const removed = await supabase.auth.admin.deleteUser(user.id);
+  console.log(
+    removed.error
+      ? "Could not remove old fixture " + email + " (it still owns orders)"
+      : "Removed old fixture " + email,
+  );
+}
+
+// 3. History: 14 days of collected orders per open stall, ingredient costs, and two active orders. Runs once per project.
+const marker = check(
+  await supabase.from("audit_events").select("id").eq("action", "Loaded cafeteria").eq("target", "APFoods").limit(1),
+  "Cannot inspect history",
+);
+if (marker.length) {
+  console.log("Demo history already loaded.");
+} else {
+  const dayFormat = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kuala_Lumpur",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const dayKey = (offset = 0) => dayFormat.format(new Date(Date.now() + offset * 86_400_000));
+  const at = (day, minutesAfterNoon) =>
+    new Date(Date.parse(day + "T12:00:00+08:00") + minutesAfterNoon * 60_000).toISOString();
+  const slotStart = (day, slot) => at(day, slot * 15);
+  const vendorById = new Map(catalogue.vendors.map((vendor) => [vendor.id, vendor]));
+  const slots = new Map();
+  const orders = [];
+  const ledger = [];
+  function addOrder({ id, vendorId, item, quantity, day, slot, status, payment, readyLate }) {
+    const vendor = vendorById.get(vendorId);
+    const pickupAt = slotStart(day, slot);
+    const key = vendorId + "|" + pickupAt;
+    const bucket = slots.get(key) ?? {
+      vendor_id: vendorId,
+      starts_at: pickupAt,
+      total_units: vendor.capacity,
+      reserved_units: 0,
+    };
+    bucket.reserved_units += quantity;
+    slots.set(key, bucket);
+    const collected = status === "collected";
+    orders.push({
+      id: stableId("order:" + id),
+      student_id: userIds.get("student"),
+      vendor_id: vendorId,
+      zone_id: zoneId(vendor.zone),
+      pickup_at: pickupAt,
+      status,
+      payment,
+      lines: [{ itemId: item.id, name: item.name, quantity, extra: false, unit: item.price, work: 1 }],
+      total_sen: item.price * quantity,
+      units: quantity,
+      created_at: at(day, slot * 15 - 25),
+      ready_at: collected ? at(day, slot * 15 + (readyLate ? 10 : -5)) : null,
+      collected_at: collected ? at(day, slot * 15 + (readyLate ? 12 : 5)) : null,
+    });
+    if (collected)
+      ledger.push({
+        vendor_id: vendorId,
+        zone_id: zoneId(vendor.zone),
+        order_id: stableId("order:" + id),
+        kind: payment,
+        amount_sen: item.price * quantity,
+        label: id + " pickup",
+        created_at: at(day, slot * 15 + 5),
+      });
   }
-  const placed = await rpc(student, "place_order", intent);
-  const current = await student.from("orders").select("status").eq("id", placed.id).single();
-  for (const [from, to] of [["placed", "accepted"], ["accepted", "preparing"], ["preparing", "ready"]]) {
-    if (current.data.status === from) {
-      await rpc(operator, "transition_order", { p_id: placed.id, p_status: to });
-      current.data.status = to;
+  for (let index = 0; index < 14; index += 1) {
+    for (const [vendorIndex, vendor] of catalogue.vendors.entries()) {
+      const choices = catalogue.items.filter((item) => item.vendorId === vendor.id);
+      if (vendor.paused || !choices.length) continue;
+      const id = "AP-S" + (1100 + index * 10 + vendorIndex);
+      const day = dayKey(-index);
+      addOrder({
+        id,
+        vendorId: vendor.id,
+        item: choices[index % choices.length],
+        quantity: 1 + ((index + vendorIndex) % 4),
+        day,
+        slot: 1,
+        status: "collected",
+        payment: index % 2 ? "counter" : "demo",
+        readyLate: (index + vendorIndex) % 5 === 0,
+      });
+      ledger.push({
+        vendor_id: vendor.id,
+        zone_id: zoneId(vendor.zone),
+        kind: "expense",
+        expense_request_key: stableId("expense:" + id),
+        amount_sen: 900 + ((index * 137 + vendorIndex * 551) % 1700),
+        label: "Ingredients",
+        created_at: at(day, 180),
+      });
     }
   }
-  if (current.data.status === "ready") {
-    const pickup = await rpc(student, "issue_pickup_code", { p_id: placed.id });
-    await rpc(operator, "collect_order", { p_id: placed.id, p_code: pickup.code, p_counter_confirmed: true });
+  ledger.push({
+    vendor_id: null,
+    zone_id: null,
+    kind: "expense",
+    expense_request_key: stableId("expense:standard-overhead"),
+    amount_sen: 1800,
+    label: "Shared cleaning supplies",
+    created_at: at(dayKey(), 180),
+  });
+  for (let index = 0; index < 2; index += 1) {
+    const item = catalogue.items[index % 3];
+    addOrder({
+      id: "AP-S" + (1042 + index),
+      vendorId: item.vendorId,
+      item,
+      quantity: 1,
+      day: dayKey(),
+      slot: 0,
+      status: ["placed", "accepted"][index],
+      payment: index % 2 ? "counter" : "demo",
+      readyLate: false,
+    });
   }
-  const marker = await supabase.from("audit_events").insert({ actor_id: accounts.get("admin").id, actor_role: "admin", action: "Sample history created", target: key, order_id: placed.id });
-  if (marker.error) throw new Error("Cannot record completed history bootstrap.");
+  check(await supabase.from("capacity_slots").upsert([...slots.values()]), "Cannot create pickup windows");
+  check(await supabase.from("orders").upsert(orders), "Cannot create orders");
+  check(await supabase.from("cash_entries").insert(ledger), "Cannot create ledger entries");
+  check(
+    await supabase
+      .from("audit_events")
+      .insert({ actor_id: userIds.get("admin"), actor_role: "admin", action: "Loaded cafeteria", target: "APFoods" }),
+    "Cannot record history marker",
+  );
+  console.log("Demo history loaded · " + orders.length + " orders, " + ledger.length + " ledger entries.");
 }
-console.log("Sample order history is ready.");
+console.log("Sign in with any account above using the shared password from supabase/fixtures/demo-accounts.json.");

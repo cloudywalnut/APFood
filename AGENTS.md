@@ -10,4 +10,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## AP Food project context
 
-Read [the handoff](docs/HANDOFF.md) and [the current MVP](docs/MVP.md) before implementing changes. Use the original technical spec for detailed backend invariants. Keep the frontend demo working while replacing its data layer, and verify changes with `npm run typecheck` and `npm run build`.
+Read [the engineering overview](docs/HANDOFF.md), [the product scope](docs/MVP.md) and [the backend guide](docs/BACKEND.md) before implementing changes. Backend rules live in the SQL migrations and are covered by `npm run test:backend`. Format with `npm run format`, then verify changes with `npm run typecheck`, `npm run build`, `npm test` and `npm run test:backend`.

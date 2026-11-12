@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, GripHorizontal, SendHorizontal, X } from "lucide-react";
 import { hostedData } from "../../lib/backend/client";
 import type { CopilotProposedAction } from "../../lib/backend/contracts";
-import { money } from "../../lib/demo";
+import { money } from "../../lib/orders";
 
 type ActionState = "pending" | "applying" | "applied" | "cancelled" | "error";
 

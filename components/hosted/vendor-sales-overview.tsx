@@ -7,7 +7,7 @@ import { ArrowUpRight, Utensils } from "lucide-react";
 import type { hostedData } from "../../lib/backend/client";
 import type { OrderRow } from "../../lib/backend/contracts";
 import type { ScenarioAction } from "../../lib/fif-scenarios";
-import { money, statusNames } from "../../lib/demo";
+import { money, statusNames } from "../../lib/orders";
 import { mealPhoto } from "../storefront/catalogue";
 import { useAnimatedNumber } from "./use-animated-number";
 import { VendorAnalyticsGrid } from "./vendor-analytics-grid";

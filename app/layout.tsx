@@ -1,11 +1,10 @@
-import { PreviewGate } from "../components/apspace/login";
 import { PreferenceCookies } from "../components/legal/cookie-preferences";
 import { HostedSessionProvider } from "../components/hosted/session-provider";
-import { ToastOutlet } from "../components/apspace/toasts";
+import { ToastOutlet } from "../components/ui/toasts";
 import type { Metadata } from "next";
 import "./globals.css";
 import "./storefront.css";
-import "./apspace.css";
+import "./ui.css";
 import "./cafeteria.css";
 import "./refinement.css";
 import "./auth-pages.css";
@@ -28,5 +27,19 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><head><link rel="preload" href="/fonts/roboto-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous"/></head><body><a className="skip" href="#main-content">Skip to content</a>{process.env.AP_FOOD_DATA_MODE === 'supabase' ? <HostedSessionProvider>{children}</HostedSessionProvider> : <PreviewGate>{children}</PreviewGate>}<ToastOutlet/><PreferenceCookies/></body></html>;
+  return (
+    <html lang="en">
+      <head>
+        <link rel="preload" href="/fonts/roboto-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+      </head>
+      <body>
+        <a className="skip" href="#main-content">
+          Skip to content
+        </a>
+        <HostedSessionProvider>{children}</HostedSessionProvider>
+        <ToastOutlet />
+        <PreferenceCookies />
+      </body>
+    </html>
+  );
 }

@@ -4,7 +4,7 @@ import type { RequestClient } from "./supabase";
 import { adminReport } from "./reports";
 import { privilegedClient } from "./auth";
 import { unwrap } from "./errors";
-import { dayKey, money } from "../demo";
+import { dayKey, money } from "../orders";
 import {
   analyzeSalesPatterns,
   computeVendorBenchmark,

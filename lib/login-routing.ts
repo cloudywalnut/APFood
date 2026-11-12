@@ -13,12 +13,21 @@ export function loginDestination(account: Account, intended?: string) {
     try {
       const url = new URL(intended, "https://ap-food.invalid");
       const path = decodeURIComponent(url.pathname);
-      const role = (Object.keys(portals) as Role[]).find(role => path === portals[role] || path.startsWith(portals[role] + "/"));
-      if (!/[\\\r\n]/.test(path) && ((role && canUseWorkspace(account, role)) || path === "/account")) {
+      const role = (Object.keys(portals) as Role[]).find(
+        (role) => path === portals[role] || path.startsWith(portals[role] + "/"),
+      );
+      if (
+        !/[\\\r\n]/.test(path) &&
+        ((role && canUseWorkspace(account, role)) || path === "/account")
+      ) {
         return url.pathname + url.search + url.hash;
       }
-    } catch { /* Invalid destinations fall back to the verified account's workspace. */ }
+    } catch {
+      /* Invalid destinations fall back to the verified account's workspace. */
+    }
   }
-  const role = (["admin", "vendor", "student"] as const).find(role => account.memberships.some(entry => entry.role === role));
+  const role = (["admin", "vendor", "student"] as const).find((role) =>
+    account.memberships.some((entry) => entry.role === role),
+  );
   return role ? portals[role] : "/account";
 }

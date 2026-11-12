@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, ClipboardList, Flame, RefreshCw, Search } from "lucide-react";
 import type { OrderRow } from "../../lib/backend/contracts";
-import { money } from "../../lib/demo";
+import { money } from "../../lib/orders";
 import { pickupWindow } from "../../lib/pickup-time";
 import { ErrorMessage } from "../shared";
-import { messageOf, useHostedData } from "./common";
+import { messageOf, useApi } from "../workspace/common";
 
 const stages = [
   { status: "placed", label: "New orders", next: "accepted", action: "Accept order" },
@@ -37,7 +37,7 @@ function relativePickup(pickupAt: string, now: number): string {
 }
 
 export function KitchenBoard({ orders, refresh }: { orders: OrderRow[]; refresh: () => void }) {
-  const api = useHostedData();
+  const api = useApi();
   const [query, setQuery] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
   const [urgencyFilter, setUrgencyFilter] = useState<"all" | "urgent">("all");

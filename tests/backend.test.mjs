@@ -1,20 +1,22 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import test from "node:test";
-import { createLocalDemoDb, demoActors, demoStalls } from "../scripts/local-demo-db.mjs";
+import { createLocalDemoDb, demoActors, demoStalls } from "./support/local-db.mjs";
 
 const { student, other, vendor, otherVendor, admin } = demoActors;
 const { noodleBar, coffeeBar } = demoStalls;
 const cart = JSON.stringify([{ itemId: "chicken-noodles", quantity: 1, extra: false }]);
 
-test("backend migrations, role isolation, allocations, pickup and ledger", async t => {
+test("backend migrations, role isolation, allocations, pickup and ledger", async (t) => {
   const { db, seedCatalogue, queryAs, call } = await createLocalDemoDb();
   t.after(() => db.close());
   await seedCatalogue();
-  const quote = (user = student, stall = noodleBar, items = cart) => call(user, "public.quote_checkout($1,$2)", [stall, items]);
+  const quote = (user = student, stall = noodleBar, items = cart) =>
+    call(user, "public.quote_checkout($1,$2)", [stall, items]);
   const order = (user, q, pickup = q.slots[1], key = randomUUID(), payment = "demo") =>
     call(user, "public.place_order($1,$2,$3,$4)", [q.quoteId, pickup, payment, key]);
-  const transition = (user, id, status, reason = null) => call(user, "public.transition_order($1,$2,$3)", [id,status,reason]);
+  const transition = (user, id, status, reason = null) =>
+    call(user, "public.transition_order($1,$2,$3)", [id, status, reason]);
 
   assert.equal((await queryAs(null, "select id from vendors")).length, 10);
   await assert.rejects(() => queryAs(null, "select id from orders"), /permission denied/);
@@ -35,7 +37,9 @@ test("backend migrations, role isolation, allocations, pickup and ledger", async
   assert.equal((await queryAs(other, "select payload from realtime.messages", [], studentTopic)).length, 0);
   assert.equal((await queryAs(otherVendor, "select payload from realtime.messages", [], vendorTopic)).length, 0);
   await assert.rejects(() => order(student, q), /QUOTE_USED/);
-  await db.query("update private.checkout_quotes set expires_at = now() - interval '1 second' where id = $1", [q.quoteId]);
+  await db.query("update private.checkout_quotes set expires_at = now() - interval '1 second' where id = $1", [
+    q.quoteId,
+  ]);
   assert.deepEqual(await order(student, q, q.slots[1], key, "counter"), placed);
   await assert.rejects(() => order(student, q, q.slots[2], key, "counter"), /IDEMPOTENCY_KEY_REUSED/);
   await assert.rejects(() => order(student, q), /QUOTE_EXPIRED/);
@@ -50,12 +54,15 @@ test("backend migrations, role isolation, allocations, pickup and ledger", async
   const before = await call(student, "public.issue_pickup_code($1)", [placed.id]);
   const pickup = await call(student, "public.issue_pickup_code($1)", [placed.id]);
   assert.match(pickup.code, /^[A-F0-9]{32}$/);
-  const collect = (code, confirmed = true) => call(vendor, "public.collect_order($1,$2,$3)", [placed.id,code,confirmed]);
+  const collect = (code, confirmed = true) =>
+    call(vendor, "public.collect_order($1,$2,$3)", [placed.id, code, confirmed]);
   await assert.rejects(() => collect(before.code), /PICKUP_CODE_INVALID/);
   await assert.rejects(() => collect(pickup.code, false), /COUNTER_CONFIRMATION_REQUIRED/);
   await collect(pickup.code);
   await assert.rejects(() => collect(pickup.code), /PICKUP_ALREADY_USED/);
-  assert.deepEqual(await queryAs(admin, "select kind, amount_sen from cash_entries"), [{ kind: "counter", amount_sen: 900 }]);
+  assert.deepEqual(await queryAs(admin, "select kind, amount_sen from cash_entries"), [
+    { kind: "counter", amount_sen: 900 },
+  ]);
   assert.deepEqual(await queryAs(student, "select id from cash_entries"), []);
   assert.equal((await queryAs(vendor, "select id from cash_entries")).length, 1);
   assert.equal((await queryAs(otherVendor, "select id from cash_entries")).length, 0);
@@ -79,7 +86,17 @@ test("backend migrations, role isolation, allocations, pickup and ledger", async
   await assert.rejects(() => order(other, two), /OUT_OF_STOCK/);
 
   const editQuote = await quote();
-  await call(vendor, "public.save_menu_item($1,$2,$3,$4,$5,$6,$7,$8,$9)", [noodleBar, "chicken-noodles", "Chicken Noodle Bowl", "", 1200, 12, true, 1, 12]);
+  await call(vendor, "public.save_menu_item($1,$2,$3,$4,$5,$6,$7,$8,$9)", [
+    noodleBar,
+    "chicken-noodles",
+    "Chicken Noodle Bowl",
+    "",
+    1200,
+    12,
+    true,
+    1,
+    12,
+  ]);
   await assert.rejects(() => order(student, editQuote), /PRICE_CHANGED/);
 
   // Optional work_units (null -> defaults to 1) and dish image persistence/preservation/clearing
@@ -103,13 +120,19 @@ test("backend migrations, role isolation, allocations, pickup and ledger", async
   const expenseKey = randomUUID();
   const expense = await call(admin, "public.record_expense($1,$2,$3,$4)", [null, 200, "Supplies", expenseKey]);
   assert.equal(await call(admin, "public.record_expense($1,$2,$3,$4)", [null, 200, "Supplies", expenseKey]), expense);
-  await assert.rejects(() => call(admin, "public.record_expense($1,$2,$3,$4)", [null, 201, "Supplies", expenseKey]), /IDEMPOTENCY_KEY_REUSED/);
+  await assert.rejects(
+    () => call(admin, "public.record_expense($1,$2,$3,$4)", [null, 201, "Supplies", expenseKey]),
+    /IDEMPOTENCY_KEY_REUSED/,
+  );
   await call(admin, "public.reverse_expense($1,$2)", [expense, "Duplicate"]);
   await assert.rejects(() => call(admin, "public.reverse_expense($1,$2)", [expense, "Again"]), /EXPENSE_UNAVAILABLE/);
   const ledger = await queryAs(admin, "select kind, amount_sen from cash_entries");
-  assert.equal(ledger.reduce((sum, e) => sum + (e.kind === "expense" ? -e.amount_sen : e.amount_sen), 0), 900);
+  assert.equal(
+    ledger.reduce((sum, e) => sum + (e.kind === "expense" ? -e.amount_sen : e.amount_sen), 0),
+    900,
+  );
   const buckets = await queryAs(null, "select * from public.pickup_activity()");
-  assert.ok(buckets.some(row => row.vendor_id === noodleBar && row.pickup_count === 5 && row.reserved_units === 5));
+  assert.ok(buckets.some((row) => row.vendor_id === noodleBar && row.pickup_count === 5 && row.reserved_units === 5));
 
   await call(admin, "public.admin_manage_vendor($1,$2,$3,$4)", [noodleBar, null, "annex-cafeteria", "Demo relocation"]);
   const recorded = await queryAs(admin, "select zone_id from cash_entries where order_id = $1", [placed.id]);

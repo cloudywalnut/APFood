@@ -1,0 +1,292 @@
+"use client";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import {
+  Bell,
+  ChartNoAxesCombined,
+  ChefHat,
+  ChevronRight,
+  ClipboardList,
+  Clock3,
+  FileDown,
+  Grid2X2,
+  House,
+  MoreVertical,
+  Package,
+  Search,
+  Settings,
+  ShoppingBag,
+  Sparkles,
+  Store,
+  Utensils,
+  WalletCards,
+  UserRound,
+  UsersRound,
+  type LucideIcon,
+} from "lucide-react";
+import { readPreferences } from "../../lib/preferences";
+import type { Role } from "../../lib/types";
+import { ModalSheet } from "./primitives";
+export type ModuleLink = { href: string; label: string; Icon: LucideIcon; detail: string };
+export const modules: Record<Role, ModuleLink[]> = {
+  student: [
+    { href: "/app", label: "APFoods", Icon: House, detail: "Pickup recommendations and campus deals" },
+    { href: "/app/vendors", label: "Stalls", Icon: Store, detail: "Explore the cafeteria map, counters and menus" },
+    { href: "/app/orders", label: "Orders", Icon: ClipboardList, detail: "Track orders and show pickup codes" },
+    {
+      href: "/app/traffic",
+      label: "Current Traffic",
+      Icon: ChartNoAxesCombined,
+      detail: "Scheduled pickups and kitchen load",
+    },
+    { href: "/app/cart", label: "Your cart", Icon: ShoppingBag, detail: "Review meals and schedule pickup" },
+  ],
+  vendor: [
+    { href: "/vendor", label: "Dashboard", Icon: Grid2X2, detail: "Shift priorities and upcoming pickups" },
+    { href: "/vendor/orders", label: "Kitchen", Icon: ChefHat, detail: "Accept, prepare and verify collections" },
+    {
+      href: "/vendor/menu",
+      label: "Menu & stock",
+      Icon: Utensils,
+      detail: "Manage meals, pricing and available stock",
+    },
+    { href: "/vendor/insights", label: "AI Insights", Icon: Sparkles, detail: "APU weather scenarios, peak windows and peer rank" },
+  ],
+  admin: [
+    { href: "/admin", label: "Dashboard", Icon: Grid2X2, detail: "Cafeteria overview and FIF priorities" },
+    {
+      href: "/admin/cashflow",
+      label: "Financials",
+      Icon: WalletCards,
+      detail: "Receipts, expenses, reversals and cashflow",
+    },
+    { href: "/admin/products", label: "Products", Icon: Package, detail: "Product performance and low-stock items" },
+    { href: "/admin/vendors", label: "Vendors", Icon: Store, detail: "Approvals and food court assignments" },
+    {
+      href: "/admin/traffic",
+      label: "Traffic & capacity",
+      Icon: ChartNoAxesCombined,
+      detail: "Kitchen load and pickup capacity",
+    },
+    { href: "/admin/audit", label: "Audit trail", Icon: ClipboardList, detail: "Search all recorded changes" },
+  ],
+};
+export function roleBase(role: Role) {
+  return role === "student" ? "/app" : "/" + role;
+}
+export function roleModules(role: Role): ModuleLink[] {
+  const base = roleBase(role);
+  return [
+    ...modules[role],
+    ...(role === "vendor"
+      ? [
+          {
+            href: "/vendor/payments",
+            label: "Payment settings",
+            Icon: WalletCards,
+            detail: "Merchant QR and payment settings",
+          },
+        ]
+      : role === "admin"
+        ? [{ href: "/admin/users", label: "Users", Icon: UsersRound, detail: "Manage account access and invitations" }]
+        : []),
+    { href: "/account", label: "Account", Icon: UserRound, detail: "Your profile, email and password" },
+    {
+      href: base + "/reports",
+      label: "Reports",
+      Icon: FileDown,
+      detail: "Generate a PDF or CSV from your selected records",
+    },
+    { href: base + "/notifications", label: "Updates", Icon: Bell, detail: "Order and workspace updates" },
+    { href: base + "/settings", label: "Settings", Icon: Settings, detail: "Display and browser preferences" },
+  ];
+}
+export function BrandLogo({ href = "/" }: { href?: string } = {}) {
+  return (
+    <Link href={href} className="ap-brand" aria-label="APFoods home">
+      <span className="ap-brand-mark">
+        <img src="/brand/apfoods-wordmark-v1.png" width="2172" height="724" alt="" />
+      </span>
+    </Link>
+  );
+}
+export function SearchDialog({ role, close }: { role: Role; close: () => void }) {
+  const [query, setQuery] = useState("");
+  const q = query.toLowerCase().trim();
+  const links = roleModules(role).filter((m) => (m.label + " " + m.detail).toLowerCase().includes(q));
+  return (
+    <ModalSheet title="Search APFoods" close={close}>
+      <label className="ap-search-box">
+        <Search size={19} />
+        <input
+          autoFocus
+          aria-label="Search pages or meals"
+          placeholder="Search pages, stalls or dishes"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </label>
+      <div className="ap-search-results">
+        {links.map(({ href, label, detail, Icon }) => (
+          <Link href={href} key={href} onClick={close}>
+            <Icon size={20} />
+            <span>
+              <strong>{label}</strong>
+              <small>{detail}</small>
+            </span>
+            <ChevronRight size={17} />
+          </Link>
+        ))}
+        {q && role === "student" && (
+          <Link href={"/app/vendors?dish=" + encodeURIComponent(query)} onClick={close}>
+            Search live menus for {query}
+          </Link>
+        )}
+        {!links.length && <p className="ap-empty-text">No matching pages or meals.</p>}
+      </div>
+    </ModalSheet>
+  );
+}
+export function WorkspaceHeader({
+  role = "student",
+  route = "/",
+  publicView = false,
+  cartCount = 0,
+}: {
+  role?: Role;
+  route?: string;
+  publicView?: boolean;
+  cartCount?: number;
+}) {
+  const [search, setSearch] = useState(false);
+  const base = roleBase(role);
+  const currentModules = modules[role];
+  const nav: ModuleLink[] = publicView
+    ? [
+        { href: "/app", label: "Student", Icon: House, detail: "" },
+        { href: "/vendor", label: "Vendor", Icon: ChefHat, detail: "" },
+        { href: "/admin", label: "Administrator", Icon: ChartNoAxesCombined, detail: "" },
+      ]
+    : [...currentModules.slice(0, 4), { href: base + "/more", label: "More", Icon: MoreVertical, detail: "" }];
+  const count = cartCount;
+  useEffect(() => {
+    document.documentElement.dataset.density = readPreferences().density;
+    const key = (event: KeyboardEvent) => {
+      if (
+        event.key === "/" &&
+        !(event.target instanceof HTMLInputElement) &&
+        !(event.target instanceof HTMLTextAreaElement)
+      ) {
+        event.preventDefault();
+        setSearch(true);
+      }
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, []);
+  return (
+    <>
+      <header className="ap-topbar">
+        <div className="ap-topbar-inner">
+          <BrandLogo />
+          <button className="ap-global-search" aria-label="Search APFoods" onClick={() => setSearch(true)}>
+            <Search size={20} />
+            <span>Search APFoods</span>
+            <kbd>/</kbd>
+          </button>
+          <nav className="ap-primary-nav" aria-label={publicView ? "Choose workspace" : role + " navigation"}>
+            {nav.map(({ href, label, Icon }, i) => {
+              const active =
+                route === href ||
+                (i > 0 && route.startsWith(href + "/")) ||
+                (href.endsWith("/more") &&
+                  !currentModules
+                    .slice(0, 4)
+                    .some((m) => route === m.href || (m.href !== base && route.startsWith(m.href + "/"))));
+              return (
+                <Link href={href} key={href} aria-current={active ? "page" : undefined}>
+                  <Icon size={23} />
+                  <span>{label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="ap-header-actions">
+            <Link href={base + "/notifications"} aria-label="Order updates">
+              <Bell size={21} />
+            </Link>
+            {role === "student" && !publicView && (
+              <Link href="/app/cart" aria-label={`Cart, ${count} items`}>
+                <ShoppingBag size={21} />
+                {count > 0 && <span>{count}</span>}
+              </Link>
+            )}
+            <Link href={base + "/settings"} aria-label="Settings">
+              <Settings size={21} />
+            </Link>
+          </div>
+        </div>
+      </header>
+      {!publicView && (
+        <nav className="ap-bottom-nav" aria-label="Mobile navigation">
+          {nav.map(({ href, label, Icon }, i) => (
+            <Link
+              key={href}
+              href={href}
+              aria-current={
+                route === href ||
+                (i > 0 && route.startsWith(href + "/")) ||
+                (href.endsWith("/more") &&
+                  !currentModules
+                    .slice(0, 4)
+                    .some((m) => route === m.href || (m.href !== base && route.startsWith(m.href + "/"))))
+                  ? "page"
+                  : undefined
+              }
+            >
+              <Icon size={21} />
+              <span>{label}</span>
+            </Link>
+          ))}
+        </nav>
+      )}
+      {search && <SearchDialog role={role} close={() => setSearch(false)} />}
+    </>
+  );
+}
+export function MobileTour({ force = false }: { force?: boolean } = {}) {
+  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    if (force || (window.innerWidth < 700 && !localStorage.getItem("ap-food-apspace-tour"))) setOpen(true);
+  }, [force]);
+  const steps = [
+    ["Find your next meal", "Open Stalls, hover or tap a counter on the map, then choose a meal."],
+    ["Pick a time that fits", "Add meals from different stalls, then choose a shared 15-minute pickup window."],
+    ["Collect with your code", "Follow your order in Orders. Show the QR or text code when it is ready."],
+  ];
+  function close() {
+    localStorage.setItem("ap-food-apspace-tour", "seen");
+    setOpen(false);
+  }
+  return open ? (
+    <ModalSheet title="Welcome to APFoods" close={close}>
+      <div className="ap-tour-illustration">
+        <Utensils size={42} />
+      </div>
+      <div className="ap-tour-copy">
+        <span>Step {step + 1} of 3</span>
+        <h3>{steps[step][0]}</h3>
+        <p>{steps[step][1]}</p>
+      </div>
+      <div className="ap-dialog-actions">
+        <button className="button secondary" onClick={close}>
+          Skip tutorial
+        </button>
+        <button className="button primary" onClick={() => (step < 2 ? setStep(step + 1) : close())}>
+          {step < 2 ? "Next" : "Get started"}
+        </button>
+      </div>
+    </ModalSheet>
+  ) : null;
+}

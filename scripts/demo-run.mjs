@@ -50,7 +50,7 @@ function requestKey(value) {
 }
 
 async function localAdapter() {
-  const { createLocalDemoDb, demoActors } = await import("./local-demo-db.mjs");
+  const { createLocalDemoDb, demoActors } = await import("../tests/support/local-db.mjs");
   const local = await createLocalDemoDb();
   const actors = Object.fromEntries(aliases.map((alias, index) => [alias,
     [demoActors.student, demoActors.other, demoActors.vendor, demoActors.otherVendor, demoActors.admin][index]]));

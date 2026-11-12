@@ -4,17 +4,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowRight, ArrowUpRight, Award, ClipboardList, CloudSun, MapPin, Package, RefreshCw, Sparkles, Users, WalletCards } from "lucide-react";
 import type { OrderRow } from "../../lib/backend/contracts";
-import { money } from "../../lib/demo";
+import { money } from "../../lib/orders";
 import { projectScenario, type ScenarioProduct, type ScenarioResult } from "../../lib/fif-scenarios";
 import { pickupWindow } from "../../lib/pickup-time";
-import { HostedFif } from "./fif";
-import { RemoteStatus, messageOf, useHostedData, useRemote } from "./common";
+import { FifPanel } from "../workspace/fif";
+import { RemoteStatus, messageOf, useApi, useRemote } from "../workspace/common";
 import { useAnimatedNumber } from "./use-animated-number";
 import { VendorScenarioStudio } from "./vendor-scenario-studio";
 import { VendorSalesOverview } from "./vendor-sales-overview";
 
 export function VendorInsights({ vendorId, active, orders, detailed = false }: { vendorId: string; active: OrderRow[]; orders: OrderRow[]; detailed?: boolean }) {
-  const api = useHostedData();
+  const api = useApi();
   const [days, setDays] = useState<"1" | "7" | "14">("7");
   const load = useCallback(async () => {
     const [menu, report] = await Promise.all([api.vendorMenu(vendorId), api.vendorReport(vendorId, days)]);
@@ -169,7 +169,7 @@ export function VendorInsights({ vendorId, active, orders, detailed = false }: {
         onRegenerate={() => void runAi()}
       />
     </VendorSalesOverview>
-    <section className="vendor-fif-desk" aria-label="FIF operational recommendation"><header><span>FIF INSIGHTS DESK</span><span>Based on recorded app activity</span></header><HostedFif role="vendor" vendorId={vendorId} /></section>
+    <section className="vendor-fif-desk" aria-label="FIF operational recommendation"><header><span>FIF INSIGHTS DESK</span><span>Based on recorded app activity</span></header><FifPanel role="vendor" vendorId={vendorId} /></section>
     {detailed && <div className="vendor-kpis">{[["Active kitchen orders", active.length], ["Awaiting acceptance", active.filter(order => order.status === "placed").length], ["Products needing stock", result.value ? lowStock.length : "—"], ["Recorded receipts", receipts !== undefined ? money(receipts) : "—"]].map(([label, value]) => <section key={label}><span>{label}</span><strong>{value}</strong><small>{label === "Recorded receipts" ? "Collected orders · selected period" : label === "Products needing stock" ? "Published products with 5 or fewer portions" : label === "Active kitchen orders" ? `${dueNextHour} due next 60m · ${overduePickups} overdue` : "Current kitchen activity"}</small></section>)}</div>}
     {result.error != null && <RemoteStatus error={result.error} reload={result.reload} />}
     {detailed && <div className="vendor-insight-columns"><section className="vendor-insight-panel"><header><div><span className="vendor-section-label">ACTION QUEUE</span><h2>Stock requiring attention</h2></div><Package size={19} aria-hidden /></header>{!result.value ? <p className="vendor-insight-empty">Loading stock signals…</p> : lowStock.length ? <ul className="vendor-attention-list">{lowStock.slice(0, detailed ? 12 : 5).map(item => <li key={item.id}><div><strong>{item.name}</strong><span>{stockPaceText(item.stock, item.id)}</span></div><Link href={"/vendor/menu?stall=" + vendorId + "&dish=" + encodeURIComponent(item.name)}>Review stock<ArrowUpRight size={15} aria-hidden /></Link></li>)}</ul> : <p className="vendor-insight-empty">No published product is at or below the low-stock threshold.</p>}<footer>Pace estimates divide current stock by recent daily units sold; not a demand guarantee.</footer></section>

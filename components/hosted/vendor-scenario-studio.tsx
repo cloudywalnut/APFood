@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ArrowRight, Award, BarChart3, Clock, CloudSun, Flame, MapPin, MessageSquare, RefreshCw, SlidersHorizontal, Sparkles, TrendingDown, Users } from "lucide-react";
 import Link from "next/link";
-import { money } from "../../lib/demo";
+import { money } from "../../lib/orders";
 import { projectScenario, type ScenarioProduct, type ScenarioResult } from "../../lib/fif-scenarios";
 import { useAnimatedNumber } from "./use-animated-number";
 

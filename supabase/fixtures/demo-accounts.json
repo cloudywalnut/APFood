@@ -1,0 +1,12 @@
+{
+  "password": "APFoods123!",
+  "accounts": [
+    { "email": "student@apfoods.local", "name": "Campus student", "role": "student" },
+    { "email": "admin@apfoods.local", "name": "Cafeteria administrator", "role": "admin" },
+    { "email": "chinese@apfoods.local", "name": "Chinese", "role": "vendor", "vendorId": "campus-noodle-bar" },
+    { "email": "malay@apfoods.local", "name": "Malay", "role": "vendor", "vendorId": "brew-and-bites" },
+    { "email": "japanese@apfoods.local", "name": "Japanese & Korean", "role": "vendor", "vendorId": "green-bowl-kitchen" },
+    { "email": "indian@apfoods.local", "name": "Indian", "role": "vendor", "vendorId": "indian" },
+    { "email": "shawarma@apfoods.local", "name": "Arab Shawarma", "role": "vendor", "vendorId": "arab-shawarma" }
+  ]
+}

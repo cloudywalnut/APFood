@@ -1,76 +1,46 @@
-> Latest vendor changes: see [FIF_IMPLEMENTATION_STATUS.md](FIF_IMPLEMENTATION_STATUS.md). Capacity navigation is replaced by AI Insights; vendor accounts stay out of student ordering; confirmed sessions are reused during navigation.
+# AP Food + FIF · Engineering overview
 
-> Current UI: see [STOREFRONT_UPDATE.md](STOREFRONT_UPDATE.md) for the latest catalogue, AP logo + Foods wordmark, optional preference cookies and guest-access boundaries. Hosted browsing starts with stall cards; the cafeteria map remains available. The basket supports multiple stalls. Changes remain local on Keyaan.
+AP Food is a campus food pickup app for students, stall vendors and cafeteria administrators. FIF (Food Intelligence Framework) suggests each role's next action. The product scope is in [MVP.md](MVP.md); setup, endpoints and backend rules are in [BACKEND.md](BACKEND.md).
 
-# AP Food + FIF · Engineering and AI handoff
+## Run and verify
 
-AP Food is a campus pickup prototype for students, food-stall staff, and cafeteria administrators. FIF, the Food Intelligence Framework, helps each role choose its next action. Start with the [current MVP contract](MVP.md). The [original technical specification](../AP_Food_FIF_Agent_Ready_MVP_Spec.md) provides the detailed domain design and acceptance cases.
+1. `npm ci`, fill in `.env.local` (see [BACKEND.md](BACKEND.md)), then `npm run dev` and open http://localhost:3000.
+2. In development the sign-in page lists the demo accounts from `supabase/fixtures/demo-accounts.json`; click one to fill in the form. Use separate browser profiles to be signed in as several roles at once.
+3. Before handing changes back, run `npm run format`, `npm run typecheck`, `npm run build`, `npm test` and `npm run test:backend`.
 
-## Start here
+## Features
 
-The Dalia UI at `416fcbc` is now merged with the hosted implementation. Read [the integration feature map](DALIA_INTEGRATION.md) for the combined navigation, live map, multi-stall checkout, reports and verification. Both original feature sets remain in the repository.
-
-1. Install the locked dependencies with `npm ci` and start Next.js with `npm run dev`.
-2. Open `http://localhost:3000` and use the Student, Vendor, or Admin demo entrance. Keep the same origin in each tab to share demo state.
-3. Run `npm run typecheck` and `npm run build` before handing changes back. The [README walkthrough](../README.md#demo-walkthrough) covers the main browser flow.
-
-## What is working
-
-### Account and checkout milestone
-
-Sign-in now detects the workspace from verified account memberships. There is no role selector in hosted or preview login. The default for multiple memberships is admin, then vendor, then student; an authorized intended destination takes precedence. Unverified accounts go to email confirmation, and a return path into another role's workspace is ignored.
-
-Hosted mode now includes signup, sign-in, email confirmation/resend, recovery, invitation acceptance, and account settings. Student signup creates an active profile and student membership; ordering requires a verified email. Admin Users supports search, pagination, role/status filters, invitations, stall assignments, suspension, and an audit history. Database transactions protect the final active administrator.
-
-Signed-in carts are stored in Supabase with owner isolation and revision checks. Guest carts remain in browser storage, with an explicit conflict choice when a saved account cart exists. Checkout keeps an idempotent pending attempt until the order is confirmed and clears only the purchased cart revision.
-
-Vendor Payment settings accepts merchant-provided QR images. QR checkout reserves inventory and pickup capacity, allows five minutes for payment, and keeps payment status separate from preparation. The designated demonstration project enables owner-authorized “I've paid” confirmation, recorded internally as `customer_claimed_demo`. Unpaid expiry, cancellation, refund tasks, and collection receipts are transactional. This remains a demonstration payment mechanism, not bank verification.
-
-The migrations and six sample accounts are installed in project `vymnnyyuiujmxxycqiod`. Generated sample credentials are in ignored `.env.demo-users.json`; never commit or copy them into documentation. Email setup and the current domain are documented in [EMAIL_SETUP.md](EMAIL_SETUP.md). Domain verification and an earlier confirmation delivery succeeded; recovery, invitation, email-change delivery, and template activation still need a complete email walkthrough.
-
-On 11 November, the hosted browser walkthrough passed guest import, QR upload, customer payment confirmation, vendor preparation, pickup, one receipt, suspension, cart restoration, and responsive checks. A guest-import race and signed-in cart cross-tab invalidation are fixed. See [verification results](VERIFICATION.md) for exact coverage and remaining gates.
-
-All three signed-in FIF panels now use `POST /api/fif/recommendations`. Candidates, facts, and links are built server-side within the caller's role and stall scope. Rules are currently active. Optional Gemini ranking selects only eligible action/evidence IDs, with a five-second timeout, bounded 30-second scoped cache, and a database-backed limit of 12 provider attempts per user per hour. `GEMINI_API_KEY` and `GEMINI_MODEL` are server-only settings. No chat model is called implicitly. Provider response handling is tested with controlled fixtures; a real Gemini call remains pending the key.
-
-| Area | Current frontend behavior |
+| Area | What works |
 | --- | --- |
-| Student | Browse stalls, search meals, configure a cart, schedule pickup, choose a demo payment method, track an order, and show its pickup QR or text code. Campus Deals link to specific items and their discounted prices carry through checkout. |
-| Vendor | Change order stages, verify a pickup code, confirm counter payment, edit menu and stock, adjust capacity and prep lead time, and pause intake. Collection creates one receipt in the demo ledger. |
-| Admin | Filter the cafeteria dashboard by date and stall, compare products and vendors, manage stall approval and zone assignments, record and reverse demo expenses, and inspect the audit trail. |
-| FIF and traffic | Student pickup recommendations, the vendor shift brief, and the admin ops desk use local rules. Standard, Light, Medium, and Heavy fixtures change bucket load and available windows. Traffic measures app pickup activity and identifies physical crowd conditions as unverified. |
-| Public | Landing page, demo persona entrances, and draft Privacy, Terms, and Cookies pages. Cookies includes a browser data reset. |
+| Accounts | Sign-up, sign-in, email confirmation and resend, password recovery, invitation acceptance and account settings. Sign-in opens the workspace for the account's roles (admin, then vendor, then student), or an allowed return path. Unverified accounts are sent to confirm their email. |
+| Student | Browse stalls as cards or on the cafeteria map, search menus, open campus deals, build a basket across stalls, get prices and shared 15-minute pickup windows, pay by demo, counter or DuitNow QR, track orders live, and show a QR or text pickup code. Current traffic shows booked pickup load per stall. |
+| Vendor | Kitchen board with accept, prepare, ready and reject; verify pickup codes and confirm counter payment; edit menu, prices and stock; set capacity, lead time, hours and pause; upload a merchant payment QR; record refunds; reports. |
+| Admin | Dashboard by period and stall, cashflow with expenses and reversals, product and vendor performance, stall approval and food-court assignment, traffic, audit trail, and user management (search, roles, suspension, invitations). The last active admin cannot be removed. |
+| FIF | Vendor and admin dashboards show one recommended action built on the server from live data (pickup load, low stock, upcoming orders). Rules decide; optional Gemini only breaks ties. The student chat bubble is a placeholder and is not connected yet. |
+| Reports | Students, vendors and admins can download their orders, stock or cashflow as PDF or CSV. |
+| Public | Landing page at `/welcome`, and Privacy, Terms and Cookies pages with optional preference cookies. |
 
-The mock preview has 25 primary screens and uses fictional stalls and payments. In local development, Admin → Traffic can run the embedded database simulator through Traffic Lab. Its results are separate from the browser scenario shared by the three portals. Hosted mode adds real demo sign-in and API-backed checkout, fulfilment, traffic, and admin operations, with rule-based FIF recommendations on each home screen. See the [backend guide](BACKEND.md) for both walkthroughs.
-
-## Code map and data flow
+## Code map
 
 | Path | Responsibility |
 | --- | --- |
-| `app/[[...segments]]/page.tsx` | Dispatches public, student, vendor, and admin routes. |
-| `app/globals.css`, `app/storefront.css`, `components/shared.tsx` | Shared UI, portal shells, typography, and storefront styling. |
-| `components/student.tsx`, `components/vendor.tsx`, `components/admin.tsx` | Role screens and user actions. |
-| `lib/demo.ts`, `lib/demo-store.ts` | Domain types, fixtures, availability, cart, order transitions, QR validation, receipts, expenses, and cross-tab subscription. |
-| `lib/analytics.ts`, `components/traffic.tsx`, `components/cashflow-chart.tsx` | Scoped totals, pickup buckets, and charts. |
-| `lib/promotions.ts`, `components/promotions.tsx` | Demo promotion rules and cards. The same unit-price function is used by the menu and cart calculations. |
-| `docs/UI_IMAGE_PROMPT_KIT.md` | Prototype screen inventory, visual direction, and image prompts. |
+| `app/[[...segments]]/page.tsx` | Routes public, auth, student, vendor and admin pages. |
+| `app/api/[[...resource]]/route.ts`, `lib/backend/` | API handlers, Supabase clients, auth, carts, reports, FIF, realtime. |
+| `app/auth/callback/route.ts`, `proxy.ts` | Email link callback and session cookie refresh. |
+| `components/workspace/` | Student, vendor, admin, auth, payment and user-management screens. |
+| `components/storefront/`, `components/cafeteria/` | Storefront, menus, cart, cafeteria map and traffic map. |
+| `components/ui/`, `components/shared.tsx`, `components/legal/` | App shell, navigation, shared UI, policy pages and cookie preferences. |
+| `lib/orders.ts`, `lib/tracking.ts`, `lib/report-export.ts`, `lib/traffic-load.ts` | Order, money and date helpers; order tracking copy; PDF and CSV export; traffic load. |
+| `lib/cafeteria/` | Cafeteria floor-plan layout and map selection. |
+| `supabase/migrations/`, `supabase/seed.sql`, `supabase/fixtures/`, `supabase/templates/` | Schema and database functions, catalogue seed, demo accounts and catalogue, email templates. |
+| `scripts/` | `seed-demo-users.mjs`, `bootstrap-admin.mjs`, `check-hosted.mjs`. |
+| `tests/` | Unit tests (`*.test.cjs`) and database tests (`*.test.mjs`, using `tests/support/local-db.mjs`). |
 
-The preview store uses `localStorage` under `ap-food-apspace-demo-v1`, with a read fallback for the earlier `ap-food-demo-v1` key and syncs changes across tabs via browser events. Cashflow and orders are scoped to the selected scenario. Inventory uses a shared stall configuration and counts orders against that scenario. Policy copy describes this browser-only behavior. Use integer MYR sen and display operational dates and times in `Asia/Kuala_Lumpur`. Preserve order-line price snapshots when catalogue pricing changes.
+## Checks to keep passing
 
-## Backend implementation order
-
-See the [backend guide](BACKEND.md) for the current Supabase migrations, API contracts, and hosted verification steps. The [backend delivery plan](BACKEND_PLAN.md) covers simulation, InsightAI, and the follow-on FIF features.
-
-1. Create `supabase/migrations/`. Add identity, role memberships, stall/menu fixtures, and RLS. Keep fake accounts and seeded business data separate from real environments.
-2. Move checkout and capacity enforcement to one database transaction. Validate the quoted price, stock, and pickup window, then write the order and its allocation together. Enforce idempotency. Move cancellation, fulfilment, pickup-token redemption, and receipt posting to scoped transactions.
-3. Connect the existing screens to authenticated read and write contracts, private Realtime updates, and server-calculated finance and traffic aggregates. Verify isolation across students and stalls.
-4. Build the scenario CLI against the same checkout and fulfilment paths. Isolate simulation runs and carry provenance into admin views and FIF evidence.
-5. Add server-side Gemini ranking to the three FIF panels. Compute candidate actions and evidence in the application. Validate returned action IDs and evidence references, keep the deterministic fallback, and store provider keys in server-only environment configuration.
-
-## Acceptance checks to preserve
-
-- Student checkout → vendor ready → student QR → vendor collection → one receipt.
-- Heavy traffic fills the featured stall’s first bucket and changes the student recommendation.
-- Expense posting reduces net flow and a linked reversal restores it while keeping both entries.
-- Promotions agree in the storefront, cart, order snapshot, and receipt.
-- The three portals remain usable at 390, 768, and 1440 px.
-- Before relying on backend behavior, add tests for simultaneous checkout, repeat requests and pickup redemption, role isolation, scenario separation, and keyless Gemini fallback.
+- Student checkout → vendor ready → student pickup code → vendor collection → exactly one receipt.
+- Concurrent checkouts cannot exceed stall capacity or stock; retries with the same key create one order.
+- Promotions agree in the storefront, cart, order snapshot and receipt.
+- An expense reduces net flow and its reversal restores it, keeping both entries.
+- Students and stalls only see their own orders.
+- The three workspaces stay usable at 390, 768 and 1440 px wide.

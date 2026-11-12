@@ -5,9 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogOut, Settings, UserRound } from "lucide-react";
 import { hostedData } from "../lib/backend/client";
-import { signOutPreview } from "../lib/preview-auth";
 
-export function AccountMenu({ hosted, settingsHref = "/app/settings" }: { hosted: boolean; settingsHref?: string }) {
+export function AccountMenu({ hosted = true, settingsHref = "/app/settings" }: { hosted?: boolean; settingsHref?: string }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -26,8 +25,7 @@ export function AccountMenu({ hosted, settingsHref = "/app/settings" }: { hosted
     {open && <nav id={panelId} className="account-menu-panel" aria-label="Account options"><Link href={hosted ? "/account" : settingsHref} onClick={() => setOpen(false)}><UserRound size={17} aria-hidden />View account</Link><Link href={settingsHref} onClick={() => setOpen(false)}><Settings size={17} aria-hidden />Settings</Link><button type="button" disabled={busy} onClick={async () => {
       setBusy(true); setError("");
       try {
-        if (hosted) await hostedData.signOut();
-        else signOutPreview();
+        await hostedData.signOut();
         setOpen(false); router.replace("/auth/login"); router.refresh();
       } catch (problem) { setError(problem instanceof Error ? problem.message : "Could not log out. Please try again."); }
       finally { setBusy(false); }

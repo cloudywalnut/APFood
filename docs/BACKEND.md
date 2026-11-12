@@ -1,55 +1,68 @@
-# AP Food backend · Initial implementation
+# AP Food backend
 
-The Supabase migrations and HTTP API cover seeded roles, catalogue, checkout, vendor fulfilment, pickup, audit, the demo ledger, and aggregate pickup activity. The default frontend mode uses browser fixtures. Set `AP_FOOD_DATA_MODE=supabase` for the hosted student, vendor, and admin screens. Both modes use the same public routes and visual shells.
+Supabase holds all data: accounts, roles, stalls, menus, carts, orders, pickup windows, payments, the ledger and the audit trail. Business rules (checkout, capacity, stock, fulfilment, pickup codes, receipts) run as Postgres functions in `supabase/migrations/`, protected by row-level security. The Next.js API in `app/api/[[...resource]]/route.ts` and `lib/backend/` is the only way the UI reads and writes data.
 
-## Connect the hosted demo
+## Set up a Supabase project
 
-1. Use a dedicated Supabase project for fictional data. Copy `.env.example` to `.env.local` if needed. In the dashboard, open **Connect** and choose **Session pooler** for an IPv4 connection. Store its PostgreSQL URL as `DATABASE_URL` in `.env.local`. URL-encode reserved characters in the password and use `sslmode=require`. In PowerShell, load the value with `$env:DATABASE_URL = node --env-file=.env.local -p "process.env.DATABASE_URL"`. Preview the pending migrations with `npx supabase@3 db push --remote="$env:DATABASE_URL" --dry-run`. Review the target and migration list, then apply with `npx supabase@3 db push --remote="$env:DATABASE_URL" --include-seed`.
-2. In `.env.local`, configure the project URL, publishable key, and server-only `SUPABASE_SECRET_KEY`. Run `npm run seed:demo-users` in the dedicated demo project. Generated sample passwords are saved in ignored `.env.demo-users.json`; repeat runs preserve existing passwords. The runtime uses the server secret for restricted Auth administration and rate limiting; it must never be exposed to browser code. Set `AP_FOOD_APP_ORIGIN` to the exact origin used by the browser.
-3. Enable private-only Realtime channels in the demo project. Set `AP_FOOD_DATA_MODE=supabase` and start Next.js with `npm run dev`. Enable `AP_FOOD_HOSTED_SMOKE=1` only on a disposable demo project, then run `npm run test:hosted`. The script places and collects fictional orders and fails if unused test orders cannot be cancelled.
-4. Open three separate browser profiles or contexts and sign in as the seeded student, vendor, and admin. Place a counter order, move it to ready in the kitchen, then collect it with the student's code and check the admin cashflow ledger. Separate profiles keep the three Supabase cookie sessions independent.
+Use a dedicated project for demo data.
 
-## API contract
+1. Copy `.env.example` to `.env.local` and fill in `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` and `AP_FOOD_DEMO_PROJECT_REF`.
+2. In the Supabase dashboard, open **Connect → Session pooler** and store the PostgreSQL URL as `DATABASE_URL`. URL-encode reserved characters in the password and add `?sslmode=require`.
+3. Apply the schema and catalogue. In PowerShell:
+   ```powershell
+   $env:DATABASE_URL = node --env-file=.env.local -p "process.env.DATABASE_URL"
+   npx supabase@3 db push --remote="$env:DATABASE_URL" --dry-run       # review first
+   npx supabase@3 db push --remote="$env:DATABASE_URL" --include-seed
+   ```
+4. Run `npm run seed:demo-users`. It syncs the catalogue from `supabase/fixtures/demo-catalogue.json`, creates the accounts in `supabase/fixtures/demo-accounts.json` with their shared password, removes fixture accounts that are no longer listed, and loads 14 days of order and ledger history. Re-running re-syncs the catalogue and passwords; history loads only once.
+5. In **Realtime → Settings**, allow private channels only. Live order updates use private channels; open order views also poll, so missed broadcasts recover.
+6. Set `AP_FOOD_APP_ORIGIN` to the exact browser origin when a hosting proxy changes the request URL.
+7. For email (sign-up confirmation, recovery, invitations), follow [EMAIL_SETUP.md](EMAIL_SETUP.md). Seeded accounts are already confirmed, so the app works without it.
 
-Browser requests use a Supabase session cookie. Use the app origin for cookie-authenticated mutations. Hosted workspace requests include `X-AP-Food-User` so the API can reject stale requests after an account switch. The hosted smoke script uses verified Supabase bearer tokens. Responses use JSON and private data is served with `Cache-Control: no-store`. Errors return `{ error: { code, message, requestId } }`.
+`npm run bootstrap:admin` promotes `AP_FOOD_BOOTSTRAP_ADMIN_EMAIL` to administrator. It refuses to run once an admin exists. The seed script already creates an admin, so it is only needed for projects seeded without fixtures.
 
-| Endpoint | Input or scope |
+## Requests and errors
+
+Browser requests authenticate with the Supabase session cookie, which `proxy.ts` refreshes. Cookie-authenticated mutations must come from the app origin. Workspace requests send `X-AP-Food-User` so the API can reject stale requests after an account switch. Scripts may use a Supabase bearer token instead. Private responses use `Cache-Control: no-store`. Errors return `{ error: { code, message, requestId } }`.
+
+Sign-in, sign-up and recovery are rate limited per IP address in the database. This, account administration and checkout recovery use `SUPABASE_SECRET_KEY` on the server.
+
+## Endpoints
+
+| Endpoint | Purpose |
 | --- | --- |
-| `POST /api/checkout/basket` | `{ orders: [{ vendorId, quoteId, pickupAt, payment, idempotencyKey }], idempotencyKey, cartRevision }`; atomic multi-stall placement with exact retry recovery. |
-| `GET /api/admin/orders`, `GET /api/vendor/report` | Role-scoped report sources. Admin orders accept `days`, `vendorId`, and `zoneId`; vendor reports require an assigned `vendorId`. |
-| `POST /api/fif/recommendations` | `{ role, vendorId?, zoneId? }`; authenticated, active verified membership required. Vendor requests require an assigned stall. Returns server-owned evidence, action link, and `rules` or `gemini` source. |
-| `POST /api/auth/session` | `{ email, password }` returns the user ID and database memberships. GET reads the session and DELETE signs out. |
-| `GET /api/vendors`, `GET /api/vendors/:id/menu`, `GET /api/zones` | Published demo catalogue. Menu records include regular price, discount, stock, and work units. |
-| `POST /api/checkout/quote` | `{ vendorId, items: [{ itemId, quantity, extra }] }` returns `quoteId`, `expiresAt`, `slots`, priced lines, and `totalSen`. Slots use ISO timestamps. |
-| `POST /api/orders` | `{ quoteId, pickupAt, payment, idempotencyKey }`, with payment `demo` or `counter`. Reuse the same key and payload on network retries. Use a new quote and key for changed selections. |
-| `GET /api/orders`, `GET /api/orders/:id`, `GET /api/vendor/orders?vendorId=…` | Scoped student history, order detail, and kitchen board. |
-| `POST /api/orders/:id/cancel`, `POST /api/vendor/orders/:id/transition` | Cancellation or forward-only stage change. Staff provide a reason when rejecting or cancelling. |
-| `POST /api/orders/:id/pickup-token`, `POST /api/vendor/orders/:id/collect` | Owner issues a five-minute code. Staff submit `{ code, counterConfirmed }`. Keep the raw code in the student view’s memory. |
-| `GET /api/vendor/stalls`, `GET /api/vendor/menu-items?vendorId=…`, `POST /api/vendor/menu-items`, `PATCH /api/vendor/capacity/:id` | Assigned stall management. Send the previously read stock as `expectedStock` when saving an existing item. |
-| `PATCH /api/admin/vendors/:id`, `GET /api/admin/audit` | Admin stall management and audit trail. |
-| `GET /api/admin/report?days=7&zoneId=…&vendorId=…` | Admin finance, ledger, products, and vendor aggregates. Supported periods are 1, 7, and 14 days. |
-| `POST /api/admin/expenses`, `POST /api/admin/expenses/:id/reverse` | Record a paid demo expense with an idempotency key, or reverse it once with a reason. |
-| `GET /api/traffic/zones` | Per-stall pickup buckets, committed work units, and capacity. The response identifies its source as app pickup activity. |
+| `POST/GET/DELETE /api/auth/session` | Sign in with `{ email, password }`, read the session and memberships, or sign out. |
+| `POST /api/auth/register`, `/resend`, `/recover`, `/profile` | Sign-up, resend confirmation, password recovery, and profile, email or password changes. |
+| `GET /api/zones`, `/api/vendors`, `/api/catalogue`, `/api/deals`, `/api/vendors/:id/menu` | Published stalls, menus, promotions and food courts. |
+| `GET /api/traffic/zones` | Pickup windows per stall with booked work units and capacity. Measures app activity, not physical crowds. |
+| `GET/PUT /api/cart` | Signed-in cart with revision checks. |
+| `POST /api/checkout/quote` | `{ vendorId, items }` returns `quoteId`, priced lines, `totalSen` and feasible pickup `slots`. |
+| `POST /api/orders` | `{ quoteId, pickupAt, payment, idempotencyKey }` with payment `demo`, `counter` or `duitnow_qr`. Retry with the same key and payload. |
+| `POST /api/checkout/basket` | Places one order per stall from a multi-stall basket in a single transaction. |
+| `GET /api/orders`, `/api/orders/:id` | The student's orders and order detail. |
+| `POST /api/orders/:id/cancel` | Cancels before preparation. |
+| `POST /api/orders/:id/pickup-token` | Issues a five-minute pickup code for a ready order. |
+| `GET /api/orders/:id/payment`, `POST /api/orders/:id/payment-claim`, `POST /api/orders/:id/refund` | QR payment status, the student's "I've paid" claim, and refund recording. |
+| `GET /api/vendors/:id/payment`, `POST /api/vendor/payments/:id` | A stall's merchant QR, and the vendor's QR upload. |
+| `GET /api/vendor/stalls`, `/api/vendor/orders`, `/api/vendor/menu-items`, `/api/vendor/report` | The vendor's assigned stalls, kitchen board, menu and report. |
+| `POST /api/vendor/orders/:id/transition`, `/collect` | Move an order forward (or reject with a reason), and collect it with `{ code, counterConfirmed }`. |
+| `POST /api/vendor/menu-items`, `PATCH /api/vendor/capacity/:id` | Save a menu item (send the stock you read as `expectedStock`) and update capacity, lead time, hours or pause. |
+| `GET /api/admin/report`, `/api/admin/orders`, `/api/admin/audit` | Finance, products, vendors, orders and the audit trail. Periods are 1, 7 or 14 days. |
+| `PATCH /api/admin/vendors/:id` | Approve or suspend a stall and assign its food court. |
+| `POST /api/admin/expenses`, `/api/admin/expenses/:id/reverse` | Record an expense, or reverse it once with a reason. |
+| `GET /api/admin/users`, `PATCH /api/admin/users/:id`, `POST /api/admin/users/invite` | Search users, change status and roles, and invite staff. |
+| `POST /api/fif/recommendations` | `{ role, vendorId?, zoneId? }` returns one recommended action for the caller's scope. |
 
-For a new server-backed order, represent the pickup window with its actual timestamp. Retain the browser cart while refreshing expired quotes, and use the backend price snapshot for the order summary. In the current SQL, cancelling after preparation keeps consumed stock and booked capacity. Pre-prep cancellation releases both. The receipt is recognised at collection and uses the original order total.
+## Behaviour notes
 
-## Verification and next integration
+- Capacity is counted in work units per 15-minute pickup window. Each stall sets its capacity; each menu item has a work-unit cost.
+- Cancelling before preparation releases stock and capacity. After preparation both stay consumed.
+- A receipt is recorded once, at collection, for the original order total.
+- QR checkout reserves stock and capacity and allows five minutes for payment. The "I've paid" claim is a demonstration mechanism, not bank verification. A scheduled job (`pg_cron`, every minute) expires unpaid QR orders.
+- Guest carts live in browser storage. On sign-in they move to the account cart, or the student chooses which to keep when both exist. The pending checkout attempt is kept in session storage so a lost response can be retried safely.
+- FIF builds candidate actions from live data on the server. Rules choose by default. With `GEMINI_API_KEY` set, Gemini breaks ties between equally ranked actions (five-second timeout, 30-second cache, 12 calls per user per hour) and may only pick from the server's candidates.
 
-`npm run test:backend` runs the actual SQL migrations in embedded Postgres with minimal Supabase Auth and Realtime schema stand-ins. It checks role policies, stock and capacity conflicts, exact retries, promo pricing, pickup replay and the ledger. `npm run test:hosted` adds concurrent HTTP checkout and redemption against the configured project. Verify real browser sessions and WebSocket subscriptions on the hosted preview. Open order views also refresh periodically to recover from missed broadcasts.
+## Tests
 
-Signed-in carts persist in Supabase with owner isolation and revision checks. Guest carts use local storage; an existing account cart requires an explicit import choice. Cart saves emit a local-storage invalidation marker to refresh other tabs; focus and visibility changes also refetch. Only the exact pending checkout attempt stays in per-account session storage. After a lost response, retry that saved request in the same tab. Pickup codes stay in view memory. See [EMAIL_SETUP.md](EMAIL_SETUP.md) for SMTP and Auth template activation, [verification results](VERIFICATION.md) for checked flows, and the [backend delivery plan](BACKEND_PLAN.md) for remaining delivery gates.
-
-## Rehearse traffic locally
-
-Run `npm run simulate:traffic -- light`, `npm run simulate:traffic -- medium`, or `npm run simulate:traffic -- heavy`. Each command creates a fresh in-memory database from the checked-in migrations and fictional seed. The report shows the pickup bucket before collection, requests accepted or declined, reroutes, the next quoted pickup, and the simulated receipt posted through vendor fulfilment.
-
-Heavy submits 12 prequoted requests to a five-unit window, reroutes three of the seven conflicts, and places one comparison order at Brew & Bites. The embedded database processes requests in sequence. Use the hosted HTTP smoke test for concurrent checkout. Local results are emitted to the terminal and discarded with the database at exit.
-
-For the UI walkthrough, start the mock app on loopback with the local lab enabled.
-
-```powershell
-$env:AP_FOOD_LOCAL_TRAFFIC_LAB = '1'
-npm run dev -- --hostname 127.0.0.1
-```
-
-Open **Admin → Traffic → Traffic Lab** and run a scenario. Lab results stay in the panel and are separate from the browser scenario that the three demo portals share. The lab endpoint is available only in opted-in local development.
+- `npm run test:backend` runs the migrations and seed in in-memory Postgres (PGlite) with stand-ins for Supabase Auth and Realtime. It covers role policies, stock and capacity conflicts, retries, promotion pricing, pickup replay, the ledger, accounts, baskets and FIF ranking.
+- `npm run test:hosted` runs concurrent checkout and pickup against the configured project. Set `AP_FOOD_HOSTED_SMOKE=1` only on a disposable demo project; it places and cancels fictional orders.

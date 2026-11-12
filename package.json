@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
-    "test:backend": "node --test tests/backend.test.mjs tests/traffic-scenario.test.mjs tests/accounts.test.mjs tests/fif.test.mjs tests/basket.test.mjs",
-    "simulate:traffic": "node scripts/simulate-traffic.mjs",
+    "test:backend": "node --test tests/backend.test.mjs tests/accounts.test.mjs tests/fif.test.mjs tests/basket.test.mjs",
     "demo:plan": "node scripts/demo-run.mjs",
     "demo:run": "node scripts/demo-run.mjs --execute",
     "test:demo": "node --test tests/demo-run.test.mjs",
@@ -16,7 +15,9 @@
     "seed:analytics": "node --env-file=.env.local scripts/seed-vendor-analytics.mjs",
     "bootstrap:admin": "node --env-file=.env.local scripts/bootstrap-admin.mjs",
     "test:hosted": "node --env-file=.env.local scripts/check-hosted.mjs",
-    "test": "tsc -p tests/tsconfig.json && node --test tests/*.test.cjs"
+    "test": "tsc -p tests/tsconfig.json && node --test tests/*.test.cjs",
+    "format": "prettier --write app components lib scripts tests proxy.ts next.config.ts",
+    "format:check": "prettier --check app components lib scripts tests proxy.ts next.config.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
@@ -34,6 +35,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "prettier": "3.10.1",
     "typescript": "^7.0.2"
   }
 }

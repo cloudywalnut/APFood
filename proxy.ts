@@ -5,17 +5,21 @@ export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (process.env.AP_FOOD_DATA_MODE !== "supabase" || !url || !key) return response;
-  const client = createServerClient(url, key, { cookies: {
-    getAll: () => request.cookies.getAll(),
-    setAll: values => {
-      for (const { name, value } of values) request.cookies.set(name, value);
-      response = NextResponse.next({ request });
-      for (const { name, value, options } of values) response.cookies.set(name, value, options);
+  if (!url || !key) return response;
+  const client = createServerClient(url, key, {
+    cookies: {
+      getAll: () => request.cookies.getAll(),
+      setAll: (values) => {
+        for (const { name, value } of values) request.cookies.set(name, value);
+        response = NextResponse.next({ request });
+        for (const { name, value, options } of values) response.cookies.set(name, value, options);
+      },
     },
-  } });
+  });
   await client.auth.getUser();
   return response;
 }
 
-export const config = { matcher: ["/app/:path*", "/vendor/:path*", "/admin/:path*", "/account/:path*", "/auth/:path*"] };
+export const config = {
+  matcher: ["/app/:path*", "/vendor/:path*", "/admin/:path*", "/account/:path*", "/auth/:path*"],
+};

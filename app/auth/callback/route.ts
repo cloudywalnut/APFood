@@ -12,12 +12,19 @@ export async function GET(request: Request) {
   const hash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type");
   const supported = ["signup", "invite", "recovery", "email_change", "email"];
-  const result = code ? await client.auth.exchangeCodeForSession(code)
-    : hash && type && supported.includes(type) ? await client.auth.verifyOtp({ token_hash: hash, type: type as EmailOtpType })
+  const result = code
+    ? await client.auth.exchangeCodeForSession(code)
+    : hash && type && supported.includes(type)
+      ? await client.auth.verifyOtp({ token_hash: hash, type: type as EmailOtpType })
       : undefined;
-  const destination = result && !result.error
-    ? (type === "invite" ? "/auth/accept-invite" : type === "recovery" ? "/auth/reset-password" : next)
-    : "/auth/verify-email?error=expired";
+  const destination =
+    result && !result.error
+      ? type === "invite"
+        ? "/auth/accept-invite"
+        : type === "recovery"
+          ? "/auth/reset-password"
+          : next
+      : "/auth/verify-email?error=expired";
   if (hash && result?.data.user && !result.error && (type === "recovery" || type === "invite")) {
     await grantRecovery(result.data.user.id);
   }
