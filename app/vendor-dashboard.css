@@ -959,6 +959,174 @@
     flex-basis: auto;
   }
 }
+.vendor-insight-run-status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  position: relative;
+  overflow: hidden;
+  padding: 10px 13px;
+  border: 1px solid #e6d9b9;
+  border-radius: 8px;
+  background: #fff9e9;
+  color: #725319;
+  font-size: 12px;
+}
+.vendor-insight-progress {
+  position: absolute;
+  height: 2px;
+  width: 35%;
+  bottom: 0;
+  left: 0;
+  background: #bc8c16;
+  animation: vendor-insight-checking 1.5s ease-in-out infinite;
+}
+.vendor-impact-preview {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #dec78c;
+  border-radius: 10px;
+  background: #fffcf3;
+}
+.vendor-impact-preview > header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+.vendor-impact-preview > header > span,
+.vendor-impact-preview > p {
+  color: #796d59;
+  font-size: 11px;
+}
+.vendor-impact-preview > p { margin: 10px 0 0; }
+.vendor-impact-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.vendor-impact-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e9dfc9;
+  border-radius: 8px;
+  background: #fffefa;
+  font-variant-numeric: tabular-nums;
+}
+.vendor-impact-card > header,
+.vendor-impact-values {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.vendor-impact-card h3 { margin: 0; font-size: 11px; font-weight: 650; color: #6d5c40; }
+.vendor-impact-card > header > span { font-size: 12px; font-weight: 750; color: #76531a; }
+.vendor-impact-card > header > span > small { font-size: 10px; font-weight: 600; white-space: nowrap; }
+.vendor-impact-card[data-improves="true"] > header > span { color: #496039; }
+.vendor-impact-values { margin: 12px 0; }
+.vendor-impact-values > div { display: grid; gap: 4px; min-width: 0; }
+.vendor-impact-values > div:last-child { text-align: right; }
+.vendor-impact-values small { color: #84765f; font-size: 10px; }
+.vendor-impact-values span { color: #7f725d; font-size: 15px; }
+.vendor-impact-values strong { color: #3b2a1e; font-size: 20px; font-weight: 750; }
+.vendor-impact-values > svg { flex-shrink: 0; color: #aa8a43; }
+.vendor-impact-bars { display: grid; gap: 4px; }
+.vendor-impact-bars > i { display: block; height: 5px; border-radius: 3px; background: #d8cfbe; }
+.vendor-impact-bars > i:last-child { background: #d8a516; }
+.has-fresh-insights .vendor-overview-metrics > a,
+.has-fresh-insights .vendor-impact-preview,
+.has-fresh-insights .scenario-proposals > article {
+  animation: vendor-insight-reveal 1.4s ease-out both;
+}
+.has-fresh-insights .vendor-sales-ai-bar,
+.has-fresh-insights .vendor-sales-stack,
+.has-fresh-insights .scenario-bar-track > i {
+  transform-origin: bottom;
+  animation: vendor-insight-bars 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.vendor-intelligence strong { font-variant-numeric: tabular-nums; }
+@keyframes vendor-insight-checking {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(390%); }
+}
+@keyframes vendor-insight-reveal {
+  from { box-shadow: 0 0 0 3px #e5b94e55; background-color: #fff0bb; }
+  to { box-shadow: 0 0 0 0 #e5b94e00; }
+}
+@keyframes vendor-insight-bars {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+.vendor-insights-jump > img,
+.vendor-projections > summary > span > img { vertical-align: middle; object-fit: contain; }
+.vendor-projections { scroll-margin-top: 100px; }
+.vendor-projections > summary > span > img { margin-right: 6px; }
+.vendor-insight-hint {
+  position: fixed;
+  right: 24px;
+  bottom: 80px;
+  z-index: 80;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: min(360px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid #dbc897;
+  border-radius: 12px;
+  background: #fffdf6;
+  box-shadow: 0 8px 28px #3b2a1e20;
+  color: #3b2a1e;
+}
+.vendor-insight-hint > img { flex-shrink: 0; object-fit: contain; }
+.vendor-insight-hint strong { font-size: 14px; }
+.vendor-insight-hint p { margin: 5px 0 9px; font-size: 12px; line-height: 1.5; color: #78684f; }
+.vendor-insight-hint button { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; color: #805d11; font-size: 12px; font-weight: 650; cursor: pointer; }
+.vendor-insight-hint .vendor-insight-hint-close { padding: 3px; margin-left: auto; }
+.pickup-schedule-peak {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 20px 16px;
+  padding: 12px;
+  border: 1px solid #e9d8a9;
+  border-radius: 8px;
+  background: #fcf6e5;
+  color: #805e16;
+}
+.pickup-schedule-peak > div { display: grid; gap: 4px; flex: 1; min-width: 100px; }
+.pickup-schedule-peak small { font-size: 10px; color: #8b7752; }
+.pickup-schedule-peak strong { font-size: 13px; }
+.pickup-schedule-peak > span { font-size: 11px; font-weight: 650; }
+.pickup-schedule-axis,
+.pickup-schedule-rows > li {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr) 42px;
+  align-items: center;
+  gap: 10px;
+}
+.pickup-schedule-axis { margin: 0 20px 8px; color: #8a7b65; font-size: 10px; }
+.pickup-schedule-axis > div { display: flex; justify-content: space-between; }
+.pickup-schedule-axis > span:last-child { text-align: right; }
+.pickup-schedule-rows { display: grid; gap: 10px; padding: 0; margin: 0 20px 16px; list-style: none; }
+.pickup-schedule-rows > li { min-height: 25px; color: #6e5e48; font-size: 12px; }
+.pickup-schedule-rows > li > strong { text-align: right; font-size: 12px; }
+.pickup-schedule-rows > li[data-peak="true"] { color: #76520e; font-weight: 750; }
+.pickup-schedule-track { height: 12px; overflow: hidden; border-radius: 3px; background: #f0ebdf; }
+.pickup-schedule-track > i { display: block; height: 100%; width: 100%; background: #d4b45e; transform-origin: left; }
+.pickup-schedule-rows > li[data-peak="true"] .pickup-schedule-track > i { background: #ad7f18; }
+.pickup-schedule-controls { display: flex; flex-wrap: wrap; gap: 6px 12px; justify-content: space-between; align-items: center; margin: 0 20px 12px; font-size: 10px; color: #84745b; }
+.pickup-schedule-controls > button { min-height: 32px; padding: 4px 0; border: 0; background: transparent; color: #805d11; font-size: 11px; font-weight: 650; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 700px) {
+  .vendor-insight-hint { right: 16px; bottom: 84px; }
+  .pickup-schedule-axis,
+  .pickup-schedule-rows > li { grid-template-columns: 88px minmax(0, 1fr) 34px; gap: 8px; }
+  .vendor-impact-grid { grid-template-columns: minmax(0, 1fr); }
+  .vendor-impact-values strong { font-size: 21px; }
+}
 @media (prefers-reduced-motion: reduce) {
   .vendor-intelligence *,
   .vendor-intelligence *::before,

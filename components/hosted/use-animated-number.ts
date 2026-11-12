@@ -2,12 +2,22 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export function useAnimatedNumber(target: number, enabled = true, durationMs = 950, resetKey?: string | number) {
-  const [value, setValue] = useState(target);
-  const currentRef = useRef(target);
+export function useAnimatedNumber(
+  target: number,
+  enabled = true,
+  durationMs = 950,
+  resetKey?: string | number,
+  replayKey?: string | number,
+) {
+  const initial = enabled && replayKey !== undefined ? 0 : target;
+  const [value, setValue] = useState(initial);
+  const currentRef = useRef(initial);
   const prevResetKey = useRef(resetKey);
+  const prevReplayKey = useRef(replayKey);
 
   useEffect(() => {
+    const replay = prevReplayKey.current !== replayKey;
+    prevReplayKey.current = replayKey;
     if (prevResetKey.current !== resetKey) {
       prevResetKey.current = resetKey;
       currentRef.current = target;
@@ -24,7 +34,11 @@ export function useAnimatedNumber(target: number, enabled = true, durationMs = 9
       setValue(target);
       return;
     }
-    const start = currentRef.current;
+    const start = replay ? 0 : currentRef.current;
+    if (replay) {
+      currentRef.current = 0;
+      setValue(0);
+    }
     const diff = target - start;
     if (Math.abs(diff) < 0.001) {
       currentRef.current = target;
@@ -47,7 +61,7 @@ export function useAnimatedNumber(target: number, enabled = true, durationMs = 9
     };
     frame = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(frame);
-  }, [target, enabled, durationMs, resetKey]);
+  }, [target, enabled, durationMs, resetKey, replayKey]);
 
   return value;
 }

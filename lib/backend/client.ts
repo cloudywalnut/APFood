@@ -140,7 +140,7 @@ export function createApiClient(userId?: string) {
       role: "student" | "vendor" | "admin";
       vendorId: string | null;
     }) => call("admin/users/invite", ok, "POST", input),
-    orders: () => call("orders", z.array(orderRow)),
+    orders: (view?: "active" | "history") => call("orders" + (view ? "?view=" + view : ""), z.array(orderRow)),
     adminOrders: (params: URLSearchParams) => call("admin/orders?" + params, z.array(orderRow)),
     vendorReport: (vendorId: string, days: string) =>
       call("vendor/report?" + new URLSearchParams({ vendorId, days }), adminReportOutput),

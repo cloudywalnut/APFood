@@ -62,7 +62,7 @@ export function PickupDialog({
             : "This code expired. Generate a new code."}
         </p>
       )}
-      <div className="pickup-code">{code}</div>
+      <div className={"pickup-code" + (/^\d{8}$/.test(code) ? " pickup-code-short" : "")}>{code}</div>
       <p className="small muted">
         {expiresAt
           ? "Expires " +

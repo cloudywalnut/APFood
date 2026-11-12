@@ -601,6 +601,19 @@ input[type="checkbox"] {
   padding: 0;
   overflow: hidden;
 }
+.orders-list-active {
+  border-color: #dfc578;
+}
+.orders-list-active .order-list-row {
+  border-left: 4px solid #d5a310;
+  background: #fffcf4;
+}
+.pickup-code-short {
+  font-size: clamp(1.75rem, 6vw, 2.5rem);
+  font-weight: 750;
+  letter-spacing: 0.16em;
+  word-break: normal;
+}
 .ap-accordion {
   border: 1px solid #e6dfd4;
   border-radius: 9px;

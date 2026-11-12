@@ -160,6 +160,9 @@ export function RestaurantMenu({
         </section>
         <BasketSummary store={store} />
       </div>
+      <p className="small muted">
+        Menu photos are illustrative. <a href="/food/menu/credits.html">Photo credits and licenses</a>.
+      </p>
     </div>
   );
 }

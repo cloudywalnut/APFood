@@ -16,6 +16,7 @@ import { VendorAnalyticsGrid } from "./vendor-analytics-grid";
 type Report = Awaited<ReturnType<typeof hostedData.vendorReport>>;
 type Meal = Awaited<ReturnType<typeof hostedData.vendorMenu>>[number];
 type AiOverlay = {
+  revision: number;
   actions: ScenarioAction[];
   revenuePct: number;
   volumePct: number;
@@ -94,8 +95,8 @@ export function VendorSalesOverview({
   const totalRecorded = rows.reduce((sum, row) => sum + row.total, 0);
   const totalProjected = ai ? rows.reduce((sum, row) => sum + row.projectedTotal, 0) : totalRecorded;
   const activeDeltaPct = ai ? (metric === "revenue" ? ai.revenuePct : ai.volumePct) : 0;
-  const animatedTotal = useAnimatedNumber(totalProjected, Boolean(ai), 950, metric);
-  const animatedMetricPct = useAnimatedNumber(activeDeltaPct, Boolean(ai), 950, metric);
+  const animatedTotal = useAnimatedNumber(totalProjected, Boolean(ai), 1200, metric, ai?.revision);
+  const animatedMetricPct = useAnimatedNumber(activeDeltaPct, Boolean(ai), 1200, metric, ai?.revision);
   const rawMax = Math.max(0, ...rows.map((row) => Math.max(row.total, row.projectedTotal)));
   const axisScale = metric === "revenue" ? niceAxisCeiling(rawMax / 100, 3, false) : niceAxisCeiling(rawMax, 3, true);
   const ceiling = metric === "revenue" ? axisScale.ceiling * 100 : axisScale.ceiling;

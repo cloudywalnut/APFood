@@ -10,9 +10,7 @@ import {
   Flame,
   MapPin,
   MessageSquare,
-  RefreshCw,
   SlidersHorizontal,
-  Sparkles,
   TrendingDown,
   Users,
 } from "lucide-react";
@@ -28,6 +26,7 @@ function ComparisonChart({
   format,
   generated,
   deltaPct,
+  revision,
 }: {
   title: string;
   before: number;
@@ -35,9 +34,10 @@ function ComparisonChart({
   format: (value: number) => string;
   generated: boolean;
   deltaPct?: number;
+  revision: number;
 }) {
-  const animatedAfter = useAnimatedNumber(generated ? after : before, generated, 950);
-  const animatedPct = useAnimatedNumber(generated ? (deltaPct ?? 0) : 0, generated, 950);
+  const animatedAfter = useAnimatedNumber(generated ? after : before, generated, 1200, undefined, revision);
+  const animatedPct = useAnimatedNumber(generated ? (deltaPct ?? 0) : 0, generated, 1200, undefined, revision);
   const max = Math.max(1, before, after) * 1.12;
   return (
     <section className="scenario-comparison">
@@ -81,7 +81,7 @@ function ComparisonChart({
         <div className={generated ? "is-projected" : "is-pending"}>
           <span>AI Scenario</span>
           <div className="scenario-bar-track">
-            <i style={{ width: generated ? (after / max) * 100 + "%" : "0%" }} />
+            <i style={{ width: generated ? (animatedAfter / max) * 100 + "%" : "0%" }} />
           </div>
           <strong>{generated ? format(Math.round(animatedAfter * 10) / 10) : "—"}</strong>
         </div>
@@ -96,6 +96,7 @@ type Props = {
   baseline: ScenarioProduct[];
   loading: boolean;
   analysis?: ScenarioResult;
+  revision: number;
   selected: string[];
   onToggleAction: (id: string, checked: boolean) => void;
   demandScale: number;
@@ -104,7 +105,6 @@ type Props = {
   onEffortScale: (value: number) => void;
   busy: boolean;
   error: string;
-  onRegenerate: () => void;
 };
 
 export function VendorScenarioStudio({
@@ -113,6 +113,7 @@ export function VendorScenarioStudio({
   baseline,
   loading,
   analysis,
+  revision,
   selected,
   onToggleAction,
   demandScale,
@@ -121,7 +122,6 @@ export function VendorScenarioStudio({
   onEffortScale,
   busy,
   error,
-  onRegenerate,
 }: Props) {
   const products = analysis?.products ?? baseline;
   const observed = projectScenario(products, []);
@@ -143,10 +143,10 @@ export function VendorScenarioStudio({
     );
   const stale = Boolean(analysis && !loading && fingerprint(baseline) !== fingerprint(analysis.products));
   const formatWork = (value: number) => value.toLocaleString("en-MY", { maximumFractionDigits: 1 }) + " units";
-  const animatedRevDelta = useAnimatedNumber(analysis ? revenueDelta : 0, Boolean(analysis), 950);
-  const animatedRevPct = useAnimatedNumber(analysis ? revenuePct : 0, Boolean(analysis), 950);
-  const animatedEffortDelta = useAnimatedNumber(analysis ? Math.abs(effortDelta) : 0, Boolean(analysis), 950);
-  const animatedEffortPct = useAnimatedNumber(analysis ? effortPct : 0, Boolean(analysis), 950);
+  const animatedRevDelta = useAnimatedNumber(analysis ? revenueDelta : 0, Boolean(analysis), 1200, undefined, revision);
+  const animatedRevPct = useAnimatedNumber(analysis ? revenuePct : 0, Boolean(analysis), 1200, undefined, revision);
+  const animatedEffortDelta = useAnimatedNumber(analysis ? Math.abs(effortDelta) : 0, Boolean(analysis), 1200, undefined, revision);
+  const animatedEffortPct = useAnimatedNumber(analysis ? effortPct : 0, Boolean(analysis), 1200, undefined, revision);
 
   const [sentActionId, setSentActionId] = useState<string | null>(null);
   const dispatchCopilotPrompt = (
@@ -193,10 +193,6 @@ export function VendorScenarioStudio({
             .
           </p>
         </div>
-        <button type="button" className="button primary" disabled={busy || loading} onClick={onRegenerate}>
-          {busy ? <RefreshCw size={15} className="spin" aria-hidden /> : <Sparkles size={15} aria-hidden />}
-          {busy ? "Analysing…" : analysis ? "Refresh AI" : "Run AI Insights"}
-        </button>
       </header>
       {analysis?.context && (
         <div className="scenario-live-context">
@@ -238,6 +234,7 @@ export function VendorScenarioStudio({
           format={money}
           generated={Boolean(analysis) && hasHistory}
           deltaPct={revenuePct}
+          revision={revision}
         />
         <ComparisonChart
           title="Preparation effort · work units"
@@ -246,11 +243,12 @@ export function VendorScenarioStudio({
           format={formatWork}
           generated={Boolean(analysis) && hasHistory}
           deltaPct={effortPct}
+          revision={revision}
         />
       </div>
       {!analysis && !busy && (
         <p className="scenario-limit">
-          Stats above reflect your recorded baseline. Click <strong>Run AI Insights</strong> to generate live
+          Stats above reflect your recorded baseline. Use <strong>Generate insights</strong> at the top to generate live
           recommendations, peer vendor ratings, and animated projections.
         </p>
       )}
@@ -258,7 +256,7 @@ export function VendorScenarioStudio({
         <>
           {stale && (
             <p className="scenario-limit" role="status">
-              Sales or menu data changed since this run. Click Refresh AI to update.
+              Sales or menu data changed since this run. Use Refresh insights at the top to update.
             </p>
           )}
           {hasHistory ? (
@@ -269,8 +267,7 @@ export function VendorScenarioStudio({
                   {animatedRevDelta >= 0 ? "+" : "−"}
                   {money(Math.round(Math.abs(animatedRevDelta)))}{" "}
                   <small>
-                    ({animatedRevPct >= 0 ? "+" : ""}
-                    {animatedRevPct.toFixed(1)}%)
+                    ({animatedRevPct >= 0 ? "+" : ""}{animatedRevPct.toFixed(1)}%)
                   </small>
                 </strong>
               </span>
@@ -279,8 +276,7 @@ export function VendorScenarioStudio({
                 <strong>
                   {formatWork(animatedEffortDelta)}{" "}
                   <small>
-                    ({animatedEffortPct > 0 ? "+" : ""}
-                    {animatedEffortPct.toFixed(1)}%)
+                    ({animatedEffortPct > 0 ? "+" : ""}{animatedEffortPct.toFixed(1)}%)
                   </small>
                 </strong>
               </span>

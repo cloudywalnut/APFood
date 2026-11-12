@@ -40,8 +40,8 @@ Sign-in, sign-up and recovery are rate limited per IP address in the database. T
 | `POST /api/orders` | `{ quoteId, pickupAt, payment, idempotencyKey }` with payment `demo`, `counter` or `duitnow_qr`. Retry with the same key and payload. |
 | `POST /api/checkout/basket` | Places one order per stall from a multi-stall basket in a single transaction. |
 | `GET /api/orders`, `/api/orders/:id` | The student's orders and order detail. |
-| `POST /api/orders/:id/cancel` | Cancels before preparation. |
-| `POST /api/orders/:id/pickup-token` | Issues a five-minute pickup code for a ready order. |
+| `POST /api/orders/:id/cancel` | Cancels an owned active order, including preparing/ready. Only unused stock/work is released; paid QR orders become refund pending. |
+| `POST /api/orders/:id/pickup-token` | Issues a five-minute, eight-digit pickup code for a ready order. QR and manual collection use the same one-time code. |
 | `GET /api/orders/:id/payment`, `POST /api/orders/:id/payment-claim`, `POST /api/orders/:id/refund` | QR payment status, the student's "I've paid" claim, and refund recording. |
 | `GET /api/vendors/:id/payment`, `POST /api/vendor/payments/:id` | A stall's merchant QR, and the vendor's QR upload. |
 | `GET /api/vendor/stalls`, `/api/vendor/orders`, `/api/vendor/menu-items`, `/api/vendor/report` | The vendor's assigned stalls, kitchen board, menu and report. |

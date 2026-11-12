@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -46,6 +47,7 @@ export function StudentFifAssistant() {
   const [dragging, setDragging] = useState(false);
   const [viewport, setViewport] = useState({ width: 1200, height: 800 });
   const [launcherSize, setLauncherSize] = useState({ width: 112, height: 44 });
+  const [launcherPosition, setLauncherPosition] = useState<Position>();
   const [messages, setMessages] = useState<Message[]>([welcome]);
   const [pending, setPending] = useState(false);
   const user = useSessionUser();
@@ -108,6 +110,7 @@ export function StudentFifAssistant() {
       const lHeight = rect?.height || 44;
       setViewport({ width, height });
       setLauncherSize({ width: lWidth, height: lHeight });
+      if (rect) setLauncherPosition({ left: rect.left, top: rect.top });
       setPos((previous) =>
         previous
           ? {
@@ -141,6 +144,16 @@ export function StudentFifAssistant() {
     window.addEventListener("resize", syncViewport);
     return () => window.removeEventListener("resize", syncViewport);
   }, []);
+
+  // Measure the CSS corner position as well as a restored/dragged position. The
+  // panel must use the actual launcher bounds, rather than a separate CSS offset.
+  useLayoutEffect(() => {
+    const rect = launcherRef.current?.getBoundingClientRect();
+    if (rect) {
+      setLauncherPosition({ left: rect.left, top: rect.top });
+      setLauncherSize({ width: rect.width, height: rect.height });
+    }
+  }, [pos, open]);
 
   useEffect(() => {
     if (!pos) return;
@@ -280,35 +293,34 @@ export function StudentFifAssistant() {
   }
 
   // The open window keeps one comfortable size; it only shrinks when the screen is too small.
+  const anchor = pos ?? launcherPosition;
   const windowWidth = Math.min(420, viewport.width - 24);
-  const windowHeight = Math.max(320, Math.min(620, viewport.height - 96));
-  const spaceAbove = pos ? pos.top - 22 : 0;
-  const spaceBelow = pos ? viewport.height - (pos.top + launcherSize.height + 22) : 0;
-  const openAbove = pos ? spaceAbove >= windowHeight || spaceAbove >= spaceBelow : true;
+  const spaceAbove = anchor ? Math.max(0, anchor.top - 22) : 0;
+  const spaceBelow = anchor ? Math.max(0, viewport.height - (anchor.top + launcherSize.height + 22)) : 0;
+  const openAbove = spaceAbove >= 280 || spaceAbove >= spaceBelow;
+  // Shrink to the available side instead of clamping a full-height panel over
+  // the launcher. This also keeps dragged positions usable on small screens.
+  const windowHeight = Math.min(viewport.width <= 700 ? 600 : 620, openAbove ? spaceAbove : spaceBelow);
 
   const launcherStyle: CSSProperties | undefined = pos
     ? { left: pos.left, top: pos.top, right: "auto", bottom: "auto" }
     : undefined;
 
-  const windowStyle: CSSProperties | undefined = pos
+  const windowStyle: CSSProperties | undefined = anchor
     ? {
         left: clamp(
-          pos.left + launcherSize.width / 2 > viewport.width / 2
-            ? pos.left + launcherSize.width - windowWidth
-            : pos.left,
+          anchor.left + launcherSize.width / 2 > viewport.width / 2
+            ? anchor.left + launcherSize.width - windowWidth
+            : anchor.left,
           12,
           viewport.width - windowWidth - 12,
         ),
-        top: clamp(
-          openAbove ? pos.top - 10 - windowHeight : pos.top + launcherSize.height + 10,
-          12,
-          Math.max(12, viewport.height - windowHeight - 12),
-        ),
+        top: openAbove ? anchor.top - 10 - windowHeight : anchor.top + launcherSize.height + 10,
         bottom: "auto",
         right: "auto",
         width: windowWidth,
         height: windowHeight,
-        transformOrigin: `${pos.left + launcherSize.width / 2 > viewport.width / 2 ? "right" : "left"} ${openAbove ? "bottom" : "top"}`,
+        transformOrigin: `${anchor.left + launcherSize.width / 2 > viewport.width / 2 ? "right" : "left"} ${openAbove ? "bottom" : "top"}`,
       }
     : undefined;
 

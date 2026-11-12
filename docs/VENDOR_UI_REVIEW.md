@@ -27,3 +27,25 @@ Reviewed the running vendor workspace against the student storefront's cream, es
 - Typecheck, 55 unit/API tests, 25 backend tests and the production build passed on the current tree. The initial build attempt hit another running build; the subsequent build completed successfully. Formatting remains blocked by the missing local Prettier executable.
 
 The screenshots establish the reviewed layout, not full accessibility compliance. Exhaustive screen-reader testing, all vendor routes and every operating-system zoom setting were not exercised. No menu, stock, payment or order mutation was performed during this design review. Nothing was committed or pushed.
+
+## Visible insight refresh · 13 November 2026
+
+Generating insights now displays a checking indicator, then a timestamped completion message. A compact comparison near the top shows recorded versus estimated gross revenue, portions sold and preparation work, including absolute and percentage changes. Selecting recommendations recalculates this preview.
+
+Successful runs replay count-up numbers and chart/recommendation highlights, including cached results with unchanged inputs. The recorded KPI values are refreshed from reports and animated without applying forecast increases to cashflow, stock or real orders. The detailed scenario and sales-chart totals also replay. Reduced-motion mode shows final values immediately.
+
+Browser checks exercised a live generation, an identical-input refresh with visibly different intermediate/final frames, recommendation selection, reduced motion and 390/768/1440px layouts without horizontal overflow. Typecheck, build, 58 unit/API tests and 28 backend tests passed. No operational data was changed or pushed.
+
+## Restored layout and AI Insights hint · 13 November 2026
+
+At the user's request, restored the previous vertical scheduled-pickup chart, mustard comparison bars and original insight animations. Removed the wide recommendations dialog and its additional header button.
+
+After a successful generation or refresh, the inline recommendations open and the page scrolls to them, respecting reduced-motion preferences. A small AP-branded **AI Insights** hint appears for nine seconds, with a repeat-scroll action and dismiss control. The persistent inline jump link and recommendations heading also use **AI Insights** with the AP logo. Earlier cart, cancellation, pickup-code and menu-photo changes remain intact. No database changes or push were performed.
+
+## Pickup schedule redesign and duplicate action removal · 13 November 2026
+
+Removed the extra Refresh AI / Run AI Insights button from the inline scenario header. Generate insights / Refresh insights at the top is the single generation control. Updated stale/empty-state guidance to point there; the AP-branded hint and automatic scroll remain unchanged.
+
+The vendor pickup chart now uses a compact horizontal schedule with full two-hour am/pm labels, exact counts, a busiest-window summary and the existing mustard palette. Initially it shows windows with pickups; Show all hours reveals all twelve windows, including zero counts. Both views preserve the same total. The aggregation uses hour keys, handles sparse input and labels noon/midnight correctly. The component is memoized to avoid unrelated animation redraws.
+
+Verified counts and toggles, absence of the duplicate button, preserved top-level generation, and no overflow at 390/768/1440px. Typecheck, build, 60 unit/API tests and 28 backend tests passed. No database writes or push.

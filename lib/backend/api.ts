@@ -38,7 +38,7 @@ const collection = z
     code: z
       .string()
       .trim()
-      .regex(/^[a-fA-F0-9]{32}$/),
+      .regex(/^(?:[0-9]{8}|[a-fA-F0-9]{32})$/),
     counterConfirmed: z.boolean().default(false),
   })
   .strict();
@@ -385,16 +385,11 @@ export async function handleRequest(request: Request, path: string[]) {
     }
     if (method === "GET" && key === "orders") {
       const actor = requireMembership(await getSession(), "student");
-      return result(
-        unwrap(
-          await client
-            .from("orders")
-            .select(orderFields)
-            .eq("student_id", actor.userId)
-            .order("created_at", { ascending: false })
-            .limit(100),
-        ),
-      );
+      const view = z.enum(["active", "history"]).optional().parse(query.get("view") ?? undefined);
+      let selection = client.from("orders").select(orderFields).eq("student_id", actor.userId);
+      if (view === "active") selection = selection.in("status", ["placed", "accepted", "preparing", "ready"]);
+      if (view === "history") selection = selection.in("status", ["collected", "cancelled", "rejected"]);
+      return result(unwrap(await selection.order("created_at", { ascending: false }).limit(100)));
     }
     if (method === "GET" && path[0] === "orders" && path.length === 2) {
       await getSession();

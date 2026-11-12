@@ -1,7 +1,8 @@
 "use client";
 
+import { VendorPickupSchedule } from "./vendor-pickup-schedule";
 import type { hostedData } from "../../lib/backend/client";
-import { barHeightPx, cleanMenuName, formatShortMytDate, niceAxisCeiling } from "../../lib/chart-scale";
+import { cleanMenuName, formatShortMytDate, niceAxisCeiling } from "../../lib/chart-scale";
 
 type Report = Awaited<ReturnType<typeof hostedData.vendorReport>>;
 
@@ -36,14 +37,6 @@ export function VendorAnalyticsGrid({ report }: { report?: Report }) {
       .sort((a, b) => b.units - a.units)
       .slice(0, 5) ?? [];
   const maxUnits = Math.max(1, ...top.map((product) => product.units));
-
-  const hours = Array.from({ length: 12 }, (_, index) => ({
-    label: String(index * 2).padStart(2, "0"),
-    count: (data?.hours[index * 2]?.count ?? 0) + (data?.hours[index * 2 + 1]?.count ?? 0),
-  }));
-  const rawMaxHour = Math.max(0, ...hours.map((hour) => hour.count));
-  const hourScale = niceAxisCeiling(rawMaxHour, 2, true);
-  const HOUR_BAR_MAX_PX = 95;
 
   if (!data)
     return (
@@ -244,63 +237,7 @@ export function VendorAnalyticsGrid({ report }: { report?: Report }) {
         <footer>Collected sales only · selected reporting period</footer>
       </section>
 
-      <section className="vendor-mini-chart">
-        <header>
-          <div>
-            <span className="vendor-section-label">PICKUP PATTERN</span>
-            <h2>Scheduled pickups by time</h2>
-          </div>
-          {rawMaxHour > 0 && (
-            <strong>
-              {rawMaxHour}
-              <small>peak slot</small>
-            </strong>
-          )}
-        </header>
-        <div className="vendor-hour-plot">
-          <div className="vendor-hour-y-axis" aria-hidden="true">
-            <span>{hourScale.ticks[2]}</span>
-            <span>{hourScale.ticks[1]}</span>
-            <span>{hourScale.ticks[0]}</span>
-          </div>
-          <div className="vendor-hour-bars" role="group" aria-label="Scheduled pickups by two-hour MYT windows">
-            <div className="vendor-hour-grid" aria-hidden="true">
-              <span style={{ bottom: "50%" }} />
-              <span style={{ bottom: "100%" }} />
-            </div>
-            {hours.map((hour, index) => {
-              const endLabel = String(Number(hour.label) + 2).padStart(2, "0");
-              const slotLabel = `${hour.label}:00–${endLabel}:00 MYT · ${hour.count} ${hour.count === 1 ? "order" : "orders"}`;
-              const isPeak = rawMaxHour > 0 && hour.count === rawMaxHour;
-              const edgeClass = index === 0 ? " is-first" : index === hours.length - 1 ? " is-last" : "";
-              return (
-                <div
-                  key={hour.label}
-                  className={"vendor-hour-slot" + edgeClass + (isPeak ? " is-peak" : "")}
-                  tabIndex={0}
-                  title={slotLabel}
-                  aria-label={slotLabel}
-                >
-                  <div className="chart-tooltip" role="tooltip">
-                    <strong>
-                      {hour.label}:00–{endLabel}:00
-                    </strong>
-                    <span>
-                      {hour.count} {hour.count === 1 ? "order" : "orders"}
-                    </span>
-                  </div>
-                  <span>{hour.count || ""}</span>
-                  <div>
-                    <i style={{ height: barHeightPx(hour.count, hourScale.ceiling, HOUR_BAR_MAX_PX, 3) + "px" }} />
-                  </div>
-                  <small>{hour.label}</small>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        <footer>Two-hour MYT windows · excludes cancellations; includes upcoming pickups</footer>
-      </section>
+      <VendorPickupSchedule hours={data.hours} />
 
       <details className="vendor-analytics-values">
         <summary>View exact order analytics</summary>

@@ -12,6 +12,8 @@ Historical demo data is now hosted: 76,513 additional orders across all ten stal
 
 ## Features
 
+The [order fulfilment check](ORDER_FULFILMENT_CHECK.md) records the hosted cancellation repair, eight-digit pickup-code rollout and My Orders Active/History split, including verification and current history limits.
+
 The current functionality review and its remaining verification limits are in [FUNCTIONALITY_AUDIT.md](FUNCTIONALITY_AUDIT.md). Vendor FIF automatically checks sales, peak periods, stock, the live kitchen queue, published campus prices, campus timing and local weather when generating insights. Its evidence drawer distinguishes missing observations from assumptions. Revenue/workload charts are what-if estimates, not measured uplift.
 
 | Area | What works |

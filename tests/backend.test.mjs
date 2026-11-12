@@ -7,6 +7,29 @@ const { student, other, vendor, otherVendor, admin } = demoActors;
 const { noodleBar, coffeeBar } = demoStalls;
 const cart = JSON.stringify([{ itemId: "chicken-noodles", quantity: 1, extra: false }]);
 
+test("pickup credentials preserve leading zeroes, expire, and accept in-flight legacy tokens once", async (t) => {
+  const { db, seedCatalogue, call } = await createLocalDemoDb();
+  t.after(() => db.close());
+  await seedCatalogue();
+  for (const credential of ["01234567", "A".repeat(32)]) {
+    const quote = await call(student, "public.quote_checkout($1,$2)", [noodleBar, cart]);
+    const order = await call(student, "public.place_order($1,$2,$3,$4)", [quote.quoteId, quote.slots[1], "counter", randomUUID()]);
+    for (const stage of ["accepted", "preparing", "ready"]) {
+      await call(vendor, "public.transition_order($1,$2,$3)", [order.id, stage, null]);
+    }
+    const issued = await call(student, "public.issue_pickup_code($1)", [order.id]);
+    assert.match(issued.code, /^\d{8}$/);
+    await db.query("update private.pickup_codes set expires_at=now()-interval '1 second' where order_id=$1", [order.id]);
+    await assert.rejects(() => call(vendor, "public.collect_order($1,$2,$3)", [order.id, issued.code, true]), /PICKUP_CODE_INVALID/);
+    // Force credentials that random generation cannot reliably produce in a test.
+    await db.query("update private.pickup_codes set code_hash=sha256(convert_to($2,'UTF8')),expires_at=now()+interval '5 minutes' where order_id=$1", [order.id, credential]);
+    await call(vendor, "public.collect_order($1,$2,$3)", [order.id, credential, true]);
+    await assert.rejects(() => call(vendor, "public.collect_order($1,$2,$3)", [order.id, credential, true]), /PICKUP_ALREADY_USED/);
+    const { rows } = await db.query("select count(*)::int receipts from public.cash_entries where order_id=$1", [order.id]);
+    assert.equal(rows[0].receipts, 1);
+  }
+});
+
 test("backend migrations, role isolation, allocations, pickup and ledger", async (t) => {
   const { db, seedCatalogue, queryAs, call } = await createLocalDemoDb();
   t.after(() => db.close());
@@ -53,7 +76,7 @@ test("backend migrations, role isolation, allocations, pickup and ledger", async
   await assert.rejects(() => call(other, "public.issue_pickup_code($1)", [placed.id]), /ORDER_NOT_FOUND/);
   const before = await call(student, "public.issue_pickup_code($1)", [placed.id]);
   const pickup = await call(student, "public.issue_pickup_code($1)", [placed.id]);
-  assert.match(pickup.code, /^[A-F0-9]{32}$/);
+  assert.match(pickup.code, /^[0-9]{8}$/);
   const collect = (code, confirmed = true) =>
     call(vendor, "public.collect_order($1,$2,$3)", [placed.id, code, confirmed]);
   await assert.rejects(() => collect(before.code), /PICKUP_CODE_INVALID/);
@@ -226,7 +249,7 @@ test("orders can be cancelled across all stages (placed, accepted, preparing, re
   await transition(vendor, o4.id, "preparing");
   await transition(vendor, o4.id, "ready");
   const code = await call(student, "public.issue_pickup_code($1)", [o4.id]);
-  assert.match(code.code, /^[A-F0-9]{32}$/);
+  assert.match(code.code, /^[0-9]{8}$/);
   await transition(student, o4.id, "cancelled");
   assert.equal((await queryAs(vendor, "select status from orders where id = $1", [o4.id]))[0].status, "cancelled");
   // Collection fails because order is cancelled
@@ -270,7 +293,7 @@ test("orders can be cancelled across all stages (placed, accepted, preparing, re
   await transition(vendor, o8.id, "preparing");
   await transition(vendor, o8.id, "ready");
   const code8 = await call(student, "public.issue_pickup_code($1)", [o8.id]);
-  assert.match(code8.code, /^[A-F0-9]{32}$/);
+  assert.match(code8.code, /^[0-9]{8}$/);
   await transition(vendor, o8.id, "cancelled", "Out of containers");
   const { rows: codes8 } = await db.query("select * from private.pickup_codes where order_id = $1", [o8.id]);
   assert.equal(codes8.length, 0);

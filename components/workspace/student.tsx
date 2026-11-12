@@ -298,45 +298,50 @@ function MealOptions({
   );
 }
 
-function Orders({ userId, defaultTab = "all" }: { userId: string; defaultTab?: "all" | "active" | "history" }) {
+function Orders({ userId, defaultTab = "active" }: { userId: string; defaultTab?: "active" | "history" }) {
   const api = useApi();
-  const orders = useRemote(api.orders);
+  const load = useCallback(async () => {
+    const [active, history] = await Promise.all([api.orders("active"), api.orders("history")]);
+    return { active, history };
+  }, [api]);
+  const orders = useRemote(load);
   const catalogue = useRemote(apiClient.catalogue);
   const [tab, setTab] = useState(defaultTab);
   useEffect(() => subscribeToOrders({ studentId: userId }, orders.reload), [userId, orders.reload]);
   const stalls = new Map(catalogue.value?.vendors.map((vendor) => [vendor.id, vendor.name]) ?? []);
-  const visible =
-    orders.value?.filter(
-      (order) => tab === "all" || (tab === "active" ? isActive(order.status) : !isActive(order.status)),
-    ) ?? [];
+  const visible = [...(orders.value?.[tab] ?? [])];
+  if (tab === "active") {
+    visible.sort(
+      (a, b) =>
+        Number(b.status === "ready") - Number(a.status === "ready") ||
+        Date.parse(a.pickup_at) - Date.parse(b.pickup_at),
+    );
+  }
   return (
     <>
       <div className="student-heading">
         <div>
-          <h1>{defaultTab === "history" ? "Order history" : "Orders"}</h1>
+          <h1>My orders</h1>
           <p>
-            {defaultTab === "history"
+            {tab === "history"
               ? "Review completed, cancelled, and rejected campus pickups."
-              : "Track active pickups and find previous orders."}
+              : "Your current pickups, with ready orders shown first."}
           </p>
         </div>
       </div>
-      {orders.value && orders.value.length > 0 && (
-        <TabBar
-          label="Order list"
-          value={tab}
-          onChange={(value) => setTab(value as "all" | "active" | "history")}
-          tabs={[
-            { id: "all", label: "All orders" },
-            { id: "active", label: "Active" },
-            { id: "history", label: "History" },
-          ]}
-        />
-      )}
+      <TabBar
+        label="Order list"
+        value={tab}
+        onChange={(value) => setTab(value as "active" | "history")}
+        tabs={[
+          { id: "active", label: "Active orders" + (orders.value ? ` (${orders.value.active.length})` : "") },
+          { id: "history", label: "History" },
+        ]}
+      />
       {!orders.value ? (
         <RemoteStatus error={orders.error} reload={orders.reload} />
       ) : visible.length ? (
-        <div className="panel orders-list">
+        <div className={"panel orders-list" + (tab === "active" ? " orders-list-active" : "")}>
           {visible.map((order) => (
             <Link className="order-list-row" href={"/app/orders/" + order.id} key={order.id}>
               <span>
@@ -351,12 +356,14 @@ function Orders({ userId, defaultTab = "all" }: { userId: string; defaultTab?: "
             </Link>
           ))}
         </div>
-      ) : orders.value.length ? (
-        <Empty title="No orders in this filter" detail="Switch tabs to view your other campus pickups." />
       ) : (
         <Empty
-          title="No orders yet"
-          detail="Your pickups appear after checkout."
+          title={tab === "active" ? "No active orders" : "No past orders yet"}
+          detail={
+            tab === "active"
+              ? "New pickups appear here after checkout. Past orders are in History."
+              : "Collected, cancelled and rejected orders appear here."
+          }
           href="/app/vendors"
           action="Explore vendors"
         />
@@ -405,7 +412,7 @@ function OrderDetail({ id, userId }: { id: string; userId: string }) {
     <>
       <Link className="quiet-link back-link" href="/app/orders">
         <ArrowLeft size={16} aria-hidden />
-        Order history
+        My orders
       </Link>
       <header className="track-heading">
         <div>
@@ -577,7 +584,15 @@ function OrderDetail({ id, userId }: { id: string; userId: string }) {
             if (!busy) setConfirmCancel(false);
           }}
         >
-          <p>The stall will be notified in its kitchen board. Your pickup reservation will be released.</p>
+          <p>
+            The stall will be notified in its kitchen board.{" "}
+            {order.status === "placed" || order.status === "accepted"
+              ? "Your unused items and pickup reservation will be released."
+              : "Your meal has already entered preparation, so its ingredients cannot be returned to stock."}
+            {order.payment === "duitnow_qr" && order.payment_record?.status === "paid"
+              ? " Your payment will be marked for the stall to refund."
+              : ""}
+          </p>
           <ErrorMessage message={error} />
           <div className="ap-dialog-actions">
             <button className="button secondary" disabled={busy} onClick={() => setConfirmCancel(false)}>
