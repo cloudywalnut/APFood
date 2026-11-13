@@ -9,17 +9,27 @@
   </p>
 
   <p>
-    <a href="https://github.com/cloudywalnut/APFood/releases/tag/v1.0.0">
-      <img src="https://img.shields.io/badge/Release-v1.0.0--Android-3b2a1e?style=for-the-badge&logo=android&logoColor=white" alt="Android APK Release" />
-    </a>
-    &nbsp;
     <a href="https://apfoods.vercel.app">
       <img src="https://img.shields.io/badge/Live_App-apfoods.vercel.app-b68b21?style=for-the-badge&logo=vercel&logoColor=white" alt="Live App" />
     </a>
     &nbsp;
+    <a href="https://github.com/cloudywalnut/APFood/releases/latest">
+      <img src="https://img.shields.io/badge/Release-v1.0.1--Android-3b2a1e?style=for-the-badge&logo=android&logoColor=white" alt="Android APK Release" />
+    </a>
+    &nbsp;
     <img src="https://img.shields.io/badge/Tests-113_Passed-2e7d32?style=for-the-badge" alt="Tests Passed" />
   </p>
+
+  <h3>🌐 Live Web Platform: <a href="https://apfoods.vercel.app">https://apfoods.vercel.app</a></h3>
+  <p><em>Access the production application directly in any browser (no local setup required).</em></p>
 </div>
+
+---
+
+> [!IMPORTANT]
+> **🚀 Live Web Application**: The full multi-portal system (Student Marketplace, Vendor Kitchen Workstation, and Cafeteria Admin Command Centre) is deployed live and instantly accessible at **[https://apfoods.vercel.app](https://apfoods.vercel.app)**.
+>
+> **📱 Android Mobile App**: Download and install the standalone student edition APK directly from **[GitHub Releases (v1.0.1)](https://github.com/cloudywalnut/APFood/releases/latest)**.
 
 ---
 
@@ -158,21 +168,63 @@ All test accounts share the unified password: **`APFoods123!`**
 > [!IMPORTANT]
 > The **Android Mobile App** is dedicated exclusively to the student experience (`student@apfoods.local`). Vendor and Administrator workspaces are optimized for desktop displays and should be accessed via a web browser.
 
-| Role              | Email                    | Password      | Access Channel          | Description                                          |
-| :---------------- | :----------------------- | :------------ | :---------------------- | :--------------------------------------------------- |
-| **Student**       | `student@apfoods.local`  | `APFoods123!` | **Mobile App** & Web    | Full ordering flow, Multi-stall cart, FIF AI chat    |
-| **Chinese Stall** | `chinese@apfoods.local`  | `APFoods123!` | Web Browser (`/vendor`) | Campus Noodle Bar: Bump bar, menu stock & Copilot    |
-| **Malay Stall**   | `malay@apfoods.local`    | `APFoods123!` | Web Browser (`/vendor`) | Brew & Bites: Drinks, breakfast & hot meals          |
-| **Japan & Korea** | `japanese@apfoods.local` | `APFoods123!` | Web Browser (`/vendor`) | Green Bowl Kitchen: Bento, bowls & stock control     |
-| **Indian Stall**  | `indian@apfoods.local`   | `APFoods123!` | Web Browser (`/vendor`) | Indian Counter: Curries, breads & order queue        |
-| **Arab Shawarma** | `shawarma@apfoods.local` | `APFoods123!` | Web Browser (`/vendor`) | Shawarma Station: Live wrap preparation queue        |
-| **Administrator** | `admin@apfoods.local`    | `APFoods123!` | Web Browser (`/admin`)  | Cafeteria Command Centre: Cashflow, audits & traffic |
+| Role              | Email                    | Password      | Access Portal (Web / Mobile) | Live Direct URL | Description                                          |
+| :---------------- | :----------------------- | :------------ | :--------------------------- | :-------------- | :--------------------------------------------------- |
+| **Student**       | `student@apfoods.local`  | `APFoods123!` | **Mobile App** & Web         | [https://apfoods.vercel.app/app](https://apfoods.vercel.app/app) | Full ordering flow, Multi-stall cart, FIF AI chat    |
+| **Chinese Stall** | `chinese@apfoods.local`  | `APFoods123!` | Web Browser                  | [https://apfoods.vercel.app/vendor](https://apfoods.vercel.app/vendor) | Campus Noodle Bar: Bump bar, menu stock & Copilot    |
+| **Malay Stall**   | `malay@apfoods.local`    | `APFoods123!` | Web Browser                  | [https://apfoods.vercel.app/vendor](https://apfoods.vercel.app/vendor) | Brew & Bites: Drinks, breakfast & hot meals          |
+| **Japan & Korea** | `japanese@apfoods.local` | `APFoods123!` | Web Browser                  | [https://apfoods.vercel.app/vendor](https://apfoods.vercel.app/vendor) | Green Bowl Kitchen: Bento, bowls & stock control     |
+| **Indian Stall**  | `indian@apfoods.local`   | `APFoods123!` | Web Browser                  | [https://apfoods.vercel.app/vendor](https://apfoods.vercel.app/vendor) | Indian Counter: Curries, breads & order queue        |
+| **Arab Shawarma** | `shawarma@apfoods.local` | `APFoods123!` | Web Browser                  | [https://apfoods.vercel.app/vendor](https://apfoods.vercel.app/vendor) | Shawarma Station: Live wrap preparation queue        |
+| **Administrator** | `admin@apfoods.local`    | `APFoods123!` | Web Browser                  | [https://apfoods.vercel.app/admin](https://apfoods.vercel.app/admin) | Cafeteria Command Centre: Cashflow, audits & traffic |
 
 ---
 
-## 🚀 Installation & Setup Guide
+## 🚀 Access & Setup Options
 
-### Option 1: Running the Web Application Locally
+### Option 0: Access the Live Deployment Directly (Zero Setup)
+
+You can interact with the live production ecosystem immediately:
+👉 **[Open https://apfoods.vercel.app](https://apfoods.vercel.app)**
+
+Use the demo credentials above to sign into any portal (Student, Vendor, or Admin) directly from your browser.
+
+---
+
+### Option 1: Installing the Standalone Android Mobile App
+
+#### Pre-Built APK
+
+Download the pre-built release package directly from GitHub Releases:
+👉 **[Download APFood-student-v1.0.1.apk (Latest)](https://github.com/cloudywalnut/APFood/releases/latest)**
+
+#### Building the APK from Source
+
+**Requirements:**
+
+- Android Studio (Koala / Ladybug or newer)
+- Android SDK 34 / 35 & Command-Line Tools
+- Java JDK 17 or JDK 21
+
+```bash
+# 1. Navigate to the android directory
+cd android
+
+# 2. Build the Debug APK using Gradle
+./gradlew assembleDebug
+# On Windows PowerShell: .\gradlew.bat assembleDebug
+
+# 3. Output binary location:
+# android/app/build/outputs/apk/debug/app-debug.apk
+
+# 4. Install onto a connected Android device or emulator:
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb shell am start -n my.conceptsquad.apfood/.MainActivity
+```
+
+---
+
+### Option 2: Running the Web Application Locally
 
 #### Prerequisites
 
@@ -202,39 +254,6 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
-
----
-
-### Option 2: Installing the Standalone Android Mobile App
-
-#### Pre-Built APK
-
-Download the pre-built release package directly from GitHub:
-👉 **[Download APFood-student-v1.0.0.apk](https://github.com/cloudywalnut/APFood/releases/download/v1.0.0/APFood-student-v1.0.0.apk)**
-
-#### Building the APK from Source
-
-**Requirements:**
-
-- Android Studio (Koala / Ladybug or newer)
-- Android SDK 34 / 35 & Command-Line Tools
-- Java JDK 17 or JDK 21
-
-```bash
-# 1. Navigate to the android directory
-cd android
-
-# 2. Build the Debug APK using Gradle
-./gradlew assembleDebug
-# On Windows PowerShell: .\gradlew.bat assembleDebug
-
-# 3. Output binary location:
-# android/app/build/outputs/apk/debug/app-debug.apk
-
-# 4. Install onto a connected Android device or emulator:
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell am start -n my.conceptsquad.apfood/.MainActivity
-```
 
 ---
 
