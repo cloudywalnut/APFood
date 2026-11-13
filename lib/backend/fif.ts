@@ -131,7 +131,7 @@ export async function recommendations(
   const cached = cache.get(cacheKey);
   const selectedFromCache =
     cached && cached.expires > Date.now() ? candidates.find((item) => item.id === cached.id) : undefined;
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY_FALLBACK;
   let allowed = false;
   if (!selectedFromCache && key && candidates.length > 1 && candidates[0].priority === candidates[1].priority) {
     const hash = createHash("sha256")

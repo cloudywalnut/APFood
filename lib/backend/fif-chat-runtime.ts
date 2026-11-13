@@ -2,7 +2,7 @@ import { runAgent, runOpenAIAgent, type AgentTool, type ChatMessage } from "./fi
 
 type Provider = "gemini" | "openai";
 type Runner = typeof runAgent;
-type Config = { key?: string; model?: string };
+type Config = { key?: string; fallbackKey?: string; model?: string };
 
 export async function runFifChat(
   input: {
@@ -39,17 +39,25 @@ export async function runFifChat(
     const remaining = deadline - Date.now();
     if (remaining < 1000) break;
     const budget = providers.length > index + 1 ? Math.min(10_000, remaining) : remaining;
-    const result = await runners[provider]({
-      system: input.system,
-      messages: input.messages,
-      tools,
-      key: input[provider].key!,
-      model: input[provider].model,
-      deadlineMs: budget,
-      timeoutMs: Math.min(provider === "gemini" ? 18_000 : 10_000, budget),
-    });
-    if (result.ok) return { ...result, provider, failures };
-    failures.push({ provider, reason: result.failure ?? "No answer" });
+    const keys = [input[provider].key!, input[provider].fallbackKey].filter(Boolean) as string[];
+    let lastResult: Awaited<ReturnType<Runner>> | undefined;
+    for (const key of keys) {
+      const result = await runners[provider]({
+        system: input.system,
+        messages: input.messages,
+        tools,
+        key,
+        model: input[provider].model,
+        deadlineMs: budget,
+        timeoutMs: Math.min(provider === "gemini" ? 18_000 : 10_000, budget),
+      });
+      if (result.ok) return { ...result, provider, failures };
+      lastResult = result;
+      failures.push({ provider, reason: result.failure ?? "No answer" });
+      if (result.failure && !["UNAUTHORIZED", "FORBIDDEN", "RATE_LIMIT", "SERVICE_UNAVAILABLE", "DEADLINE_EXCEEDED"].some(f => result.failure?.includes(f))) {
+        break;
+      }
+    }
     for (const observation of observations.slice().reverse()) {
       const reply = input.renderToolResult?.(observation.name, observation.output);
       if (reply) return { reply, ok: true, toolsUsed: [observation.name], provider: "local" as const, failures };

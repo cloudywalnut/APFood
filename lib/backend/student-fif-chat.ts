@@ -519,7 +519,11 @@ export async function studentFifChat(client: RequestClient, userId: string, inpu
     budgetMs: 20_000 - (Date.now() - started),
     renderToolResult: renderStudentToolAnswer,
     mode: process.env.FIF_CHAT_PROVIDER,
-    gemini: { key: process.env.GEMINI_API_KEY, model: process.env.GEMINI_MODEL },
+    gemini: {
+      key: process.env.GEMINI_API_KEY,
+      fallbackKey: process.env.GEMINI_API_KEY_FALLBACK,
+      model: process.env.GEMINI_MODEL,
+    },
     openai: { key: process.env.OPENAI_API_KEY, model: process.env.OPENAI_MODEL },
   });
   // Log only the failure reason and tool names, never the student's question or data.

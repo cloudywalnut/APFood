@@ -562,7 +562,7 @@ export async function runVendorCopilotModel(
   }));
 
   try {
-    const model = options.model ?? "gemini-3.1-flash-lite";
+    const model = options.model ?? "gemini-3.5-flash-lite";
     const response = await (options.fetcher ?? fetch)(
       "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent",
       {

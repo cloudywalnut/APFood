@@ -360,7 +360,7 @@ export async function vendorScenarios(
       ? ["Live queue could not be read completely; queue-specific recommendations are withheld."]
       : []),
   ];
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY_FALLBACK;
   if (key && candidates.length) {
     const limit = await privilegedClient().rpc("consume_auth_request", {
       p_key: createHash("sha256")
@@ -388,7 +388,7 @@ export async function vendorScenarios(
           },
           {
             key,
-            model: process.env.GEMINI_MODEL || "gemini-3.1-flash-lite",
+            model: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
           },
         );
         source = "gemini";

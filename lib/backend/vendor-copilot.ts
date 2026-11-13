@@ -197,7 +197,7 @@ export async function vendorCopilot(
   input: { vendorId: string; message: string; history?: CopilotHistoryTurn[] },
 ) {
   const context = await gatherVendorCopilotContext(client, input.vendorId);
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY_FALLBACK;
   let allowed = Boolean(key);
   if (key && process.env.SUPABASE_SECRET_KEY) {
     try {
