@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'AP Food',
   webDir: 'public',
   server: {
-    url: 'https://apfoods.vercel.app',
+    url: 'https://apfoods.vercel.app/app',
     cleartext: false,
   },
   appendUserAgent: 'APFoodNative',

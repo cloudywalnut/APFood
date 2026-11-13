@@ -76,6 +76,7 @@ function returnPath(value: string | null) {
 export function AuthScreen({ screen }: { screen: string }) {
   const params = useSearchParams();
   const router = useRouter();
+  const session = useHostedSession();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(
     params.get("error") ? "This link has expired or was already used. Request a fresh email below." : "",
@@ -94,6 +95,31 @@ export function AuthScreen({ screen }: { screen: string }) {
     "accept-invite": "Welcome to the team.",
   };
   const next = returnPath(params.get("next"));
+
+  // If user is already authenticated, automatically redirect to their workspace
+  useEffect(() => {
+    if (session.ready && session.value && session.value.profile.status === "active") {
+      if (screen === "login" || screen === "register") {
+        if (isNativeMobile()) {
+          router.replace("/app");
+        } else {
+          router.replace(loginDestination(session.value, next));
+        }
+      }
+    }
+  }, [session.ready, session.value, screen, next, router]);
+
+  if (session.value && session.value.profile.status === "active" && (screen === "login" || screen === "register")) {
+    return (
+      <AuthFrame authRole="student">
+        <div className="auth-heading">
+          <span className="section-label">Welcome back</span>
+          <h1>Redirecting…</h1>
+          <p>Taking you to your workspace.</p>
+        </div>
+      </AuthFrame>
+    );
+  }
   return (
     <AuthFrame authRole="student">
       <div className="auth-heading">
