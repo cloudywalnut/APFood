@@ -25,56 +25,62 @@
 
 ## 🌟 Executive Summary
 
-**AP Food** is an enterprise-grade campus dining and kitchen operations ecosystem engineered for Asia Pacific University (APU). It solves the physical food-court bottleneck — peak lecture rushes, chaotic queues, and cash transaction latency — through a unified architecture combining:
+**AP Food** is an enterprise campus dining and kitchen operations ecosystem engineered for Asia Pacific University (APU). It eliminates physical cafeteria queue bottlenecks through synchronized multi-stall pre-ordering, scheduled break pickups, real-time bump-bar dispatch, and **FIF AI** (_Food Intelligence Framework_) — an autonomous copilot suite for students, food vendors, and cafeteria administrators.
 
-1. **A Native Android Mobile App (Student Edition)**: A standalone, student-exclusive mobile application built with Capacitor 8 for rapid menu discovery, multi-counter basket checkout, scheduled pickups, and conversational AI assistance.
-2. **A Multi-Portal Desktop Web Platform**: High-density operational dashboards for **Food-Stall Vendors** (kitchen dispatch bump bars, live capacity tuning, and inventory analytics) and **Cafeteria Administrators** (financial audits, rush forecasting, and campus oversight).
-3. **FIF AI (Food Intelligence Framework)**: A deterministic, dual-engine AI framework operating across students, vendors, and management.
+The platform provides two purpose-built runtime environments:
+
+1. **The Standalone Android Mobile App (Student Edition)**: A native Capacitor 8 Android client built exclusively for students, optimized for rapid discovery, scheduled pickup slots, and conversational AI ordering.
+2. **The Multi-Portal Desktop Web Platform**: High-throughput operational suites for **Food-Stall Vendors** (kitchen dispatch board, live capacity controls, inventory telemetry) and **Cafeteria Administrators** (financial audit, rush prediction, tenant oversight).
 
 ---
 
 ## 📱 Standalone Android App (Student Experience)
 
-The mobile application is compiled as a standalone Android APK and dedicated exclusively to the student journey. Non-student accounts are automatically gated to the desktop web portal to keep the mobile experience lightweight, distraction-free, and blazing fast.
+The mobile client is packaged as a standalone Android APK and dedicated exclusively to the student journey. Non-student accounts are automatically gated to the desktop web portal to keep mobile response times sub-second and distraction-free.
 
 <div align="center">
-  <p><strong>The Complete Student Mobile Flow</strong></p>
+  <p><strong>The End-to-End Student Mobile Flow</strong></p>
   <table border="0">
     <tr>
-      <td align="center" width="33%">
+      <td align="center" width="25%">
         <img src="docs/screenshots/mobile-login.png" width="100%" alt="Student Login" />
         <br />
-        <sub><b>1. Branded Authentication</b><br />Student session & cookie persistence</sub>
+        <sub><b>1. Authentication</b><br />Session & cookie persistence</sub>
       </td>
-      <td align="center" width="33%">
-        <img src="docs/screenshots/mobile-marketplace.png" width="100%" alt="Discover & Deals" />
+      <td align="center" width="25%">
+        <img src="docs/screenshots/mobile-marketplace.png" width="100%" alt="Marketplace" />
         <br />
-        <sub><b>2. Campus Marketplace</b><br />Cross-counter ordering & meal deals</sub>
+        <sub><b>2. Marketplace</b><br />Cuisine filters & campus deals</sub>
       </td>
-      <td align="center" width="33%">
+      <td align="center" width="25%">
+        <img src="docs/screenshots/mobile-menu.png" width="100%" alt="Counter Menu" />
+        <br />
+        <sub><b>3. Counter Menu</b><br />Live pricing, prep times & stock</sub>
+      </td>
+      <td align="center" width="25%">
         <img src="docs/screenshots/mobile-fif-ai.png" width="100%" alt="FIF AI Assistant" />
         <br />
-        <sub><b>3. FIF AI Campus Concierge</b><br />Live order tracking & budget recommendations</sub>
+        <sub><b>4. FIF AI Assistant</b><br />Real-time order lookup & advice</sub>
       </td>
     </tr>
   </table>
 </div>
 
-### Key Student Capabilities
+### Student Core Highlights
 
-- **Multi-Stall Cart**: Pool chicken noodle bowls from the Chinese stall and iced kopi from the Malay counter into a single atomic transaction.
-- **Scheduled Break Pickups**: Choose precise pickup time windows matched to lecture schedules to bypass counter lines completely.
+- **Multi-Stall Cart**: Pool dishes from different counters (e.g. Chinese noodle bar + Malay drinks) into one unified checkout.
+- **Scheduled Break Pickups**: Reserve meals ahead with selectable pickup time slots matched to lecture breaks.
 - **Visual Order Progression**: 4-stage tracking (_Placed &rarr; Accepted &rarr; Preparing &rarr; Ready_) with cryptographic 8-digit pickup codes and QR verification.
 
 ---
 
 ## 💻 Web Multi-Portal Ecosystem
 
-The web platform powers the administrative and commercial engine of the campus cafeteria. Optimized for high-throughput desktop displays.
+Optimized for widescreen desktop displays, the web platform powers the commercial, logistical, and managerial operations of the food court.
 
 ### 1. Student Web Marketplace
 
-Full-width storefront with interactive filtering, cuisine categories, dietary tags, and live stall opening hours.
+Interactive full-viewport discovery interface featuring real-time counter operating hours, dish imagery, cuisine classifications, and promotion badges.
 
 <div align="center">
   <img src="docs/screenshots/web-marketplace.png" width="100%" alt="Student Web Marketplace" />
@@ -84,7 +90,7 @@ Full-width storefront with interactive filtering, cuisine categories, dietary ta
 
 ### 2. Vendor Kitchen Board & Operations Centre
 
-High-density kitchen workstation built for stall operators. Features live bump bar dispatch, active order streams, preparation timing calibration, and revenue metrics.
+High-density kitchen workstation for stall operators featuring an audible live bump-bar queue, preparation velocity controls, real-time inventory depletion tracking, and revenue charts.
 
 <div align="center">
   <img src="docs/screenshots/web-vendor-dashboard.png" width="100%" alt="Vendor Kitchen Board" />
@@ -94,7 +100,7 @@ High-density kitchen workstation built for stall operators. Features live bump b
 
 ### 3. Cafeteria Administrator Command Centre
 
-Executive oversight dashboard for cafeteria directors. Reconciles multi-stall ledger transactions, tracks collections, maps food-court foot-traffic patterns, and audits tenant performance.
+Executive operational desk reconciling multi-vendor ledger transactions, collection rates, queue density heatmaps, and automated PDF/CSV financial audit reports.
 
 <div align="center">
   <img src="docs/screenshots/web-admin-command.png" width="100%" alt="Admin Command Centre" />
@@ -102,88 +108,46 @@ Executive oversight dashboard for cafeteria directors. Reconciles multi-stall le
 
 ---
 
-## 🧠 FIF AI: Deep-Dive Architecture
+## 🧠 FIF AI: Autonomous Intelligence Framework
 
-The **Food Intelligence Framework (FIF)** is an autonomous, multi-tier artificial intelligence system custom-built for high-volume campus operations. Rather than relying on simple chat prompts, FIF operates as a **strictly bound, deterministic agent** powered by **Google Gemini** (with seamless **OpenAI** failover), executing strictly verified read-only tools and signed mutation proposals.
+The **Food Intelligence Framework (FIF)** is an enterprise, agentic AI architecture designed for low-latency, deterministic campus operations. Operating under **Tool-Augmented Generation (TAG)** principles, FIF couples large language models with strictly typed, read-only tools and signed mutation proposals to ensure zero transactional hallucinations.
 
 ```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                                   FIF AI CORE ENGINE                                   │
-└────────────────────────────────────────────────────────────────────────────────────────┘
-                                           │
-         ┌─────────────────────────────────┼─────────────────────────────────┐
-         │                                 │                                 │
-         ▼                                 ▼                                 ▼
-┌──────────────────┐             ┌──────────────────┐             ┌──────────────────┐
-│   STUDENT CHAT   │             │  VENDOR COPILOT  │             │ ADMIN STRATEGIC  │
-│    CONCIERGE     │             │    INTELLIGENCE  │             │   DECISION DESK  │
-└──────────────────┘             └──────────────────┘             └──────────────────┘
-         │                                 │                                 │
-         │  • Order Status Inquiries       │  • Rush Prep Recommendations    │  • Cashflow Reconcile
-         │  • Budget Deals Discovery       │  • Dynamic Margin Tuning        │  • Foot-Traffic Model
-         │  • Menu Recommendations         │  • Low-Stock Safeguards         │  • Tenant Benchmark
-         │  • Signed Cart Additions        │  • KL Weather Correlation       │  • Audit PDF / CSV
-         │                                 │                                 │
-         └─────────────────────────────────┼─────────────────────────────────┘
-                                           │
-                                           ▼
-             ┌───────────────────────────────────────────────────────────┐
-             │            HYBRID RUNTIME & FAILOVER CONTROLLER           │
-             │           lib/backend/fif-chat-runtime.ts                 │
-             └───────────────────────────────────────────────────────────┘
-                                           │
-                       ┌───────────────────┴───────────────────┐
-                       ▼                                       ▼
-             ┌───────────────────┐                   ┌───────────────────┐
-             │   PRIMARY MODEL   │                   │  FAILOVER MODEL   │
-             │   Google Gemini   │  ──[Timeout/429]─►│      OpenAI       │
-             │ 2.5 Flash / Pro   │                   │  GPT-4o / Luna    │
-             └───────────────────┘                   └───────────────────┘
-                                           │
-                                           ▼
-             ┌───────────────────────────────────────────────────────────┐
-             │              DETERMINISTIC GUARDRAIL LAYER                │
-             │   • Strict Zod Schema Contracts                           │
-             │   • Row-Level Security (RLS) Isolation                    │
-             │   • Ephemeral Signed Proposal Tokens (No Direct DB Write) │
-             │   • Atomic Stored Procedure Execution (Postgres RPC)      │
-             └───────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│                        FIF AGENTIC ORCHESTRATOR                        │
+└────────────────────────────────────────────────────────────────────────┘
+                                    │
+    ┌───────────────────────────────┼───────────────────────────────┐
+    │                               │                               │
+    ▼                               ▼                               ▼
+Student Concierge            Vendor Copilot             Admin Decision Desk
+• Order telemetry lookup     • Rush surge modeling      • Cashflow reconciliation
+• Budget meal discovery      • Stock depletion warning  • Foot-traffic forecasting
+• Signed cart intent         • Weather-demand link      • Tenant performance audit
+    │                               │                               │
+    └───────────────────────────────┼───────────────────────────────┘
+                                    │
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│               DUAL-LLM HYBRID ACTIVE-PASSIVE FAILOVER                  │
+│       Primary: Google Gemini 2.5 Flash  │  Failover: OpenAI GPT-4o     │
+│        (Sub-800ms TTFT, Automated Deadlines, Heuristic Fallback)       │
+└────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                    ENTERPRISE GUARDRAIL PIPELINE                       │
+│    • Zod Contract Schemas          • Ephemeral Signed Intent Tokens    │
+│    • Row-Level Security (RLS)      • Atomic Postgres RPC Mutations     │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1. Dual-Model Runtime & Sub-Second Failover
+### Architectural Pillars
 
-FIF implements a distributed provider architecture (`lib/backend/fif-chat-runtime.ts`):
-
-- **Primary Engine**: Google Gemini Interactions API (`gemini-2.5-flash`), delivering near-instant latency (<800ms) for real-time mobile responses.
-- **Automated Fallback**: If Gemini encounters rate limits (HTTP 429), regional outages, or a 10s deadline timeout, the orchestrator automatically replays the conversation and active tool observations through OpenAI (`gpt-4o`) without interrupting the user session.
-- **Zero-Hallucination Fallback**: If both providers fail or are disconnected, deterministic offline heuristic engines take over, providing accurate answers for greetings, order summaries, and stall navigation without fabricating facts.
-
-### 2. Autonomous Tool Calling with Zod Schemas
-
-Every action FIF undertakes runs through typed, strongly validated tools (`lib/backend/student-fif-chat.ts` and `lib/backend/fif-agent.ts`):
-
-- `check_my_orders`: Owner-scoped inspection of live order statuses, estimated prep times, and ready alerts.
-- `search_dishes`: Real-time semantic menu lookup respecting cuisine, budget bounds, and current counter availability.
-- `find_campus_deals`: Scans active discounted promotions across all 10 campus counters.
-- `estimate_pickup_window`: Analyzes active counter queue density to estimate pickup windows for incoming orders.
-
-### 3. Cryptographically Signed Cart Actions
-
-To prevent rogue model hallucinations from mutating customer data, FIF **never writes directly to the database**:
-
-1. When a student says _"Add the spicy noodles to my cart"_, FIF inspects availability and issues a signed, ephemeral `StudentCartAction` proposal token.
-2. The proposal token embeds an expiration timestamp, item ID, portion options, and the exact verified unit price.
-3. The UI renders an interactive **"Add to Cart"** button or awaits explicit student confirmation.
-4. The client signs the token through an authenticated atomic Postgres RPC (`confirm_fif_cart`), updating the user's persistent cart while verifying stock constraints.
-
-### 4. Telemetry-Driven Vendor Copilot
-
-For stall operators, FIF continuously analyzes 7 real-time operational signals:
-
-- **Order Surge Velocity**: Flags when orders-per-minute exceed counter preparation capacity.
-- **Stock Depletion Velocity**: Warns vendors before an ingredient runs out and calculates replenishment targets.
-- **Weather-Correlated Demand**: Integrates real-time Kuala Lumpur weather telemetry (thunderstorms vs heat) to forecast campus foot traffic.
-- **Dynamic Merchandising Suggestions**: Projects gross revenue uplifts, portion changes, and prep workload deltas with bounded evidence snapshots.
+- **Dual-LLM Active-Passive Failover**: Real-time traffic routes to **Google Gemini 2.5 Flash** for sub-800ms Time-to-First-Token (TTFT) mobile streaming. Upon upstream rate-limiting (HTTP 429) or deadline timeouts (10s), the runtime automatically failovers to **OpenAI GPT-4o** with replayed tool state. An offline heuristic engine guarantees zero downtime during full provider outages.
+- **Zero-Mutation Hallucination Guardrails**: Models possess **zero direct write permissions**. Cart additions produce cryptographically signed, ephemeral `StudentCartAction` tokens with expiration timestamps. Execution requires explicit client-side confirmation through an authenticated atomic Postgres RPC (`confirm_fif_cart`).
+- **Owner-Scoped Read-Only Tools**: Tools (`check_my_orders`, `search_dishes`, `find_campus_deals`, `estimate_pickup_window`) enforce strict tenant and user boundary isolation at the database layer via Postgres Row-Level Security (RLS).
+- **Context-Aware Operational Telemetry**: The vendor copilot continuously correlates live queue velocities with localized Kuala Lumpur weather telemetry and academic lecture timetables, recommending dynamic preparation buffers before peak rushes hit.
 
 ---
 
@@ -227,13 +191,13 @@ npm ci
 cp .env.example .env.local
 # On Windows PowerShell: Copy-Item .env.example .env.local
 
-# 4. Fill in your credentials in .env.local:
+# 4. Configure .env.local with Supabase and Gemini credentials:
 # NEXT_PUBLIC_SUPABASE_URL="https://<your-project>.supabase.co"
 # NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="<your-publishable-key>"
 # SUPABASE_SECRET_KEY="<your-secret-key>"
 # GEMINI_API_KEY="<your-gemini-key>"
 
-# 5. Start the development server
+# 5. Start development server
 npm run dev
 ```
 
@@ -245,7 +209,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 #### Pre-Built APK
 
-You can download the pre-built APK directly from our releases:
+Download the pre-built release package directly from GitHub:
 👉 **[Download APFood-student-v1.0.0.apk](https://github.com/cloudywalnut/APFood/releases/download/v1.0.0/APFood-student-v1.0.0.apk)**
 
 #### Building the APK from Source
