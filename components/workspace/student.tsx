@@ -252,9 +252,7 @@ function MealOptions({
           const exists = items.some((line) => line.itemId === item.id && !line.extra);
           const next = exists
             ? items.map((line) =>
-                line.itemId === item.id && !line.extra
-                  ? { ...line, quantity: line.quantity + quantity }
-                  : line,
+                line.itemId === item.id && !line.extra ? { ...line, quantity: line.quantity + quantity } : line,
               )
             : [...items, { itemId: item.id, vendorId: item.vendor_id, quantity, extra: false }];
           setBusy(true);
@@ -285,8 +283,7 @@ function MealOptions({
         )}
         <ErrorMessage message={error} />
         <button className="button primary" disabled={maximum < 1 || busy || !store.ready}>
-          {busy ? "Saving…" : "Add to cart"} ·{" "}
-          {money((item.price_sen - item.discount_sen) * quantity)}
+          {busy ? "Saving…" : "Add to cart"} · {money((item.price_sen - item.discount_sen) * quantity)}
         </button>
       </form>
     </Modal>

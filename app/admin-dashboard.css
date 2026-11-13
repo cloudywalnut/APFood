@@ -1386,7 +1386,9 @@
   justify-content: center;
   background: #fffefa;
   opacity: 1;
-  transition: opacity 0.35s ease, visibility 0.35s ease;
+  transition:
+    opacity 0.35s ease,
+    visibility 0.35s ease;
 }
 .ops-loading-fadeout {
   opacity: 0;
@@ -1448,8 +1450,12 @@
   animation: ops-bar-sweep 1.4s ease-in-out infinite;
 }
 @keyframes ops-bar-sweep {
-  0%   { transform: translateX(-120%); }
-  100% { transform: translateX(280%); }
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(280%);
+  }
 }
 
 /* ── Admin FIF AI floating assistant ───────────────────────────────────── */
@@ -1470,7 +1476,9 @@
   font-size: 13px;
   font-weight: 700;
   box-shadow: 0 8px 22px #3b2a1e26;
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    background-color 0.15s ease;
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -1517,8 +1525,14 @@
   animation: none;
 }
 @keyframes admin-fif-pop {
-  from { opacity: 0; transform: translateY(8px) scale(0.96); }
-  to   { opacity: 1; transform: none; }
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 .admin-fif-head {
   display: flex;

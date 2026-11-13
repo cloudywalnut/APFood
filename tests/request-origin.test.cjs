@@ -38,10 +38,7 @@ test("mutation origins stay exact in production and accept same-origin loopback 
       "https://apfoods.vercel.app, https://conceptsquad.my, https://apfoods-*.vercel.app";
     assert.equal(allowed("https://apfoods.vercel.app/api/orders", "https://apfoods.vercel.app"), true);
     assert.equal(allowed("https://conceptsquad.my/api/orders", "https://conceptsquad.my"), true);
-    assert.equal(
-      allowed("https://apfoods.vercel.app/api/orders", "https://apfoods-preview-abc123.vercel.app"),
-      true,
-    );
+    assert.equal(allowed("https://apfoods.vercel.app/api/orders", "https://apfoods-preview-abc123.vercel.app"), true);
     assert.equal(allowed("https://apfoods.vercel.app/api/orders", "https://attacker-apfoods.vercel.app"), false);
     assert.equal(allowed("https://apfoods.vercel.app/api/orders", "https://evil.test"), false);
   } finally {

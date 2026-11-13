@@ -54,7 +54,12 @@ export async function runFifChat(
       if (result.ok) return { ...result, provider, failures };
       lastResult = result;
       failures.push({ provider, reason: result.failure ?? "No answer" });
-      if (result.failure && !["UNAUTHORIZED", "FORBIDDEN", "RATE_LIMIT", "SERVICE_UNAVAILABLE", "DEADLINE_EXCEEDED"].some(f => result.failure?.includes(f))) {
+      if (
+        result.failure &&
+        !["UNAUTHORIZED", "FORBIDDEN", "RATE_LIMIT", "SERVICE_UNAVAILABLE", "DEADLINE_EXCEEDED"].some((f) =>
+          result.failure?.includes(f),
+        )
+      ) {
         break;
       }
     }

@@ -68,11 +68,7 @@ export function AppSplashScreen() {
     >
       <div className="ops-loading-brand">
         <div className="ops-loading-logo-row">
-          <img
-            src="/brand/apfoods-wordmark-v1.png"
-            alt="AP Food"
-            className="ops-loading-wordmark"
-          />
+          <img src="/brand/apfoods-wordmark-v1.png" alt="AP Food" className="ops-loading-wordmark" />
           <span className="ops-loading-sep" aria-hidden>
             ×
           </span>

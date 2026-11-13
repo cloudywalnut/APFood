@@ -13,19 +13,37 @@ test("pickup credentials preserve leading zeroes, expire, and accept in-flight l
   await seedCatalogue();
   for (const credential of ["01234567", "A".repeat(32)]) {
     const quote = await call(student, "public.quote_checkout($1,$2)", [noodleBar, cart]);
-    const order = await call(student, "public.place_order($1,$2,$3,$4)", [quote.quoteId, quote.slots[1], "counter", randomUUID()]);
+    const order = await call(student, "public.place_order($1,$2,$3,$4)", [
+      quote.quoteId,
+      quote.slots[1],
+      "counter",
+      randomUUID(),
+    ]);
     for (const stage of ["accepted", "preparing", "ready"]) {
       await call(vendor, "public.transition_order($1,$2,$3)", [order.id, stage, null]);
     }
     const issued = await call(student, "public.issue_pickup_code($1)", [order.id]);
     assert.match(issued.code, /^\d{8}$/);
-    await db.query("update private.pickup_codes set expires_at=now()-interval '1 second' where order_id=$1", [order.id]);
-    await assert.rejects(() => call(vendor, "public.collect_order($1,$2,$3)", [order.id, issued.code, true]), /PICKUP_CODE_INVALID/);
+    await db.query("update private.pickup_codes set expires_at=now()-interval '1 second' where order_id=$1", [
+      order.id,
+    ]);
+    await assert.rejects(
+      () => call(vendor, "public.collect_order($1,$2,$3)", [order.id, issued.code, true]),
+      /PICKUP_CODE_INVALID/,
+    );
     // Force credentials that random generation cannot reliably produce in a test.
-    await db.query("update private.pickup_codes set code_hash=sha256(convert_to($2,'UTF8')),expires_at=now()+interval '5 minutes' where order_id=$1", [order.id, credential]);
+    await db.query(
+      "update private.pickup_codes set code_hash=sha256(convert_to($2,'UTF8')),expires_at=now()+interval '5 minutes' where order_id=$1",
+      [order.id, credential],
+    );
     await call(vendor, "public.collect_order($1,$2,$3)", [order.id, credential, true]);
-    await assert.rejects(() => call(vendor, "public.collect_order($1,$2,$3)", [order.id, credential, true]), /PICKUP_ALREADY_USED/);
-    const { rows } = await db.query("select count(*)::int receipts from public.cash_entries where order_id=$1", [order.id]);
+    await assert.rejects(
+      () => call(vendor, "public.collect_order($1,$2,$3)", [order.id, credential, true]),
+      /PICKUP_ALREADY_USED/,
+    );
+    const { rows } = await db.query("select count(*)::int receipts from public.cash_entries where order_id=$1", [
+      order.id,
+    ]);
     assert.equal(rows[0].receipts, 1);
   }
 });

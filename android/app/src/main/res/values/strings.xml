@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AP Food</string>
+    <string name="title_activity_main">AP Food</string>
+    <string name="package_name">my.conceptsquad.apfood</string>
+    <string name="custom_url_scheme">my.conceptsquad.apfood</string>
+</resources>

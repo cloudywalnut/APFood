@@ -248,16 +248,16 @@ function VendorOrderActions({ order, reload }: { order: OrderRow; reload: () => 
               <>
                 <label className="field">
                   Pickup code
-                    <input
-                      name="code"
-                      required
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      placeholder="8-digit pickup code"
-                      minLength={8}
-                      maxLength={32}
-                      pattern="[0-9]{8}|[a-fA-F0-9]{32}"
-                    />
+                  <input
+                    name="code"
+                    required
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="8-digit pickup code"
+                    minLength={8}
+                    maxLength={32}
+                    pattern="[0-9]{8}|[a-fA-F0-9]{32}"
+                  />
                 </label>
                 {order.payment === "counter" && (
                   <label className="check">

@@ -9,6 +9,7 @@ import { createApiClient, apiClient } from "../../lib/backend/client";
 import { RoleHero } from "../ui/role-hero";
 import { useHostedSession } from "../hosted/session-provider";
 import { canUseWorkspace } from "../../lib/login-routing";
+import { isNativeMobile } from "../../lib/native-mobile";
 import { clearStudentFifChats } from "../../lib/student-fif-chat-storage";
 
 export type Session = Awaited<ReturnType<typeof apiClient.session>>;
@@ -126,7 +127,9 @@ export function RemoteStatus({ error, reload }: { error?: unknown; reload: () =>
         <div className="ops-loading-brand">
           <div className="ops-loading-logo-row">
             <img src="/brand/apfoods-wordmark-v1.png" alt="AP Food" className="ops-loading-wordmark" />
-            <span className="ops-loading-sep" aria-hidden>×</span>
+            <span className="ops-loading-sep" aria-hidden>
+              ×
+            </span>
             <span className="ops-loading-fif">FIF AI</span>
           </div>
           <div className="ops-loading-bar-track" aria-hidden>
@@ -190,7 +193,8 @@ export function AuthFrame({ children, authRole }: { children: ReactNode; authRol
 }
 
 function PortalLinks({ session }: { session: Session }) {
-  const available = roles.filter((role) => canUseWorkspace(session, role));
+  const native = isNativeMobile();
+  const available = roles.filter((role) => canUseWorkspace(session, role) && (!native || role === "student"));
   return available.length ? (
     <div className="entrances auth-entrances">
       {available.map((role) => (
@@ -200,7 +204,11 @@ function PortalLinks({ session }: { session: Session }) {
       ))}
     </div>
   ) : (
-    <p>This account has no AP Food membership.</p>
+    <p>
+      {native
+        ? "The mobile app is exclusively for students. Please use a desktop web browser for vendor and admin workspaces."
+        : "This account has no AP Food membership."}
+    </p>
   );
 }
 
@@ -284,6 +292,25 @@ export function WorkspaceAccess({ role, children }: { role: Role; children: (ses
         <h1>Account suspended</h1>
         <p>Contact cafeteria support to review your account.</p>
         <SignOut />
+      </AuthFrame>
+    );
+  if (role !== "student" && isNativeMobile())
+    return (
+      <AuthFrame authRole="student">
+        <div className="auth-heading">
+          <span className="section-label">APFoods Mobile</span>
+          <h1>Student App Only</h1>
+          <p>
+            The mobile app is exclusively for students and campus pickups. Please access the{" "}
+            {role === "admin" ? "Admin Command Centre" : "Vendor Kitchen Board"} using a desktop web browser.
+          </p>
+        </div>
+        <div className="stack">
+          <Link className="button primary" href="/app">
+            Open Student Marketplace
+          </Link>
+          <SignOut />
+        </div>
       </AuthFrame>
     );
   if (!canUseWorkspace(session.value, role))

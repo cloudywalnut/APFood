@@ -259,16 +259,8 @@ export function BasketCheckout({ store }: { store: Store }) {
                     {slots.map((value, index) => {
                       const isSelected = chosenSlot === value;
                       return (
-                        <label
-                          key={value}
-                          className={`slot-option ${isSelected ? "slot-option-selected" : ""}`}
-                        >
-                          <input
-                            type="radio"
-                            name="pickup"
-                            checked={isSelected}
-                            onChange={() => setSlot(value)}
-                          />
+                        <label key={value} className={`slot-option ${isSelected ? "slot-option-selected" : ""}`}>
+                          <input type="radio" name="pickup" checked={isSelected} onChange={() => setSlot(value)} />
                           <span>
                             <strong>{pickupWindow(value)}</strong>
                             {index === 0 && <small>Earliest available</small>}
@@ -280,7 +272,9 @@ export function BasketCheckout({ store }: { store: Store }) {
                   {chosenSlot && (
                     <div className="checkout-slot-confirmed" role="status">
                       <Clock3 size={15} aria-hidden />
-                      <span>Scheduled for <strong>{pickupWindow(chosenSlot)}</strong></span>
+                      <span>
+                        Scheduled for <strong>{pickupWindow(chosenSlot)}</strong>
+                      </span>
                     </div>
                   )}
                 </div>

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, LogOut, Settings, UserRound } from "lucide-react";
 import { createApiClient } from "../lib/backend/client";
 import { loginDestination } from "../lib/login-routing";
+import { isNativeMobile } from "../lib/native-mobile";
 import { clearStudentFifChats } from "../lib/student-fif-chat-storage";
 import { useHostedSession } from "./hosted/session-provider";
 
@@ -36,7 +37,7 @@ export function AccountMenu() {
     };
   }, [open]);
   if (!session) return null;
-  const base = loginDestination(session);
+  const base = isNativeMobile() ? "/app" : loginDestination(session);
   return (
     <div className="ap-account-menu" ref={ref}>
       <button

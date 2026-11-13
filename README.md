@@ -1,63 +1,234 @@
-# AP Food + FIF
+# AP Food + FIF AI
 
-A campus food pickup app for students, stall vendors and cafeteria administrators, backed by Supabase. Stalls, orders and payments in the demo project are fictional.
+<div align="center">
+  <img src="public/brand/apfoods-wordmark-v1.png" alt="AP Food Logo" width="280" />
+  <p><strong>Smart Campus Food-Court Pickup Platform & AI Intelligence Suite</strong></p>
+  <p>
+    Built with <strong>Next.js</strong>, <strong>Capacitor</strong>, <strong>Supabase</strong>, and <strong>Google Gemini</strong>.
+  </p>
+</div>
 
-Docs: [product scope](docs/MVP.md), [engineering overview](docs/HANDOFF.md), [backend guide](docs/BACKEND.md) and [email setup](docs/EMAIL_SETUP.md).
+---
 
-## Run locally
+## Overview
 
-Use Node.js 22 or later.
+**AP Food** is a production-grade campus food-court ordering and kitchen-management ecosystem designed for Asia Pacific University (APU). It eliminates long cafeteria rush queues through pre-ordering, scheduled pickup windows, synchronized multi-stall carts, and **FIF AI** (*Food Intelligence Framework*) — an intelligent copilot suite tailored for students, food-stall vendors, and cafeteria administrators.
 
-```sh
+The project features two seamlessly unified experiences:
+1. **The Web Platform**: A responsive web portal hosting the student storefront alongside the high-throughput **Vendor Kitchen Board** and the **Administrator Command Centre**.
+2. **The Standalone Android Mobile App**: A native Capacitor Android APK designed exclusively for students to quickly order lunch, track live pickup stages, and converse with FIF AI on the go.
+
+---
+
+## Key Features
+
+### 🛒 1. Student Campus Marketplace & Multi-Stall Cart
+- **Cross-Stall Ordering**: Add a chicken noodle bowl from the Chinese counter and an iced kopi from the Malay counter into a single checkout flow.
+- **Scheduled Pickups**: Reserve meals ahead with selectable pickup time slots matched to lecture breaks.
+- **Live Order Tracking**: Visual 4-stage tracking (*Placed &rarr; Accepted &rarr; Preparing &rarr; Ready*) with an 8-digit pickup code and QR validation.
+- **Smart Queue & Traffic Insights**: Real-time traffic heatmaps and wait forecasts so students avoid peak queues.
+
+### 🤖 2. FIF AI (Food Intelligence Framework)
+- **Student Assistant**: Conversational AI inside the mobile app and web to find budget deals, query order statuses (*"Where is my order?"*), and suggest low-queue meals.
+- **Vendor Copilot**: Proposes inventory adjustments, menu price optimizations, and prep timing based on live order velocity and historical demand.
+- **Admin Strategic Insights**: Recommends cafeteria-wide operational fixes with bound financial models and verifiable evidence snapshots.
+
+### 🍳 3. Vendor Kitchen Board & Operations
+- **Live Bump Bar**: Real-time order dispatch board for kitchen staff with audible alerts and one-tap stage progression.
+- **Stock & Menu Control**: Instant 86-ing (marking sold out), portion limits, and prep-time calibration.
+- **Sales & Rush Hour Analytics**: Transparent cashflow breakdown and hourly pickup distribution charts.
+
+### 📊 4. Cafeteria Administrator Command Centre
+- **Financial Desk**: Campus-wide cashflow bridge, collections audit, and settlement reporting.
+- **Audit & Export**: Full PDF and CSV report generators with formula protection.
+- **Stall Oversight**: Performance benchmarking, tenant health metrics, and campus traffic forecasting.
+
+---
+
+## Web vs Mobile App (Side-by-Side)
+
+### 1. Student Marketplace & Food Discovery
+Students browse active counters, search by cuisine, and access meal deals.
+
+| Web Application (Desktop) | Mobile Android App (Standalone APK) |
+| :---: | :---: |
+| <img src="docs/screenshots/web-marketplace.png" width="520" alt="Web Marketplace" /> | <img src="docs/screenshots/mobile-marketplace.png" width="280" alt="Mobile Marketplace" /> |
+
+---
+
+### 2. FIF AI Campus Assistant
+Conversational assistant providing instant answers, budget meal discovery, and live order tracking.
+
+| Web FIF AI Assistant | Mobile App FIF AI Assistant |
+| :---: | :---: |
+| <img src="docs/screenshots/web-fif-ai.png" width="520" alt="Web FIF AI" /> | <img src="docs/screenshots/mobile-fif-ai.png" width="280" alt="Mobile FIF AI" /> |
+
+---
+
+### 3. Vendor Kitchen & Operations Board
+Kitchen staff track upcoming orders, manage active menu stock, and review AI inventory recommendations.
+
+| Web Vendor Operations Board | Mobile Vendor Overview |
+| :---: | :---: |
+| <img src="docs/screenshots/web-vendor-dashboard.png" width="520" alt="Web Vendor Board" /> | <img src="docs/screenshots/mobile-vendor-dashboard.png" width="280" alt="Mobile Vendor" /> |
+
+---
+
+### 4. Cafeteria Administrator Command Centre
+Cafeteria management monitors campus cashflow, collection rates, vendor compliance, and rush traffic.
+
+| Web Command Centre | Mobile Responsive View |
+| :---: | :---: |
+| <img src="docs/screenshots/web-admin-command.png" width="520" alt="Web Admin Command" /> | <img src="docs/screenshots/mobile-admin-command.png" width="280" alt="Mobile Admin" /> |
+
+---
+
+## Demo Credentials
+
+All test accounts share the unified password: **`APFoods123!`**
+
+> [!NOTE]
+> The **Android Mobile App** is dedicated exclusively to the student experience (`student@apfoods.local`). Vendor and Administrator workspaces are optimized for desktop displays and should be accessed via a web browser.
+
+| Role | Email | Password | Intended Portal | Capabilities |
+| :--- | :--- | :--- | :--- | :--- |
+| **Student** | `student@apfoods.local` | `APFoods123!` | Mobile App / `/app` | Marketplace, Multi-stall cart, Scheduled pickups, Student FIF AI |
+| **Chinese Stall** | `chinese@apfoods.local` | `APFoods123!` | Web `/vendor` | Kitchen bump bar, Noodle bar menu, Stock & Copilot |
+| **Malay Stall** | `malay@apfoods.local` | `APFoods123!` | Web `/vendor` | Brew & Bites kitchen, Drinks & snacks stock |
+| **Japan & Korea** | `japanese@apfoods.local` | `APFoods123!` | Web `/vendor` | Green Bowl Kitchen orders, Bowls & Bento prep |
+| **Indian Stall** | `indian@apfoods.local` | `APFoods123!` | Web `/vendor` | Indian counter kitchen board & dish availability |
+| **Arab Shawarma** | `shawarma@apfoods.local` | `APFoods123!` | Web `/vendor` | Shawarma & wrap live preparation queue |
+| **Administrator** | `admin@apfoods.local` | `APFoods123!` | Web `/admin` | Campus command centre, Financial audits, Traffic & PDF exports |
+
+---
+
+## Installation & Setup Guide
+
+### Option A: Running the Web Application Locally
+
+#### Prerequisites
+- **Node.js**: v22.0.0 or higher
+- **npm**: v10.0.0 or higher
+
+#### 1. Clone the repository
+```bash
 git clone https://github.com/cloudywalnut/APFood.git
 cd APFood
-npm ci
-cp .env.example .env.local
-# Add the server credentials shared privately by the project owner.
-npm run dev
 ```
 
-In Windows PowerShell, use `Copy-Item .env.example .env.local` instead of `cp`. Open http://localhost:3000; public browsing is available at `/app`, with sign-in at `/auth/login`. Accounts automatically open their student, vendor or admin workspace.
+#### 2. Install dependencies
+```bash
+npm ci
+```
 
-The tracked `.env` contains **public development defaults only**: the shared Supabase project URL, browser publishable key, project ref and local app origin. Your ignored `.env.local` overrides these values. Add `SUPABASE_SECRET_KEY` there for sign-in and protected server features, and `GEMINI_API_KEY` for Gemini-backed FIF. Obtain these privately from the project owner; they are not in GitHub. Do not add private keys or database passwords to the tracked `.env`.
+#### 3. Environment configuration
+Copy the example environment file:
+```bash
+# On Linux/macOS
+cp .env.example .env.local
 
-For the existing shared project, the database, sample accounts and photos are already provisioned. **Do not run migration or seed commands just to start the app.** Ask the project owner for current sample logins. The sections below are for maintainers setting up a separate Supabase project; reseeding can reset shared catalogue data and fixture passwords.
+# On Windows PowerShell
+Copy-Item .env.example .env.local
+```
 
-Both `main` and `Keyaan` contain the shared implementation. See [the handoff](docs/HANDOFF.md), [menu photo setup](docs/MENU_IMAGES.md) and [order fulfilment checks](docs/ORDER_FULFILMENT_CHECK.md) for recent features and verification.
+Configure your `.env.local` with the Supabase and Gemini credentials:
+```env
+NEXT_PUBLIC_SUPABASE_URL="https://<your-project>.supabase.co"
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="<your-publishable-key>"
+SUPABASE_SECRET_KEY="<your-secret-key>"
+GEMINI_API_KEY="<your-gemini-api-key>"
+```
 
-## Set up a Supabase project
+#### 4. Run the development server
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-See the [backend guide](docs/BACKEND.md) for the full steps. In short:
+---
 
-1. Put the project URL, publishable key, secret key, `DATABASE_URL` and project ref in `.env.local`.
-2. Apply the schema and catalogue: `npx supabase@3 db push --remote="$DATABASE_URL" --include-seed`.
-3. Create the demo accounts and order history: `npm run seed:demo-users`.
+### Option B: Building & Running the Android Mobile App
 
-Demo data lives in [supabase/fixtures/](supabase/fixtures/): `demo-accounts.json` (accounts and shared password) and `demo-catalogue.json` (stalls and menu). `supabase/seed.sql` holds the same catalogue for fresh projects.
+The native Android project is scaffolded using **Capacitor 8** in the `android/` directory and points directly to the live production deployment.
 
-## Checks
+#### Prerequisites
+- **Android Studio** (Koala / Ladybug or newer)
+- **Android SDK & Build-Tools** (API 34 / 35)
+- **Java JDK**: JDK 17 or JDK 21
 
-| Command | What it does |
-| --- | --- |
-| `npm run typecheck` | TypeScript check |
-| `npm run build` | Production build |
-| `npm test` | Unit tests for order tracking, report export, login routing, preferences and traffic load |
-| `npm run test:backend` | Runs the real SQL migrations in in-memory Postgres and tests policies, checkout, pickup, accounts and FIF |
-| `npm run format` / `npm run format:check` | Format the code with Prettier, or check formatting |
-| `npm run test:hosted` | Smoke test against the configured Supabase project (needs `AP_FOOD_HOSTED_SMOKE=1`) |
+#### 1. Build the Debug APK via Gradle
+From the project root:
+```bash
+cd android
+./gradlew assembleDebug
+```
+On Windows PowerShell:
+```powershell
+cd android
+.\gradlew.bat assembleDebug
+```
 
-## Code map
+The compiled APK will be output at:
+```
+android/app/build/outputs/apk/debug/app-debug.apk
+```
 
-| Area | Location |
-| --- | --- |
-| Routes | `app/[[...segments]]/page.tsx`, `app/api/[[...resource]]/route.ts`, `app/auth/callback/route.ts`, `proxy.ts` |
-| Student, vendor and admin screens | `components/workspace/` |
-| Storefront, map and shared UI | `components/storefront/`, `components/cafeteria/`, `components/ui/`, `components/shared.tsx` |
-| API handlers and Supabase access | `lib/backend/` |
-| Order, money and date helpers | `lib/orders.ts` |
-| Database schema and seed | `supabase/migrations/`, `supabase/seed.sql`, `supabase/fixtures/` |
-| Setup scripts | `scripts/seed-demo-users.mjs`, `scripts/bootstrap-admin.mjs`, `scripts/check-hosted.mjs` |
+#### 2. Install and Run on an Emulator or Physical Device
+Ensure ADB is connected to your device (`adb devices`):
+```bash
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+adb shell am start -n my.conceptsquad.apfood/.MainActivity
+```
 
-## Fonts
+#### 3. Open in Android Studio (Optional)
+To inspect layouts, configure release keystores, or run from the IDE:
+```bash
+npx cap open android
+```
 
-Roboto is served locally from `public/fonts/` with its licence file.
+---
+
+## Quality Checks & Testing
+
+The project maintains comprehensive end-to-end and unit test suites:
+
+| Command | Purpose |
+| :--- | :--- |
+| `npm run typecheck` | Strict TypeScript compilation & route type generation check |
+| `npm test` | Unit tests for order state machine, analytics reconciliation, and FIF AI logic |
+| `npm run test:backend` | Real SQL migration verification in embedded Postgres (policies, RPCs, transactions) |
+| `npm run build` | Full production Next.js build verification |
+| `npm run format:check` | Prettier code style verification |
+
+---
+
+## Project Structure
+
+```
+APFood/
+├── android/                   # Standalone Capacitor native Android Studio project
+│   ├── app/build/outputs/apk/ # Generated .apk binaries
+│   └── app/src/main/          # Native Android manifests, icons, and themes
+├── app/                       # Next.js App Router pages & API handlers
+│   ├── [[...segments]]/       # Dynamic workspace router (/app, /vendor, /admin)
+│   └── api/                   # Serverless routes for orders, FIF AI & analytics
+├── components/                # React UI components
+│   ├── storefront/            # Student marketplace, cart & student FIF AI
+│   ├── workspace/             # Student, Vendor & Admin workspace shells
+│   └── hosted/                # Kitchen bump bar, charts & scenario studios
+├── docs/                      # Technical documentation & screenshots
+│   └── screenshots/           # Side-by-side web & mobile visual assets
+├── lib/                       # Domain logic, Supabase client, and AI runtimes
+│   ├── backend/               # Server-side contracts, RPCs & FIF AI engine
+│   ├── native-mobile.ts       # Capacitor native runtime detector
+│   └── orders.ts              # Order stage validation & pricing helpers
+├── public/                    # Static assets, fonts, brand logos & menus
+├── supabase/                  # Database migrations, seed data & RLS policies
+└── capacitor.config.ts        # Capacitor mobile app configuration
+```
+
+---
+
+<div align="center">
+  <small>&copy; 2026 AP Food & ConceptSquad. All rights reserved.</small>
+</div>

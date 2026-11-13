@@ -116,7 +116,10 @@ test("student order tabs filter before limiting history and retain owner scoping
     orderFilters = [];
     const response = await handleRequest(new Request("https://ap-food.test/api/orders?view=" + view), ["orders"]);
     assert.equal(response.status, 200);
-    assert.deepEqual(orderFilters, [["student_id", userId], ["status", statuses]]);
+    assert.deepEqual(orderFilters, [
+      ["student_id", userId],
+      ["status", statuses],
+    ]);
   }
   const invalid = await handleRequest(new Request("https://ap-food.test/api/orders?view=invalid"), ["orders"]);
   assert.equal(invalid.status, 400);
@@ -124,10 +127,22 @@ test("student order tabs filter before limiting history and retain owner scoping
 
 test("collection accepts eight-digit codes including leading zeroes and rejects invalid lengths", async () => {
   memberships = [{ role: "vendor", vendor_id: "campus-noodle-bar" }];
-  for (const [code, expected] of [["01234567", 200], ["12345678", 200], ["A".repeat(32), 200], ["1234567", 400], ["123456789", 400], ["12ABC678", 400]]) {
-    const response = await handleRequest(new Request("https://ap-food.test/api/vendor/orders/" + userId + "/collect", {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code, counterConfirmed: true }),
-    }), ["vendor", "orders", userId, "collect"]);
+  for (const [code, expected] of [
+    ["01234567", 200],
+    ["12345678", 200],
+    ["A".repeat(32), 200],
+    ["1234567", 400],
+    ["123456789", 400],
+    ["12ABC678", 400],
+  ]) {
+    const response = await handleRequest(
+      new Request("https://ap-food.test/api/vendor/orders/" + userId + "/collect", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ code, counterConfirmed: true }),
+      }),
+      ["vendor", "orders", userId, "collect"],
+    );
     assert.equal(response.status, expected, code);
   }
 });

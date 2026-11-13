@@ -360,7 +360,9 @@
   border-color: #c9931c !important;
   background: linear-gradient(135deg, #fcedbf 0%, #fae4a4 100%) !important;
   color: #33200f !important;
-  box-shadow: 0 0 0 3px rgba(231, 177, 35, 0.28), 0 3px 8px rgba(90, 61, 20, 0.1) !important;
+  box-shadow:
+    0 0 0 3px rgba(231, 177, 35, 0.28),
+    0 3px 8px rgba(90, 61, 20, 0.1) !important;
   transform: translateY(-1px);
 }
 
@@ -399,8 +401,14 @@
 }
 
 @keyframes fadeInSlot {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 @media (max-width: 600px) {
   .checkout-mode-grid {

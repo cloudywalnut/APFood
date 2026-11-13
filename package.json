@@ -16,9 +16,15 @@
     "test:hosted": "node --env-file=.env.local scripts/check-hosted.mjs",
     "test": "tsc -p tests/tsconfig.json && node --test tests/*.test.cjs",
     "format": "prettier --write app components lib scripts tests proxy.ts next.config.ts",
-    "format:check": "prettier --check app components lib scripts tests proxy.ts next.config.ts"
+    "format:check": "prettier --check app components lib scripts tests proxy.ts next.config.ts",
+    "cap:sync": "cap sync android",
+    "cap:build": "cd android && .\\gradlew.bat assembleDebug",
+    "cap:open": "cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.119.0",
     "lucide-react": "^1.71.0",

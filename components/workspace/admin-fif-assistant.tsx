@@ -74,7 +74,9 @@ export function AdminFifAssistant({ scope }: { scope?: AdminScope }) {
           setMessages(stored);
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setRestoredFor(user);
   }, [user]);
 
@@ -83,7 +85,9 @@ export function AdminFifAssistant({ scope }: { scope?: AdminScope }) {
     if (!user || restoredFor !== user) return;
     try {
       sessionStorage.setItem(historyKey(user), JSON.stringify(messages.slice(-maxHistory * 2)));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [messages, user, restoredFor]);
 
   // Viewport + saved position
@@ -96,7 +100,12 @@ export function AdminFifAssistant({ scope }: { scope?: AdminScope }) {
       setLauncherSize({ width: rect?.width ?? 112, height: rect?.height ?? 44 });
       if (rect) setLauncherPosition({ left: rect.left, top: rect.top });
       setPos((p) =>
-        p ? { left: clamp(p.left, 12, w - (rect?.width ?? 112) - 12), top: clamp(p.top, 12, h - (rect?.height ?? 44) - 12) } : p,
+        p
+          ? {
+              left: clamp(p.left, 12, w - (rect?.width ?? 112) - 12),
+              top: clamp(p.top, 12, h - (rect?.height ?? 44) - 12),
+            }
+          : p,
       );
     };
     sync();
@@ -112,7 +121,9 @@ export function AdminFifAssistant({ scope }: { scope?: AdminScope }) {
           });
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     window.addEventListener("resize", sync);
     return () => window.removeEventListener("resize", sync);
   }, []);
@@ -127,13 +138,19 @@ export function AdminFifAssistant({ scope }: { scope?: AdminScope }) {
 
   useEffect(() => {
     if (!pos) return;
-    try { sessionStorage.setItem(storageKey, JSON.stringify(pos)); } catch { /* ignore */ }
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(pos));
+    } catch {
+      /* ignore */
+    }
   }, [pos]);
 
   useEffect(() => {
     if (!open) return;
     inputRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
@@ -158,7 +175,10 @@ export function AdminFifAssistant({ scope }: { scope?: AdminScope }) {
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
       if (!moved && Math.hypot(dx, dy) < 6) return;
-      if (!moved) { moved = true; setDragging(true); }
+      if (!moved) {
+        moved = true;
+        setDragging(true);
+      }
       setPos({
         left: clamp(originLeft + dx, 12, window.innerWidth - rect.width - 12),
         top: clamp(originTop + dy, 12, window.innerHeight - rect.height - 12),
@@ -197,7 +217,11 @@ export function AdminFifAssistant({ scope }: { scope?: AdminScope }) {
     } catch (err) {
       setMessages((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), role: "assistant", text: err instanceof Error ? err.message : "Something went wrong. Please try again." },
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          text: err instanceof Error ? err.message : "Something went wrong. Please try again.",
+        },
       ]);
     } finally {
       setPending(false);
@@ -260,7 +284,11 @@ export function AdminFifAssistant({ scope }: { scope?: AdminScope }) {
                 aria-label="New conversation"
                 title="New conversation"
                 disabled={pending}
-                onClick={() => { setMessages([welcome]); setDraft(""); inputRef.current?.focus(); }}
+                onClick={() => {
+                  setMessages([welcome]);
+                  setDraft("");
+                  inputRef.current?.focus();
+                }}
               >
                 <RotateCcw size={16} aria-hidden />
               </button>
@@ -285,13 +313,17 @@ export function AdminFifAssistant({ scope }: { scope?: AdminScope }) {
             ))}
             {pending && (
               <div className="admin-fif-msg admin-fif-msg-assistant" role="status">
-                <div className="admin-fif-msg-bubble"><p>Checking data…</p></div>
+                <div className="admin-fif-msg-bubble">
+                  <p>Checking data…</p>
+                </div>
               </div>
             )}
             {messages.length === 1 && (
               <div className="admin-fif-prompts">
                 {starterPrompts.map((p) => (
-                  <button type="button" key={p} onClick={() => void send(p)}>{p}</button>
+                  <button type="button" key={p} onClick={() => void send(p)}>
+                    {p}
+                  </button>
                 ))}
               </div>
             )}
@@ -299,7 +331,10 @@ export function AdminFifAssistant({ scope }: { scope?: AdminScope }) {
 
           <form
             className="admin-fif-form"
-            onSubmit={(e) => { e.preventDefault(); void send(draft); }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              void send(draft);
+            }}
           >
             <input
               ref={inputRef}
@@ -326,7 +361,10 @@ export function AdminFifAssistant({ scope }: { scope?: AdminScope }) {
         aria-label={open ? "Close FIF AI" : "Open FIF AI"}
         onPointerDown={startDrag}
         onClick={() => {
-          if (suppressClick.current) { suppressClick.current = false; return; }
+          if (suppressClick.current) {
+            suppressClick.current = false;
+            return;
+          }
           setOpen((v) => !v);
         }}
       >

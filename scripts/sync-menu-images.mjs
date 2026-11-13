@@ -22,12 +22,18 @@ for (const entry of manifest) {
     throw new Error(`Bundled photo failed verification: ${entry.itemId}`);
   }
 }
-const api = createClient(url, process.env.SUPABASE_SECRET_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
-const { data: items, error } = await api.from("menu_items").select("id,vendor_id,name,image").not("id", "like", "cancel-check-%");
+const api = createClient(url, process.env.SUPABASE_SECRET_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
+const { data: items, error } = await api
+  .from("menu_items")
+  .select("id,vendor_id,name,image")
+  .not("id", "like", "cancel-check-%");
 if (error) throw new Error("Cannot read menu catalogue: " + error.code);
 const mapped = new Map(manifest.map((entry) => [entry.itemId, entry]));
 const missing = items.filter((item) => !mapped.has(item.id));
-if (missing.length) throw new Error("Add images for unmapped menu IDs first: " + missing.map((item) => item.id).join(", "));
+if (missing.length)
+  throw new Error("Add images for unmapped menu IDs first: " + missing.map((item) => item.id).join(", "));
 const updates = [];
 for (const item of items) {
   const entry = mapped.get(item.id);
@@ -41,14 +47,33 @@ if (apply) {
   const backup = new URL(`.env.menu-image-backup-${Date.now()}.json`, root);
   await writeFile(backup, JSON.stringify({ project, items }, null, 2), { mode: 0o600 });
   for (const item of updates) {
-    let query = api.from("menu_items").update({ image: item.nextImage }).eq("id", item.id).eq("vendor_id", item.vendor_id).eq("name", item.name);
+    let query = api
+      .from("menu_items")
+      .update({ image: item.nextImage })
+      .eq("id", item.id)
+      .eq("vendor_id", item.vendor_id)
+      .eq("name", item.name);
     query = item.image === null ? query.is("image", null) : query.eq("image", item.image);
     const { data, error: updateError } = await query.select("id");
     if (updateError || data?.length !== 1) throw new Error(`Image changed concurrently or could not save: ${item.id}`);
   }
 }
-const { data: verified, error: verifyError } = await api.from("menu_items").select("id,image").not("id", "like", "cancel-check-%");
+const { data: verified, error: verifyError } = await api
+  .from("menu_items")
+  .select("id,image")
+  .not("id", "like", "cancel-check-%");
 if (verifyError) throw new Error("Cannot verify menu images: " + verifyError.code);
-console.log(JSON.stringify({ project, applied: apply, totalItems: items.length, pendingImages: updates.length,
-  imagesPresent: verified.filter((item) => item.image?.trim()).length,
-  assetDirectory: fileURLToPath(new URL("public/food/menu/", root)) }, null, 2));
+console.log(
+  JSON.stringify(
+    {
+      project,
+      applied: apply,
+      totalItems: items.length,
+      pendingImages: updates.length,
+      imagesPresent: verified.filter((item) => item.image?.trim()).length,
+      assetDirectory: fileURLToPath(new URL("public/food/menu/", root)),
+    },
+    null,
+    2,
+  ),
+);

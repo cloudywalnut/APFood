@@ -18,11 +18,7 @@ export function matchesOriginPattern(origin: string, pattern: string): boolean {
   if (origin.toLowerCase() === normalizedPattern.toLowerCase()) return true;
   if (pattern.includes("*")) {
     const regexPattern =
-      "^" +
-      normalizedPattern
-        .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
-        .replace(/\*/g, "[a-z0-9-]+") +
-      "$";
+      "^" + normalizedPattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[a-z0-9-]+") + "$";
     if (new RegExp(regexPattern, "i").test(origin)) return true;
   }
   return false;

@@ -22,6 +22,7 @@ import { Brand, ErrorMessage, Footer } from "../shared";
 import { AuthFrame, messageOf, portalFor, RemoteStatus, type Role } from "./common";
 import { useHostedSession } from "../hosted/session-provider";
 import { canUseWorkspace, loginDestination } from "../../lib/login-routing";
+import { isNativeMobile } from "../../lib/native-mobile";
 
 const workspaceLabels: Record<Role, string> = {
   student: "Order campus food",
@@ -143,6 +144,19 @@ export function AuthScreen({ screen }: { screen: string }) {
               const session = await apiClient.signIn(email, password);
               if (session.profile.status !== "active") {
                 setError("Your account is suspended. Contact cafeteria support.");
+                return;
+              }
+              if (isNativeMobile()) {
+                const isStudent = session.memberships.some((entry) => entry.role === "student");
+                if (!isStudent) {
+                  setError(
+                    "The AP Food mobile app is exclusively for students. Please access vendor and administrator dashboards using a web browser.",
+                  );
+                  await apiClient.signOut();
+                  return;
+                }
+                router.push("/app");
+                router.refresh();
                 return;
               }
               router.push(loginDestination(session, next));
