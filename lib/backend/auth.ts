@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { BackendError, unwrap } from "./errors";
 import type { RequestClient } from "./supabase";
+import { isAllowedRequestOrigin, parseAllowedOrigins } from "./supabase";
 import { clearRecovery, hasRecovery } from "./recovery";
 
 export function privilegedClient() {
@@ -17,7 +18,22 @@ export function safeReturnPath(value: string | null) {
 }
 
 export function appOrigin(request: Request) {
-  return process.env.AP_FOOD_APP_ORIGIN || new URL(request.url).origin;
+  const originHeader = request.headers.get("origin");
+  if (originHeader && isAllowedRequestOrigin(request)) {
+    return originHeader;
+  }
+  const configured = parseAllowedOrigins(process.env.AP_FOOD_APP_ORIGIN);
+  if (configured.length > 0) {
+    const first = configured.find((entry) => !entry.includes("*")) || configured[0];
+    return /^https?:\/\//i.test(first) ? first : "https://" + first;
+  }
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto =
+    request.headers.get("x-forwarded-proto") || (request.url.startsWith("https") ? "https" : "http");
+  if (forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`;
+  }
+  return new URL(request.url).origin;
 }
 
 export async function authLimit(request: Request, action: string) {

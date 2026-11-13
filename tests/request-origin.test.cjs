@@ -27,6 +27,23 @@ test("mutation origins stay exact in production and accept same-origin loopback 
     process.env.AP_FOOD_APP_ORIGIN = "https://ap-food.example";
     assert.equal(allowed("http://localhost:3000/api/auth/session", "http://localhost:3000"), false);
     assert.equal(allowed("https://ap-food.example/api/auth/session", "https://ap-food.example"), true);
+
+    // Protocol-omitted domain normalisation
+    process.env.AP_FOOD_APP_ORIGIN = "apfoods.vercel.app";
+    assert.equal(allowed("https://apfoods.vercel.app/api/auth/session", "https://apfoods.vercel.app"), true);
+    assert.equal(allowed("https://apfoods.vercel.app/api/auth/session", "https://other.vercel.app"), false);
+
+    // Multiple comma-separated origins and wildcards
+    process.env.AP_FOOD_APP_ORIGIN =
+      "https://apfoods.vercel.app, https://conceptsquad.my, https://apfoods-*.vercel.app";
+    assert.equal(allowed("https://apfoods.vercel.app/api/orders", "https://apfoods.vercel.app"), true);
+    assert.equal(allowed("https://conceptsquad.my/api/orders", "https://conceptsquad.my"), true);
+    assert.equal(
+      allowed("https://apfoods.vercel.app/api/orders", "https://apfoods-preview-abc123.vercel.app"),
+      true,
+    );
+    assert.equal(allowed("https://apfoods.vercel.app/api/orders", "https://attacker-apfoods.vercel.app"), false);
+    assert.equal(allowed("https://apfoods.vercel.app/api/orders", "https://evil.test"), false);
   } finally {
     if (oldMode === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = oldMode;

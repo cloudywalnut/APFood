@@ -3,20 +3,55 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { BackendError } from "./errors";
 
+export function parseAllowedOrigins(configured?: string): string[] {
+  if (!configured) return [];
+  return configured
+    .split(/[,;\s]+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+export function matchesOriginPattern(origin: string, pattern: string): boolean {
+  if (!origin || !pattern) return false;
+  if (origin === pattern) return true;
+  const normalizedPattern = /^https?:\/\//i.test(pattern) ? pattern : "https://" + pattern;
+  if (origin.toLowerCase() === normalizedPattern.toLowerCase()) return true;
+  if (pattern.includes("*")) {
+    const regexPattern =
+      "^" +
+      normalizedPattern
+        .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+        .replace(/\*/g, "[a-z0-9-]+") +
+      "$";
+    if (new RegExp(regexPattern, "i").test(origin)) return true;
+  }
+  return false;
+}
+
 export function isAllowedRequestOrigin(request: Request) {
-  const requestOrigin = new URL(request.url).origin;
-  const allowed = process.env.AP_FOOD_APP_ORIGIN || requestOrigin;
   const origin = request.headers.get("origin");
-  if (origin === allowed) return true;
+  if (!origin) return false;
+
+  const requestOrigin = new URL(request.url).origin;
+  const configured = parseAllowedOrigins(process.env.AP_FOOD_APP_ORIGIN);
+
+  if (configured.length > 0) {
+    if (configured.some((pattern) => matchesOriginPattern(origin, pattern))) {
+      return true;
+    }
+  } else if (origin === requestOrigin) {
+    return true;
+  }
+
   if (process.env.NODE_ENV !== "development" || origin !== requestOrigin) return false;
   const loopback = new Set(["localhost", "127.0.0.1", "[::1]"]);
   try {
-    const configured = new URL(allowed);
+    const configuredUrl = new URL(configured[0] || requestOrigin);
     const incoming = new URL(requestOrigin);
     return (
-      loopback.has(configured.hostname) &&
+      loopback.has(configuredUrl.hostname) &&
       loopback.has(incoming.hostname) &&
-      ["http:", "https:"].includes(configured.protocol) &&
+      ["http:", "https:"].includes(configuredUrl.protocol) &&
       ["http:", "https:"].includes(incoming.protocol)
     );
   } catch {
