@@ -230,7 +230,6 @@ function MealOptions({
   added: () => void;
 }) {
   const [quantity, setQuantity] = useState(1);
-  const [extra, setExtra] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const items = (store.cart?.items ?? []).map((line) => ({ ...line, vendorId: line.vendorId ?? store.cart!.vendorId }));
@@ -250,14 +249,14 @@ function MealOptions({
         onSubmit={async (event) => {
           event.preventDefault();
           if (store.cart?.pending || !Number.isInteger(quantity) || quantity < 1 || quantity > maximum) return;
-          const exists = items.some((line) => line.itemId === item.id && line.extra === extra);
+          const exists = items.some((line) => line.itemId === item.id && !line.extra);
           const next = exists
             ? items.map((line) =>
-                line.itemId === item.id && line.extra === extra
+                line.itemId === item.id && !line.extra
                   ? { ...line, quantity: line.quantity + quantity }
                   : line,
               )
-            : [...items, { itemId: item.id, vendorId: item.vendor_id, quantity, extra }];
+            : [...items, { itemId: item.id, vendorId: item.vendor_id, quantity, extra: false }];
           setBusy(true);
           try {
             await store.save({ vendorId: store.cart?.vendorId ?? item.vendor_id, items: next });
@@ -269,10 +268,6 @@ function MealOptions({
           }
         }}
       >
-        <label className="check">
-          <input type="checkbox" checked={extra} onChange={(event) => setExtra(event.target.checked)} /> Add a side ·{" "}
-          {money(addonPrice)}
-        </label>
         {maximum > 0 ? (
           <label className="field">
             Quantity
@@ -291,7 +286,7 @@ function MealOptions({
         <ErrorMessage message={error} />
         <button className="button primary" disabled={maximum < 1 || busy || !store.ready}>
           {busy ? "Saving…" : "Add to cart"} ·{" "}
-          {money((item.price_sen - item.discount_sen + (extra ? addonPrice : 0)) * quantity)}
+          {money((item.price_sen - item.discount_sen) * quantity)}
         </button>
       </form>
     </Modal>

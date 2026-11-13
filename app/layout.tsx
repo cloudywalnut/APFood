@@ -1,6 +1,7 @@
 import { PreferenceCookies } from "../components/legal/cookie-preferences";
 import { HostedSessionProvider } from "../components/hosted/session-provider";
 import { ToastOutlet } from "../components/ui/toasts";
+import { AppSplashScreen } from "../components/workspace/ops-loading-screen";
 import type { Metadata } from "next";
 import "./globals.css";
 import "./account-menu.css";
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <link rel="preload" href="/fonts/roboto-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
       </head>
       <body>
+        <AppSplashScreen />
         <a className="skip" href="#main-content">
           Skip to content
         </a>

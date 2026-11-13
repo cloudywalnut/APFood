@@ -181,10 +181,23 @@ export function BasketCheckout({ store }: { store: Store }) {
       {cart.pending ? (
         <section className="panel stack">
           <h2>Recover your checkout</h2>
-          <p>Retry the saved request to confirm the original orders safely.</p>
-          <button className="button primary" disabled={busy} onClick={() => void run(place)}>
-            Retry the same checkout
-          </button>
+          <p>Retry the saved request to confirm the original orders safely, or cancel to start a new order.</p>
+          <div className="line wrap">
+            <button className="button primary" disabled={busy} onClick={() => void run(place)}>
+              Retry the same checkout
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              disabled={busy}
+              onClick={() => {
+                store.clearAttempt();
+                setQuotes([]);
+              }}
+            >
+              Start new checkout
+            </button>
+          </div>
         </section>
       ) : (
         <div className="checkout-layout">
