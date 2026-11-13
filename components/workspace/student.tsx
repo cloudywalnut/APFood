@@ -374,7 +374,30 @@ function Orders({ userId, defaultTab = "active" }: { userId: string; defaultTab?
 
 function OrderDetail({ id, userId }: { id: string; userId: string }) {
   const api = useApi();
-  const load = useCallback(() => api.order(id), [id, api]);
+  const load = useCallback(async () => {
+    // Retry up to 3 times with brief backoff for freshly placed orders
+    // to give database replicas/transactions a moment to settle.
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        return await api.order(id);
+      } catch (err) {
+        lastError = err;
+        if (
+          attempt < 2 &&
+          typeof err === "object" &&
+          err !== null &&
+          "status" in err &&
+          (err as { status?: number }).status === 404
+        ) {
+          await new Promise((r) => setTimeout(r, 250 * (attempt + 1)));
+          continue;
+        }
+        throw err;
+      }
+    }
+    throw lastError;
+  }, [id, api]);
   const result = useRemote(load);
   const catalogue = useRemote(apiClient.catalogue);
   const [credential, setCredential] = useState<Awaited<ReturnType<typeof apiClient.issuePickup>>>();

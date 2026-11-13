@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarClock, Zap } from "lucide-react";
+import { CalendarClock, Clock3, Zap } from "lucide-react";
 import { apiClient } from "../../lib/backend/client";
 import { isRejectedCheckout, useCart } from "../../lib/backend/cart";
 import { money } from "../../lib/orders";
@@ -240,23 +240,37 @@ export function BasketCheckout({ store }: { store: Store }) {
             {quotes.length > 0 &&
               mode === "later" &&
               (slots.length ? (
-                <fieldset className="slot-grid">
-                  <legend className="sr-only">Shared pickup time</legend>
-                  {slots.map((value, index) => (
-                    <label key={value} className="slot-option">
-                      <input
-                        type="radio"
-                        name="pickup"
-                        checked={chosenSlot === value}
-                        onChange={() => setSlot(value)}
-                      />
-                      <span>
-                        <strong>{pickupWindow(value)}</strong>
-                        {index === 0 && <small>Earliest available</small>}
-                      </span>
-                    </label>
-                  ))}
-                </fieldset>
+                <div className="checkout-schedule-picker">
+                  <fieldset className="slot-grid">
+                    <legend className="sr-only">Shared pickup time</legend>
+                    {slots.map((value, index) => {
+                      const isSelected = chosenSlot === value;
+                      return (
+                        <label
+                          key={value}
+                          className={`slot-option ${isSelected ? "slot-option-selected" : ""}`}
+                        >
+                          <input
+                            type="radio"
+                            name="pickup"
+                            checked={isSelected}
+                            onChange={() => setSlot(value)}
+                          />
+                          <span>
+                            <strong>{pickupWindow(value)}</strong>
+                            {index === 0 && <small>Earliest available</small>}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </fieldset>
+                  {chosenSlot && (
+                    <div className="checkout-slot-confirmed" role="status">
+                      <Clock3 size={15} aria-hidden />
+                      <span>Scheduled for <strong>{pickupWindow(chosenSlot)}</strong></span>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <p className="error">No shared pickup window fits all stalls. Update your cart or try again later.</p>
               ))}
